@@ -1,12 +1,26 @@
-# React + Vite
+# Frontend de Khaleesi System
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Este directorio contiene el código fuente del frontend para la aplicación Khaleesi System, construido con React y Vite.
 
-Currently, two official plugins are available:
+## Estructura de Carpetas Clave
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+-   `public/`: Archivos estáticos.
+-   `src/`: Código fuente principal.
+    -   `components/`: Componentes reutilizables de UI y vistas específicas de las rutas.
+        -   `ui/`: Componentes base de UI (ej. shadcn/ui).
+        -   `lib/`: Utilidades específicas de componentes (ej. `cn` de shadcn/ui).
+    -   `context/`: Contiene `AppContext.jsx` para la gestión del estado global.
+    -   `data/`: Archivos con datos iniciales o de ejemplo.
+    -   `services/`: Módulos para interactuar con servicios externos (ej., `firestoreService.js`).
+    -   `utils/`: Funciones de utilidad generales (ej., `helpers.js`).
+    -   `App.jsx`: Define la estructura de enrutamiento principal de la aplicación.
+    -   `main.jsx`: Punto de entrada de la aplicación React, configura Providers.
+-   `vite.config.js`: Configuración de Vite.
+-   `tailwind.config.js`: Configuración de Tailwind CSS.
 
-## Expanding the ESLint configuration
+## Estilo y UI
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+-   Se utiliza **Tailwind CSS** para la estilización.
+-   Los componentes de UI se basan en la filosofía de `shadcn/ui`, utilizando `tailwind-merge` y `clsx` para la composición de clases (ver `src/components/lib/utils.js`).
+
+Para instrucciones generales de instalación, scripts y descripción del proyecto, por favor consulta el [README.md principal del repositorio](../README.md).
