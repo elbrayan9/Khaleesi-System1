@@ -1,42 +1,33 @@
-// src/components/ReportesTab.jsx
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Printer, Trash2, PlusCircle, MinusCircle, Archive, Search, ArrowUp, ArrowDown, Minus, Eye } from 'lucide-react';
-import Swal from 'sweetalert2';
+import Swal from 'sweetalert2'; // Se puede quitar si mostrarMensaje del contexto es suficiente
 import PaginationControls from './PaginationControls.jsx';
 import SalesChart from './SalesChart.jsx';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useAppContext } from '../context/AppContext.jsx'; // Importar hook
+import { formatCurrency, obtenerNombreMes } from '../utils/helpers.js'; // Importar helpers directamente
 
 const ITEMS_PER_PAGE_REPORTE = 10;
 
-function ReportesTab({
-    ventas = [],
-    egresos = [],
-    ingresosManuales = [],
-    // productos = [], // Solo para lectura si es necesario, no se modifica aquí
-    clientes = [],  // Solo para lectura (ej. info de cliente en ventas)
-    datosNegocio,   // Para el cierre de caja
-    onPrintRequest,
-    onViewDetailsRequest,
-    // Handlers de App.jsx para la lógica de Firebase
-    onAddIngresoManual,
-    onDeleteIngresoManual,
-    onAddEgreso,
-    onDeleteEgreso,
-    onDeleteVenta,
-    // Helpers
-    formatCurrency,
-    obtenerNombreMes,
-    mostrarMensaje
-}) {
-    // Estados locales para los formularios de esta pestaña
+function ReportesTab({ onPrintRequest, onViewDetailsRequest }) { // Solo recibe props para modales/impresión
+    const {
+        ventas,
+        egresos,
+        ingresosManuales,
+        clientes,
+        // datosNegocio, // Se obtiene del contexto
+        handleRegistrarIngresoManual, // Renombrado
+        handleEliminarIngresoManual,  // Renombrado
+        handleRegistrarEgreso,        // Renombrado
+        handleEliminarEgreso,         // Renombrado
+        handleEliminarVenta,          // Renombrado
+        mostrarMensaje,
+        // confirmarAccion // Si se usa directamente aquí, o a través de los handlers del contexto
+    } = useAppContext();
+    const { datosNegocio } = useAppContext(); // Obtener datosNegocio específicamente si no se desestructuró antes
+
+    // Estados locales para los formularios de esta pestaña se mantienen
     const [formIngresoDesc, setFormIngresoDesc] = useState('');
     const [formIngresoMonto, setFormIngresoMonto] = useState('');
     const [formEgresoDesc, setFormEgresoDesc] = useState('');
@@ -81,9 +72,7 @@ function ReportesTab({
     const totalIngresosManualesHoy = ingresosManualesHoy.reduce((s, i) => s + (Number(i.monto) || 0), 0);
     const saldoEfectivoEsperado = (ventasPorMedioHoy['efectivo'] || 0) + totalIngresosManualesHoy - totalEgresosEfectivoHoy;
     const totalVentasMesTodos = ventasMes.reduce((s, v) => s + (Number(v.total) || 0), 0);
-
     const defaultSort = (a,b) => (new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
-
     const generateFallbackId = (prefix) => `${prefix}${Date.now()}${Math.random().toString(16).slice(2)}`;
 
     const todosMovimientosEfectivoHoy = useMemo(() => [
@@ -111,7 +100,7 @@ function ReportesTab({
         return [...items].sort((a, b) => {
             let valA = a[config.key]; let valB = b[config.key];
             if (config.key === 'timestamp') { valA = new Date(valA || 0).getTime(); valB = new Date(valB || 0).getTime(); }
-            else if (typeof valA === 'number' && typeof valB === 'number') { /* no change */ }
+            else if (typeof valA === 'number' && typeof valB === 'number') {}
             else { valA = String(valA || '').toLowerCase(); valB = String(valB || '').toLowerCase(); }
             if (valA < valB) return config.direction === 'ascending' ? -1 : 1;
             if (valA > valB) return config.direction === 'ascending' ? 1 : -1;
@@ -139,52 +128,46 @@ function ReportesTab({
     useEffect(() => { if (currentPageMes > totalPagesMes && totalPagesMes > 0) setCurrentPageMes(totalPagesMes); else if (currentPageMes <= 0 && totalPagesMes > 0) setCurrentPageMes(1); else if (filteredSortedMovimientosMes.length === 0 && currentPageMes !== 1) setCurrentPageMes(1); }, [currentPageMes, totalPagesMes, filteredSortedMovimientosMes.length]);
     const requestSortMes = (key) => { let d = (sortConfigMes.key === key && sortConfigMes.direction === 'ascending') ? 'descending' : 'ascending'; setSortConfigMes({ key, direction: d }); setCurrentPageMes(1); };
 
-    const handleRegistrarIngresoClick = () => {
+    const handleLocalRegistrarIngreso = () => {
         const montoNum = parseFloat(formIngresoMonto);
-        if (!formIngresoDesc.trim() || isNaN(montoNum) || montoNum <= 0) { mostrarMensaje("Ingrese descripción y monto válido para el ingreso.", 'warning'); return; }
-        onAddIngresoManual(formIngresoDesc.trim(), montoNum);
+        if (!formIngresoDesc.trim() || isNaN(montoNum) || montoNum <= 0) { mostrarMensaje("Ingrese descripción y monto válido.", 'warning'); return; }
+        handleRegistrarIngresoManual(formIngresoDesc.trim(), montoNum); // Llama al handler del contexto
         setFormIngresoDesc(''); setFormIngresoMonto('');
     };
-    const handleRegistrarEgresoClick = () => {
+    const handleLocalRegistrarEgreso = () => {
         const montoNum = parseFloat(formEgresoMonto);
-        if (!formEgresoDesc.trim() || isNaN(montoNum) || montoNum <= 0) { mostrarMensaje("Ingrese descripción y monto válido para el egreso.", 'warning'); return; }
-        onAddEgreso(formEgresoDesc.trim(), montoNum);
+        if (!formEgresoDesc.trim() || isNaN(montoNum) || montoNum <= 0) { mostrarMensaje("Ingrese descripción y monto válido.", 'warning'); return; }
+        handleRegistrarEgreso(formEgresoDesc.trim(), montoNum); // Llama al handler del contexto
         setFormEgresoDesc(''); setFormEgresoMonto('');
     };
 
     const checkIdValidityForAction = (id, itemType) => {
         const isInvalid = !id || typeof id !== 'string' || id.startsWith("local_") || id.includes("_h_") || id.includes("_m_") || id.includes("_flt_") || (id && id._id_original_invalid);
-        if (isInvalid) {
-            mostrarMensaje(`Este ${itemType.toLowerCase()} tiene un ID temporal o inválido. La acción no puede completarse en la base de datos.`, "warning");
-            return false;
-        }
+        if (isInvalid) { mostrarMensaje(`Este ${itemType.toLowerCase()} tiene ID inválido. Acción no completada.`, "warning"); return false; }
         return true;
     };
-
-    const handleEliminarMovimientoClick = (id, tipo, descripcion) => {
+    const handleLocalEliminarMovimiento = (id, tipo, descripcion) => {
         if (!checkIdValidityForAction(id, tipo)) return;
-        if (tipo === 'Ingreso Manual') onDeleteIngresoManual(id, descripcion);
-        else if (tipo === 'Egreso') onDeleteEgreso(id, descripcion);
+        if (tipo === 'Ingreso Manual') handleEliminarIngresoManual(id, descripcion);
+        else if (tipo === 'Egreso') handleEliminarEgreso(id, descripcion);
     };
-    const handleEliminarVentaClick = (ventaId) => {
+    const handleLocalEliminarVenta = (ventaId) => {
         if (!checkIdValidityForAction(ventaId, "Venta")) return;
-        onDeleteVenta(ventaId);
+        handleEliminarVenta(ventaId);
     };
-    const handlePrintClick = (ventaId) => {
-        if (!checkIdValidityForAction(ventaId, "Venta")) { mostrarMensaje('ID de venta inválido para imprimir.', 'error'); return; }
-        const ventaToPrint = ventas.find(v => v.id === ventaId);
-        const clienteInfo = ventaToPrint && clientes ? clientes.find(c => c.id === ventaToPrint.clienteId) : null;
-        if (ventaToPrint) { onPrintRequest(ventaToPrint, clienteInfo); }
-        else { mostrarMensaje('Venta no encontrada para imprimir (ID: ' + ventaId + ').', 'error'); }
+    const handleLocalPrintClick = (ventaId) => {
+        if (!checkIdValidityForAction(ventaId, "Venta")) { mostrarMensaje('ID de venta inválido.', 'error'); return; }
+        const ventaToPrintObj = ventas.find(v => v.id === ventaId);
+        const clienteInfoObj = ventaToPrintObj && clientes ? clientes.find(c => c.id === ventaToPrintObj.clienteId) : null;
+        if (ventaToPrintObj && onPrintRequest) onPrintRequest(ventaToPrintObj, clienteInfoObj); else mostrarMensaje('Venta no encontrada.', 'error');
     };
-    const handleViewDetailsClick = (itemId) => { // Renombrado a itemId para generalizar, aunque solo se usa para ventas
-        if (!checkIdValidityForAction(itemId, "elemento")) { mostrarMensaje('ID inválido para ver detalles.', 'error'); return; }
-        onViewDetailsRequest(itemId); // Asume que onViewDetailsRequest es para ventas
+    const handleLocalViewDetailsClick = (itemId) => {
+        if (!checkIdValidityForAction(itemId, "elemento")) { mostrarMensaje('ID inválido.', 'error'); return; }
+        if (onViewDetailsRequest) onViewDetailsRequest(itemId);
     };
 
     const handleCerrarCaja = () => {
         console.log("ReportesTab: Simular Cierre de Caja.");
-        console.log("Datos para cierre:", { totalVentasHoyTodos, ventasPorMedioHoy, totalIngresosManualesHoy, totalEgresosEfectivoHoy, saldoEfectivoEsperado });
         Swal.fire({
             title: 'Cierre de Caja (Simulado)',
             html: `<div class="text-left text-sm space-y-1 text-zinc-300"><p>Total Ventas del Día: <strong class="text-zinc-100">$${formatCurrency(totalVentasHoyTodos)}</strong></p><hr class="border-zinc-600 my-2"/><p>+ Ventas en Efectivo: <span class="monto-positivo">$${formatCurrency(ventasPorMedioHoy['efectivo'] || 0)}</span></p><p>+ Ingresos Manuales: <span class="monto-positivo">$${formatCurrency(totalIngresosManualesHoy)}</span></p><p>- Egresos en Efectivo: <span class="monto-negativo">-${formatCurrency(totalEgresosEfectivoHoy)}</span></p><hr class="border-zinc-600 my-2"/><p>Saldo Efectivo Esperado: <strong class="text-blue-400 text-base">$${formatCurrency(saldoEfectivoEsperado)}</strong></p></div>`,
@@ -193,29 +176,28 @@ function ReportesTab({
         });
     };
 
-    const getSortIcon = (key, config) => { if (!config || config.key !== key) { return <Minus className="h-3 w-3 inline-block ml-1 text-zinc-500 opacity-50" />; } return config.direction === 'ascending' ? <ArrowUp className="h-4 w-4 inline-block ml-1 text-blue-400" /> : <ArrowDown className="h-4 w-4 inline-block ml-1 text-blue-400" />; };
+    const getSortIcon = (key, config) => { if (!config || config.key !== key) return <Minus className="h-3 w-3 inline-block ml-1 text-zinc-500 opacity-50" />; return config.direction === 'ascending' ? <ArrowUp className="h-4 w-4 inline-block ml-1 text-blue-400" /> : <ArrowDown className="h-4 w-4 inline-block ml-1 text-blue-400" />; };
     const headerButtonClasses = "flex items-center text-left text-xs font-medium text-zinc-300 uppercase tracking-wider hover:text-white focus:outline-none";
 
     return (
         <div id="reportes">
             <h2 className="text-xl sm:text-2xl font-semibold mb-4 text-white">Caja y Reportes</h2>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-                {/* Columna Izquierda */}
                 <div className="lg:col-span-1 space-y-5">
                     <div className="bg-zinc-800 p-4 sm:p-5 rounded-lg shadow-md">
                         <h3 className="text-lg sm:text-xl font-medium mb-3 text-white border-b border-zinc-700 pb-2">Registrar Ingreso Manual</h3>
                         <div className="space-y-3">
-                            <div><label htmlFor="ingreso-descripcion-rep" className="block text-sm font-medium text-zinc-300 mb-1">Descripción:</label><input type="text" id="ingreso-descripcion-rep" value={formIngresoDesc} onChange={(e) => setFormIngresoDesc(e.target.value)} placeholder="Ej: Fondo inicial" className="w-full p-2 border border-zinc-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-zinc-700 text-zinc-100 placeholder-zinc-400" /></div>
-                            <div><label htmlFor="ingreso-monto-rep" className="block text-sm font-medium text-zinc-300 mb-1">Monto ($):</label><input type="number" id="ingreso-monto-rep" value={formIngresoMonto} onChange={(e) => setFormIngresoMonto(e.target.value)} step="0.01" min="0" placeholder="Ej: 1000.00" className="w-full p-2 border border-zinc-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-zinc-700 text-zinc-100" /></div>
-                            <div className="text-right"><motion.button onClick={handleRegistrarIngresoClick} className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-3 rounded-md transition duration-150 ease-in-out inline-flex items-center" whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}><PlusCircle className="h-4 w-4 mr-2"/>Registrar Ingreso</motion.button></div>
+                            <div><label htmlFor="ingreso-descripcion-rep" className="block text-sm font-medium text-zinc-300 mb-1">Descripción:</label><input type="text" id="ingreso-descripcion-rep" value={formIngresoDesc} onChange={(e) => setFormIngresoDesc(e.target.value)} placeholder="Ej: Fondo inicial" className="w-full p-2 border border-zinc-600 rounded-md bg-zinc-700 text-zinc-100 placeholder-zinc-400" /></div>
+                            <div><label htmlFor="ingreso-monto-rep" className="block text-sm font-medium text-zinc-300 mb-1">Monto ($):</label><input type="number" id="ingreso-monto-rep" value={formIngresoMonto} onChange={(e) => setFormIngresoMonto(e.target.value)} step="0.01" min="0" placeholder="Ej: 1000.00" className="w-full p-2 border border-zinc-600 rounded-md bg-zinc-700 text-zinc-100" /></div>
+                            <div className="text-right"><motion.button onClick={handleLocalRegistrarIngreso} className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-3 rounded-md inline-flex items-center" whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}><PlusCircle className="h-4 w-4 mr-2"/>Registrar Ingreso</motion.button></div>
                         </div>
                     </div>
                     <div className="bg-zinc-800 p-4 sm:p-5 rounded-lg shadow-md">
                         <h3 className="text-lg sm:text-xl font-medium mb-3 text-white border-b border-zinc-700 pb-2">Registrar Egreso</h3>
                         <div className="space-y-3">
-                           <div><label htmlFor="egreso-descripcion-rep" className="block text-sm font-medium text-zinc-300 mb-1">Descripción:</label><input type="text" id="egreso-descripcion-rep" value={formEgresoDesc} onChange={(e) => setFormEgresoDesc(e.target.value)} placeholder="Ej: Pago a proveedor" className="w-full p-2 border border-zinc-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-zinc-700 text-zinc-100 placeholder-zinc-400" /></div>
-                           <div><label htmlFor="egreso-monto-rep" className="block text-sm font-medium text-zinc-300 mb-1">Monto ($):</label><input type="number" id="egreso-monto-rep" value={formEgresoMonto} onChange={(e) => setFormEgresoMonto(e.target.value)} step="0.01" min="0" placeholder="Ej: 500.50" className="w-full p-2 border border-zinc-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-zinc-700 text-zinc-100" /></div>
-                            <div className="text-right"><motion.button onClick={handleRegistrarEgresoClick} className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded-md transition duration-150 ease-in-out inline-flex items-center" whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}><MinusCircle className="h-4 w-4 mr-2"/>Registrar Gasto</motion.button></div>
+                           <div><label htmlFor="egreso-descripcion-rep" className="block text-sm font-medium text-zinc-300 mb-1">Descripción:</label><input type="text" id="egreso-descripcion-rep" value={formEgresoDesc} onChange={(e) => setFormEgresoDesc(e.target.value)} placeholder="Ej: Pago a proveedor" className="w-full p-2 border border-zinc-600 rounded-md bg-zinc-700 text-zinc-100 placeholder-zinc-400" /></div>
+                           <div><label htmlFor="egreso-monto-rep" className="block text-sm font-medium text-zinc-300 mb-1">Monto ($):</label><input type="number" id="egreso-monto-rep" value={formEgresoMonto} onChange={(e) => setFormEgresoMonto(e.target.value)} step="0.01" min="0" placeholder="Ej: 500.50" className="w-full p-2 border border-zinc-600 rounded-md bg-zinc-700 text-zinc-100" /></div>
+                            <div className="text-right"><motion.button onClick={handleLocalRegistrarEgreso} className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded-md inline-flex items-center" whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}><MinusCircle className="h-4 w-4 mr-2"/>Registrar Gasto</motion.button></div>
                         </div>
                     </div>
                     <div className="bg-zinc-800 p-4 sm:p-5 rounded-lg shadow-md">
@@ -231,19 +213,18 @@ function ReportesTab({
                             </div><hr className="border-zinc-700 my-1" />
                             <div className="flex justify-between items-center pt-2"><span className="font-bold text-zinc-100">Saldo Efectivo Esperado:</span><span className="font-bold text-lg text-blue-400">${formatCurrency(saldoEfectivoEsperado)}</span></div>
                         </div>
-                        <div className="mt-4 text-right"><motion.button onClick={handleCerrarCaja} className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-3 rounded-md transition duration-150 ease-in-out inline-flex items-center" whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}><Archive className="h-4 w-4 mr-2"/>Simular Cierre</motion.button></div>
+                        <div className="mt-4 text-right"><motion.button onClick={handleCerrarCaja} className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-3 rounded-md inline-flex items-center" whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}><Archive className="h-4 w-4 mr-2"/>Simular Cierre</motion.button></div>
                     </div>
                 </div>
-                {/* Columna Derecha */}
                 <div className="lg:col-span-2 space-y-5">
                     <div className="bg-zinc-800 p-4 sm:p-5 rounded-lg shadow-md"><h3 className="text-lg sm:text-xl font-medium mb-3 text-white border-b border-zinc-700 pb-2">Ventas Diarias del Mes ({nombreMesActual})</h3><SalesChart data={salesDataForChart} /></div>
                     <div className="bg-zinc-800 p-4 sm:p-5 rounded-lg shadow-md overflow-hidden">
-                        <div className="flex flex-col sm:flex-row justify-between items-center mb-3 border-b border-zinc-700 pb-2 gap-2"><h3 className="text-lg sm:text-xl font-medium text-white whitespace-nowrap">Movimientos Caja del Día ({hoyStr})</h3><div className="relative w-full sm:w-auto"><span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400"><Search className="h-4 w-4" /></span><input type="text" placeholder="Buscar..." value={searchTermDia} onChange={(e) => {setSearchTermDia(e.target.value); setCurrentPageDia(1);}} className="w-full sm:w-64 pl-10 pr-4 py-2 border border-zinc-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-zinc-700 text-zinc-100 placeholder-zinc-400 text-sm" /></div></div>
+                        <div className="flex flex-col sm:flex-row justify-between items-center mb-3 border-b border-zinc-700 pb-2 gap-2"><h3 className="text-lg sm:text-xl font-medium text-white whitespace-nowrap">Movimientos Caja del Día ({hoyStr})</h3><div className="relative w-full sm:w-auto"><span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400"><Search className="h-4 w-4" /></span><input type="text" placeholder="Buscar..." value={searchTermDia} onChange={(e) => {setSearchTermDia(e.target.value); setCurrentPageDia(1);}} className="w-full sm:w-64 pl-10 pr-4 py-2 border border-zinc-600 rounded-md bg-zinc-700 text-zinc-100 placeholder-zinc-400 text-sm" /></div></div>
                         <div className="overflow-x-auto">
                             <Table>
                                 <TableHeader><TableRow className="hover:bg-transparent border-b-zinc-700"><TableHead><button onClick={() => requestSortDia('timestamp')} className={headerButtonClasses}>Hora {getSortIcon('timestamp', sortConfigDia)}</button></TableHead><TableHead><button onClick={() => requestSortDia('tipo')} className={headerButtonClasses}>Tipo {getSortIcon('tipo', sortConfigDia)}</button></TableHead><TableHead><button onClick={() => requestSortDia('desc')} className={headerButtonClasses}>Descripción {getSortIcon('desc', sortConfigDia)}</button></TableHead><TableHead className="text-right"><button onClick={() => requestSortDia('montoDisplay')} className={`${headerButtonClasses} justify-end w-full`}>Monto {getSortIcon('montoDisplay', sortConfigDia)}</button></TableHead><TableHead className="text-center">Acción</TableHead></TableRow></TableHeader>
                                 <TableBody>
-                                    {paginatedMovimientosDia.length === 0 ? (<TableRow className="hover:bg-transparent border-b-zinc-700"><TableCell colSpan={5} className="h-24 text-center text-zinc-400 italic">No hay movimientos para mostrar hoy.</TableCell></TableRow>) : (
+                                    {paginatedMovimientosDia.length === 0 ? (<TableRow className="hover:bg-transparent border-b-zinc-700"><TableCell colSpan={5} className="h-24 text-center text-zinc-400 italic">No hay movimientos hoy.</TableCell></TableRow>) : (
                                         paginatedMovimientosDia.map(m => (
                                             <TableRow key={m.id || `mov_dia_fb_${Date.now()}${Math.random()}`} className="hover:bg-zinc-700/50 border-b-zinc-700">
                                                 <TableCell className="text-zinc-400 whitespace-nowrap">{m.hora || 'N/A'}</TableCell>
@@ -251,14 +232,9 @@ function ReportesTab({
                                                 <TableCell className="text-zinc-300 max-w-xs truncate" title={m.desc}>{m.desc}</TableCell>
                                                 <TableCell className={`text-right font-semibold whitespace-nowrap ${m.montoDisplay >= 0 ? 'monto-positivo' : 'monto-negativo'}`}>${formatCurrency(m.montoDisplay)}</TableCell>
                                                 <TableCell className="text-center whitespace-nowrap">
-                                                    {m.tipo === 'Venta' && (<motion.button onClick={() => handleViewDetailsClick(m.id)} className="text-purple-400 hover:text-purple-300 mr-2 p-1 rounded" title="Ver Detalles" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} disabled={!m.id || !!m._id_original_invalid || (typeof m.id === 'string' && (m.id.startsWith("local_") || m.id.includes("_h_") || m.id.includes("_m_")))}><Eye className="h-4 w-4 inline-block"/></motion.button>)}
-                                                    {m.tipo === 'Venta' && (<motion.button onClick={() => handlePrintClick(m.id)} className="text-blue-400 hover:text-blue-300 mr-2 p-1 rounded" title="Imprimir" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} disabled={!m.id || !!m._id_original_invalid || (typeof m.id === 'string' && (m.id.startsWith("local_") || m.id.includes("_h_") || m.id.includes("_m_")))}><Printer className="h-4 w-4 inline-block"/></motion.button>)}
-                                                    <motion.button
-                                                        onClick={() => m.tipo === 'Venta' ? handleEliminarVentaClick(m.id) : handleEliminarMovimientoClick(m.id, m.tipo, m.desc)}
-                                                        className="text-red-500 hover:text-red-400 p-1 rounded" title={`Eliminar ${m.tipo}`}
-                                                        whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
-                                                        disabled={!m.id || !!m._id_original_invalid || (typeof m.id === 'string' && (m.id.startsWith("local_") || m.id.includes("_h_") || m.id.includes("_m_")))}
-                                                    ><Trash2 className="h-4 w-4 inline-block"/></motion.button>
+                                                    {m.tipo === 'Venta' && (<motion.button onClick={() => handleLocalViewDetailsClick(m.id)} className="text-purple-400 hover:text-purple-300 mr-2 p-1 rounded" title="Ver Detalles" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} disabled={!m.id || !!m._id_original_invalid || (typeof m.id === 'string' && (m.id.startsWith("local_") || m.id.includes("_h_") || m.id.includes("_m_")))}><Eye className="h-4 w-4 inline-block"/></motion.button>)}
+                                                    {m.tipo === 'Venta' && (<motion.button onClick={() => handleLocalPrintClick(m.id)} className="text-blue-400 hover:text-blue-300 mr-2 p-1 rounded" title="Imprimir" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} disabled={!m.id || !!m._id_original_invalid || (typeof m.id === 'string' && (m.id.startsWith("local_") || m.id.includes("_h_") || m.id.includes("_m_")))}><Printer className="h-4 w-4 inline-block"/></motion.button>)}
+                                                    <motion.button onClick={() => m.tipo === 'Venta' ? handleLocalEliminarVenta(m.id) : handleLocalEliminarMovimiento(m.id, m.tipo, m.desc)} className="text-red-500 hover:text-red-400 p-1 rounded" title={`Eliminar ${m.tipo}`} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} disabled={!m.id || !!m._id_original_invalid || (typeof m.id === 'string' && (m.id.startsWith("local_") || m.id.includes("_h_") || m.id.includes("_m_")))}><Trash2 className="h-4 w-4 inline-block"/></motion.button>
                                                 </TableCell>
                                             </TableRow>
                                         ))
@@ -269,12 +245,12 @@ function ReportesTab({
                         <PaginationControls currentPage={currentPageDia} totalPages={totalPagesDia} onPageChange={page => setCurrentPageDia(page)} itemsPerPage={ITEMS_PER_PAGE_REPORTE} totalItems={filteredSortedMovimientosDia.length} />
                     </div>
                     <div className="bg-zinc-800 p-4 sm:p-5 rounded-lg shadow-md overflow-hidden">
-                        <div className="flex flex-col sm:flex-row justify-between items-center mb-3 border-b border-zinc-700 pb-2 gap-2"><h3 className="text-lg sm:text-xl font-medium text-white whitespace-nowrap">Movimientos del Mes ({nombreMesActual})</h3><div className="relative w-full sm:w-auto"><span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400"><Search className="h-4 w-4" /></span><input type="text" placeholder="Buscar..." value={searchTermMes} onChange={(e) => {setSearchTermMes(e.target.value); setCurrentPageMes(1);}} className="w-full sm:w-64 pl-10 pr-4 py-2 border border-zinc-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-zinc-700 text-zinc-100 placeholder-zinc-400 text-sm" /></div></div>
+                        <div className="flex flex-col sm:flex-row justify-between items-center mb-3 border-b border-zinc-700 pb-2 gap-2"><h3 className="text-lg sm:text-xl font-medium text-white whitespace-nowrap">Movimientos del Mes ({nombreMesActual})</h3><div className="relative w-full sm:w-auto"><span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400"><Search className="h-4 w-4" /></span><input type="text" placeholder="Buscar..." value={searchTermMes} onChange={(e) => {setSearchTermMes(e.target.value); setCurrentPageMes(1);}} className="w-full sm:w-64 pl-10 pr-4 py-2 border border-zinc-600 rounded-md bg-zinc-700 text-zinc-100 placeholder-zinc-400 text-sm" /></div></div>
                         <div className="overflow-x-auto">
                             <Table>
                                 <TableHeader><TableRow className="hover:bg-transparent border-b-zinc-700"><TableHead><button onClick={() => requestSortMes('timestamp')} className={headerButtonClasses}>Fecha/Hora {getSortIcon('timestamp', sortConfigMes)}</button></TableHead><TableHead><button onClick={() => requestSortMes('tipo')} className={headerButtonClasses}>Tipo {getSortIcon('tipo', sortConfigMes)}</button></TableHead><TableHead><button onClick={() => requestSortMes('desc')} className={headerButtonClasses}>Descripción {getSortIcon('desc', sortConfigMes)}</button></TableHead><TableHead className="text-right"><button onClick={() => requestSortMes('montoDisplay')} className={`${headerButtonClasses} justify-end w-full`}>Monto {getSortIcon('montoDisplay', sortConfigMes)}</button></TableHead><TableHead className="text-center">Acción</TableHead></TableRow></TableHeader>
                                 <TableBody>
-                                    {paginatedMovimientosMes.length === 0 ? (<TableRow className="hover:bg-transparent border-b-zinc-700"><TableCell colSpan={5} className="h-24 text-center text-zinc-400 italic">No hay movimientos para mostrar este mes.</TableCell></TableRow>) : (
+                                    {paginatedMovimientosMes.length === 0 ? (<TableRow className="hover:bg-transparent border-b-zinc-700"><TableCell colSpan={5} className="h-24 text-center text-zinc-400 italic">No hay movimientos este mes.</TableCell></TableRow>) : (
                                         paginatedMovimientosMes.map(m => (
                                             <TableRow key={m.id || `mov_mes_fb_${Date.now()}${Math.random()}`} className="hover:bg-zinc-700/50 border-b-zinc-700">
                                                 <TableCell className="text-zinc-400 whitespace-nowrap">{`${m.fecha || ''} ${m.hora || ''}`.trim()}</TableCell>
@@ -282,14 +258,9 @@ function ReportesTab({
                                                 <TableCell className="text-zinc-300 max-w-xs truncate" title={m.desc}>{m.desc}</TableCell>
                                                 <TableCell className={`text-right font-semibold whitespace-nowrap ${m.montoDisplay >= 0 ? 'monto-positivo' : 'monto-negativo'}`}>${formatCurrency(m.montoDisplay)}</TableCell>
                                                 <TableCell className="text-center whitespace-nowrap">
-                                                      {m.tipo === 'Venta' && (<motion.button onClick={() => handleViewDetailsClick(m.id)} className="text-purple-400 hover:text-purple-300 mr-2 p-1 rounded" title="Ver Detalles" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} disabled={!m.id || !!m._id_original_invalid || (typeof m.id === 'string' && (m.id.startsWith("local_") || m.id.includes("_h_") || m.id.includes("_m_")))}><Eye className="h-4 w-4 inline-block"/></motion.button>)}
-                                                      {m.tipo === 'Venta' && (<motion.button onClick={() => handlePrintClick(m.id)} className="text-blue-400 hover:text-blue-300 mr-2 p-1 rounded" title="Imprimir" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} disabled={!m.id || !!m._id_original_invalid || (typeof m.id === 'string' && (m.id.startsWith("local_") || m.id.includes("_h_") || m.id.includes("_m_")))}><Printer className="h-4 w-4 inline-block"/></motion.button>)}
-                                                      <motion.button
-                                                        onClick={() => m.tipo === 'Venta' ? handleEliminarVentaClick(m.id) : handleEliminarMovimientoClick(m.id, m.tipo, m.desc)}
-                                                        className="text-red-500 hover:text-red-400 p-1 rounded" title={`Eliminar ${m.tipo}`}
-                                                        whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
-                                                        disabled={!m.id || !!m._id_original_invalid || (typeof m.id === 'string' && (m.id.startsWith("local_") || m.id.includes("_h_") || m.id.includes("_m_")))}
-                                                      ><Trash2 className="h-4 w-4 inline-block"/></motion.button>
+                                                      {m.tipo === 'Venta' && (<motion.button onClick={() => handleLocalViewDetailsClick(m.id)} className="text-purple-400 hover:text-purple-300 mr-2 p-1 rounded" title="Ver Detalles" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} disabled={!m.id || !!m._id_original_invalid || (typeof m.id === 'string' && (m.id.startsWith("local_") || m.id.includes("_h_") || m.id.includes("_m_")))}><Eye className="h-4 w-4 inline-block"/></motion.button>)}
+                                                      {m.tipo === 'Venta' && (<motion.button onClick={() => handleLocalPrintClick(m.id)} className="text-blue-400 hover:text-blue-300 mr-2 p-1 rounded" title="Imprimir" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} disabled={!m.id || !!m._id_original_invalid || (typeof m.id === 'string' && (m.id.startsWith("local_") || m.id.includes("_h_") || m.id.includes("_m_")))}><Printer className="h-4 w-4 inline-block"/></motion.button>)}
+                                                      <motion.button onClick={() => m.tipo === 'Venta' ? handleLocalEliminarVenta(m.id) : handleLocalEliminarMovimiento(m.id, m.tipo, m.desc)} className="text-red-500 hover:text-red-400 p-1 rounded" title={`Eliminar ${m.tipo}`} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} disabled={!m.id || !!m._id_original_invalid || (typeof m.id === 'string' && (m.id.startsWith("local_") || m.id.includes("_h_") || m.id.includes("_m_")))}><Trash2 className="h-4 w-4 inline-block"/></motion.button>
                                                 </TableCell>
                                             </TableRow>
                                         ))

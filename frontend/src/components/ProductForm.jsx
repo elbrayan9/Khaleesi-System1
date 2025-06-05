@@ -1,7 +1,11 @@
+// src/components/ProductForm.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
+import { useAppContext } from '../context/AppContext'; // Importar hook
 
-function ProductForm({ onSave, productToEdit, onCancelEdit, mostrarMensaje }) {
+function ProductForm({ onSave, productToEdit, onCancelEdit }) { // mostrarMensaje ya no es prop
+    const { mostrarMensaje } = useAppContext(); // Obtener mostrarMensaje del contexto
+
     const [nombre, setNombre] = useState('');
     const [codigoBarras, setCodigoBarras] = useState('');
     const [precio, setPrecio] = useState('');
@@ -20,7 +24,6 @@ function ProductForm({ onSave, productToEdit, onCancelEdit, mostrarMensaje }) {
             setPrecio('');
             setStock('');
         }
-        // Enfocar código de barras solo al agregar nuevo producto
         if (!productToEdit && barcodeInputRef.current) {
             barcodeInputRef.current.focus();
         }
@@ -30,11 +33,13 @@ function ProductForm({ onSave, productToEdit, onCancelEdit, mostrarMensaje }) {
         e.preventDefault();
         const parsedPrecio = parseFloat(precio);
         const parsedStock = parseInt(stock, 10);
-        if (!nombre || isNaN(parsedPrecio) || parsedPrecio < 0 || isNaN(parsedStock) || parsedStock < 0) {
+        if (!nombre.trim() || isNaN(parsedPrecio) || parsedPrecio < 0 || isNaN(parsedStock) || parsedStock < 0) {
             mostrarMensaje("Complete Nombre, Precio válido y Stock válido.", 'warning');
             return;
         }
+        // onSave se llama igual, pero ProductosTab le pasará el handler del contexto
         onSave({ id: productToEdit ? productToEdit.id : null, nombre: nombre.trim(), codigoBarras: codigoBarras.trim() || null, precio: parsedPrecio, stock: parsedStock });
+        // El reseteo del formulario y de `editingProduct` lo maneja el contexto/ProductosTab tras una operación exitosa.
     };
 
     const handleKeyDown = (e) => {
@@ -52,7 +57,6 @@ function ProductForm({ onSave, productToEdit, onCancelEdit, mostrarMensaje }) {
         }
     };
 
-    // Clases comunes para los inputs en modo oscuro (Zinc)
     const inputClasses = "w-full p-2 border border-zinc-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-zinc-700 text-zinc-100 placeholder-zinc-400";
 
     return (
@@ -61,31 +65,22 @@ function ProductForm({ onSave, productToEdit, onCancelEdit, mostrarMensaje }) {
                 {productToEdit ? `Editando: ${productToEdit.nombre}` : 'Agregar Nuevo Producto'}
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-                {/* Barcode */}
-                 <div>
+                <div>
                     <label htmlFor="prod-barcode-form" className="block text-sm font-medium text-zinc-300 mb-1">Código Barras:</label>
-                    {/* Aplicar inputClasses */}
                     <input type="text" id="prod-barcode-form" ref={barcodeInputRef} value={codigoBarras} onChange={(e) => setCodigoBarras(e.target.value)} onKeyDown={handleKeyDown} className={inputClasses} />
                 </div>
-                {/* Nombre */}
                 <div className="lg:col-span-2">
                     <label htmlFor="prod-nombre-form" className="block text-sm font-medium text-zinc-300 mb-1">Nombre:</label>
-                     {/* Aplicar inputClasses */}
                     <input type="text" id="prod-nombre-form" value={nombre} onChange={(e) => setNombre(e.target.value)} className={inputClasses} required />
                 </div>
-                 {/* Precio */}
                 <div>
                     <label htmlFor="prod-precio-form" className="block text-sm font-medium text-zinc-300 mb-1">Precio ($):</label>
-                     {/* Aplicar inputClasses */}
                     <input type="number" id="prod-precio-form" value={precio} onChange={(e) => setPrecio(e.target.value)} step="0.01" min="0" className={inputClasses} required />
                 </div>
-                 {/* Stock */}
                 <div>
                     <label htmlFor="prod-stock-form" className="block text-sm font-medium text-zinc-300 mb-1">Stock:</label>
-                     {/* Aplicar inputClasses */}
                     <input type="number" id="prod-stock-form" value={stock} onChange={(e) => setStock(e.target.value)} min="0" className={inputClasses} required />
                 </div>
-                 {/* Botones Animados */}
                 <div className="sm:col-span-2 lg:col-span-5 lg:self-end lg:text-right flex flex-col sm:flex-row sm:justify-end sm:space-x-2 space-y-2 sm:space-y-0 mt-3 lg:mt-0">
                     <motion.button type="submit" className={`w-full lg:w-auto text-white font-bold py-2 px-3 rounded-md transition duration-150 ease-in-out order-1 ${productToEdit ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-blue-600 hover:bg-blue-700'}`} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
                         {productToEdit ? <><i className="fas fa-save mr-2"></i>Guardar</> : <><i className="fas fa-plus mr-2"></i>Agregar</>}

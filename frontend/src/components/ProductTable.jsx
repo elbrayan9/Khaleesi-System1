@@ -2,23 +2,15 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Edit, Trash2, ArrowUp, ArrowDown, Minus } from 'lucide-react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { formatCurrency } from '@/utils/helpers'; // CORREGIDO: Usando el alias @
 
 function ProductTable({
     products = [],
     onEdit,
     onDelete,
-    formatCurrency,
     requestSort,
     sortConfig,
-    // mostrarMensaje // Opcional: si quieres mostrar mensajes desde aquí
 }) {
 
     const getSortIcon = (key) => {
@@ -30,12 +22,8 @@ function ProductTable({
     const headerButtonClasses = "flex items-center text-left text-xs font-medium text-zinc-300 uppercase tracking-wider hover:text-white focus:outline-none";
 
     const handleDeleteClick = (productId, productName) => {
-        console.log(`ProductTable: Intentando eliminar producto. ID: ${productId}, Nombre: ${productName}`);
-        // La verificación principal del ID ahora se hace en App.jsx antes de llamar a fsService.
-        // ProductTable simplemente pasa el ID que tiene.
-        // Si el ID es un ID local temporal (ej. con _id_original_invalid), App.jsx no procederá con la eliminación en Firestore.
-        if (!productId) { // Aún es bueno tener una verificación básica aquí
-             console.error("ProductTable ERROR: Se intentó eliminar un producto con ID nulo o indefinido (pasado a ProductTable).");
+        if (!productId) {
+             console.error("ProductTable ERROR: ID de producto nulo para eliminar.");
              alert("Error: El producto seleccionado tiene un ID faltante y no puede ser eliminado.");
              return;
         }
@@ -43,12 +31,10 @@ function ProductTable({
     };
 
     const handleEditClick = (product) => {
-        if (!product || !product.id || (typeof product.id === 'string' && product.id.startsWith("local_")) || product._id_original_invalid) {
-            alert("Este producto tiene un ID temporal o inválido y no puede ser editado hasta que se sincronice correctamente con la base de datos.");
-            return;
-        }
         onEdit(product);
     };
+    
+    const isActionDisabled = (product) => !product.id || product._id_original_invalid || (typeof product.id === 'string' && (product.id.startsWith("local_") || product.id.startsWith("prod_flt_")));
 
     return (
         <Table>
@@ -70,7 +56,7 @@ function ProductTable({
                 ) : (
                     products.map((p) => (
                         <TableRow key={p.id || `product-fallback-${Math.random()}`} className="hover:bg-zinc-700/50 border-b-zinc-700">
-                            <TableCell className="font-medium text-zinc-200 whitespace-nowrap">{p.id ? (p.id.startsWith("prod_flt_") || p.id.startsWith("local_") ? `${p.id.substring(0,12)}... (Local)` : p.id.substring(0,8)+"...") : 'SIN ID'}{p._id_original_invalid ? " (!)" : ""}</TableCell>
+                            <TableCell className="font-medium text-zinc-200 whitespace-nowrap">{p.id ? (p.id.startsWith("prod_flt_") || p.id.startsWith("local_") || p.id.includes("_inv_") || p.id.includes("_init_") ? `${p.id.substring(0,10)}... (Local)` : p.id.substring(0,8)+"...") : 'SIN ID'}{p._id_original_invalid ? " (!)" : ""}</TableCell>
                             <TableCell className="text-zinc-200">{p.nombre}</TableCell>
                             <TableCell className="font-mono text-zinc-400">{p.codigoBarras || 'N/A'}</TableCell>
                             <TableCell className="text-right text-zinc-200 whitespace-nowrap">${formatCurrency(p.precio)}</TableCell>
@@ -81,7 +67,7 @@ function ProductTable({
                                     className="text-blue-400 hover:text-blue-300 mr-3 p-1 rounded"
                                     title="Editar"
                                     whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
-                                    disabled={!p.id || p._id_original_invalid || (typeof p.id === 'string' && (p.id.startsWith("local_") || p.id.startsWith("prod_flt_")))}
+                                    disabled={isActionDisabled(p)}
                                 >
                                     <Edit className="h-4 w-4 inline-block" />
                                 </motion.button>
@@ -90,7 +76,7 @@ function ProductTable({
                                     className="text-red-500 hover:text-red-400 p-1 rounded"
                                     title="Eliminar"
                                     whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
-                                    disabled={!p.id || p._id_original_invalid || (typeof p.id === 'string' && (p.id.startsWith("local_") || p.id.startsWith("prod_flt_")))}
+                                    disabled={isActionDisabled(p)}
                                 >
                                     <Trash2 className="h-4 w-4 inline-block" />
                                 </motion.button>
