@@ -1,36 +1,30 @@
-// src/firebaseConfig.js o firebaseConfig.js (depende dónde lo tengas)
+// src/firebaseConfig.js
 
-// Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-// IMPORTANTE: Añadir la importación de getFirestore
 import { getFirestore } from "firebase/firestore";
-// getAnalytics es opcional, puedes quitarlo si no lo usas directamente.
 import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+// La configuración de Firebase ahora lee las variables de entorno de Vite
 const firebaseConfig = {
-  // TUS CREDENCIALES (Asegúrate que estas sean las correctas de tu proyecto Firebase)
-  // Si esta apiKey es de prueba o un ejemplo, REEMPLÁZALA con la tuya real.
-  apiKey: "***REDACTED***",
-  authDomain: "khaleesy-system.firebaseapp.com",
-  projectId: "khaleesy-system",
-  storageBucket: "khaleesy-system.firebasestorage.app", // Podría ser .appspot.com, verifica en tu consola Firebase
-  messagingSenderId: "1016220561039",
-  appId: "1:1016220561039:web:661547e5db672f59f88afa",
-  measurementId: "G-K7MQLXY3TD"
+  apiKey: import.meta.env.VITE_API_KEY,
+  authDomain: import.meta.env.VITE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_APP_ID,
+  measurementId: import.meta.env.VITE_MEASUREMENT_ID
 };
+
+// Reinicia tu servidor de desarrollo (npm run dev) después de crear o modificar el archivo .env
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// IMPORTANTE: Inicializar Firestore
+// Inicializar Firestore
 const db = getFirestore(app);
 
-// analytics es opcional
+// Analytics es opcional
 const analytics = getAnalytics(app);
 
-// IMPORTANTE: Exportar la instancia de db para que otros módulos puedan usarla
+// Exportar la instancia de db
 export { db };
