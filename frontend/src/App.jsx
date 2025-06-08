@@ -1,12 +1,17 @@
+// src/App.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAppContext } from './context/AppContext.jsx'; // Importa el hook del contexto
+import { useAppContext } from './context/AppContext.jsx';
 
-// Componentes de las Rutas
+// --- Componentes de Rutas Principales ---
 import LoginScreen from './components/LoginScreen.jsx';
+import SignUpScreen from './components/SignUpScreen.jsx'; // Nuevo
+import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
 import Layout from './components/Layout.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
+
+// --- Componentes para las Pestañas (Rutas Anidadas) ---
 import VentaTab from './components/VentaTab.jsx';
 import ProductosTab from './components/ProductosTab.jsx';
 import ClientesTab from './components/ClientesTab.jsx';
@@ -14,123 +19,96 @@ import ReportesTab from './components/ReportesTab.jsx';
 import NotasCDTab from './components/NotasCDTab.jsx';
 import ConfiguracionTab from './components/ConfiguracionTab.jsx';
 
-// Componentes de Modales y de Impresión (se pueden quedar aquí o moverse si se usan en contextos muy específicos)
+// --- Componentes para Modales e Impresión ---
 import PrintReceipt from './components/PrintReceipt.jsx';
 import PrintNota from './components/PrintNota.jsx';
 import SaleDetailModal from './components/SaleDetailModal.jsx';
 import NotaDetailModal from './components/NotaDetailModal.jsx';
 
-// Helpers que se usan en App.jsx (si los modales los necesitan directamente)
-import { formatCurrency, obtenerNombreMes } from './utils/helpers.js';
+// --- Helpers ---
+import { formatCurrency } from './utils/helpers.js';
 
 function App() {
-    const {
+    const { 
         isLoggedIn, isLoadingData,
-        // Datos que los modales podrían necesitar si no los obtienen directamente de su ruta/contexto
-        ventas, clientes, notasCD, datosNegocio,
-        mostrarMensaje, // Esta prop viene de AppProvider a través de main.jsx
+        ventas, clientes, notasCD, datosNegocio, mostrarMensaje 
     } = useAppContext();
 
-    const location = useLocation(); // Para AnimatePresence
+    const location = useLocation();
 
-    // Estados para los modales y la impresión (estos pueden permanecer en App si los modales se quedan aquí)
+    // --- Estados para Modales e Impresión (se mantienen en App para ser globales) ---
     const [ventaToPrint, setVentaToPrint] = useState(null);
     const [clienteToPrint, setClienteToPrint] = useState(null);
     const printVentaRef = useRef();
 
     const [saleDetailModalOpen, setSaleDetailModalOpen] = useState(false);
     const [selectedSaleData, setSelectedSaleData] = useState(null);
-    const [selectedSaleClientInfo, setSelectedSaleClientInfo] = useState(null);
 
-    const [notaDetailModalOpen, setNotaDetailModalOpen] = useState(false);
-    const [selectedNotaData, setSelectedNotaData] = useState(null);
     const [notaToPrint, setNotaToPrint] = useState(null);
     const printNotaRef = useRef();
-
-
-    // Funciones para manejar la apertura/cierre de modales y la impresión
-    // Estas funciones ahora usan `mostrarMensaje` del contexto si es necesario
-    const handlePrintRequest = (venta, cliente) => {
-        if (!venta || !venta.id ) { // Ya no se usa isValidFirestoreId aquí, se asume que la venta es válida
-            if (mostrarMensaje) mostrarMensaje("ID de venta inválido para imprimir.", "warning");
-            return;
-        }
-        setVentaToPrint(venta);
-        setClienteToPrint(cliente);
-    };
-
-     useEffect(() => {
+    
+    const [notaDetailModalOpen, setNotaDetailModalOpen] = useState(false);
+    const [selectedNotaData, setSelectedNotaData] = useState(null);
+    
+    // --- Lógica de Impresión ---
+    useEffect(() => {
         if (ventaToPrint && printVentaRef.current) {
-            const timer = setTimeout(() => {
-                if (window.print) window.print();
-                setVentaToPrint(null);
-                setClienteToPrint(null);
-            }, 150);
-            return () => clearTimeout(timer);
+            setTimeout(() => { window.print(); setVentaToPrint(null); setClienteToPrint(null); }, 150);
         }
     }, [ventaToPrint]);
 
-
-    const openSaleDetailModal = (ventaId) => {
-        // Se asume que ventaId es válido
-        const ventaSeleccionada = ventas.find(v => v.id === ventaId);
-        if (ventaSeleccionada) {
-            const clienteInfo = clientes.find(c => c.id === ventaSeleccionada.clienteId);
-            setSelectedSaleData(ventaSeleccionada);
-            setSelectedSaleClientInfo(clienteInfo || { nombre: ventaSeleccionada.clienteNombre || "Cons. Final", id: ventaSeleccionada.clienteId });
-            setSaleDetailModalOpen(true);
+    useEffect(() => {
+        if (notaToPrint && printNotaRef.current) {
+            setTimeout(() => { window.print(); setNotaToPrint(null); }, 150);
+        }
+    }, [notaToPrint]);
+    
+    // --- Handlers para abrir modales y solicitar impresiones ---
+    const handlePrintRequest = (ventaId) => {
+        const venta = ventas.find(v => v.id === ventaId);
+        if (venta) {
+            const cliente = clientes.find(c => c.id === venta.clienteId);
+            setVentaToPrint(venta);
+            setClienteToPrint(cliente);
         } else {
-            if (mostrarMensaje) mostrarMensaje("Detalles de la venta no encontrados.", "error");
+            mostrarMensaje("Venta no encontrada para imprimir.", "error");
         }
     };
-    const closeSaleDetailModal = () => {
-        setSaleDetailModalOpen(false);
-        setSelectedSaleData(null);
-        setSelectedSaleClientInfo(null);
+    
+    const openSaleDetailModal = (ventaId) => {
+        const venta = ventas.find(v => v.id === ventaId);
+        if (venta) {
+            setSelectedSaleData(venta);
+            setSaleDetailModalOpen(true);
+        } else {
+            mostrarMensaje("Detalles de la venta no encontrados.", "error");
+        }
+    };
+    
+    const handlePrintNota = (notaId) => {
+        const nota = notasCD.find(n => n.id === notaId);
+        if (nota) {
+            setNotaToPrint(nota);
+        } else {
+            mostrarMensaje("Nota no encontrada para imprimir.", "error");
+        }
     };
 
     const openNotaDetailModal = (notaId) => {
-        // Se asume que notaId es válido
-        const notaSel = notasCD.find(n => n.id === notaId);
-        if (notaSel) {
-            setSelectedNotaData(notaSel);
+        const nota = notasCD.find(n => n.id === notaId);
+        if (nota) {
+            setSelectedNotaData(nota);
             setNotaDetailModalOpen(true);
         } else {
-            if (mostrarMensaje) mostrarMensaje("Detalles de la nota no encontrados.", "error");
+            mostrarMensaje("Detalles de la nota no encontrados.", "error");
         }
     };
-    const closeNotaDetailModal = () => {
-        setNotaDetailModalOpen(false);
-        setSelectedNotaData(null);
-    };
-
-    const handlePrintNota = (notaId) => {
-        // Se asume que notaId es válido
-        const notaSel = notasCD.find(n => n.id === notaId);
-        if (notaSel) {
-            setNotaToPrint(notaSel);
-        } else {
-            if (mostrarMensaje) mostrarMensaje("Nota no encontrada para imprimir.", "error");
-        }
-    };
-
-     useEffect(() => {
-        if (notaToPrint && printNotaRef.current) {
-            const timer = setTimeout(() => {
-                if (window.print) window.print();
-                setNotaToPrint(null);
-            }, 150);
-            return () => clearTimeout(timer);
-        }
-    }, [notaToPrint]);
-
-
-    // Si aún está cargando el estado de login/datos iniciales, muestra un loader
-    if (isLoadingData && localStorage.getItem('pos_loggedIn') === 'true' && !isLoggedIn) {
-         return (
-            <div className="flex justify-center items-center min-h-screen bg-zinc-900 text-white">
+    
+    // Pantalla de carga mientras se verifica el estado de autenticación
+    if (isLoadingData) {
+        return (
+            <div className="flex justify-center items-center min-h-screen bg-zinc-900">
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-                <p className="ml-3 text-lg">Cargando Khaleesi System...</p>
             </div>
         );
     }
@@ -139,53 +117,55 @@ function App() {
         <>
             <AnimatePresence mode="wait">
                 <Routes location={location} key={location.pathname}>
+                    {/* Rutas Públicas */}
                     <Route path="/login" element={isLoggedIn ? <Navigate to="/" replace /> : <LoginScreen />} />
+                    <Route path="/signup" element={isLoggedIn ? <Navigate to="/" replace /> : <SignUpScreen />} />
+                    
+                    {/* Rutas Protegidas */}
                     <Route element={<ProtectedRoute />}>
                         <Route path="/" element={<Layout />}>
-                            {/* Ruta por defecto (ej. Venta) */}
+                            {/* La ruta raíz (index) ahora es VentaTab */}
                             <Route index element={<VentaTab />} />
+                            
+                            {/* Las demás pestañas son rutas anidadas */}
                             <Route path="productos" element={<ProductosTab />} />
                             <Route path="clientes" element={<ClientesTab />} />
-                            <Route path="reportes" element={
-                                <ReportesTab
-                                    onPrintRequest={handlePrintRequest} // Pasar los handlers de modales/impresión
-                                    onViewDetailsRequest={openSaleDetailModal}
-                                />
-                            }/>
-                            <Route path="notas" element={
-                                <NotasCDTab
-                                    onViewDetailsNotaCD={openNotaDetailModal}
-                                    onPrintNotaCD={handlePrintNota}
-                                />
-                            }/>
+                            <Route 
+                                path="reportes" 
+                                element={<ReportesTab onPrintRequest={handlePrintRequest} onViewDetailsRequest={openSaleDetailModal} />} 
+                            />
+                            <Route 
+                                path="notas" 
+                                element={<NotasCDTab onPrintNotaCD={handlePrintNota} onViewDetailsNotaCD={openNotaDetailModal}/>} 
+                            />
                             <Route path="configuracion" element={<ConfiguracionTab />} />
-                            {/* Ruta catch-all para redirigir a la página principal si no se encuentra la ruta */}
+                            
+                            {/* Ruta "catch-all" para redirigir a la página principal si no se encuentra */}
                             <Route path="*" element={<Navigate to="/" replace />} />
                         </Route>
                     </Route>
+                    <Route path="/forgot-password" element={<ForgotPasswordScreen />} />
                 </Routes>
             </AnimatePresence>
 
-            {/* Componentes de Impresión y Modales (si se mantienen en App.jsx) */}
+            {/* --- Modales e Impresión (Globales) --- */}
             <PrintReceipt ref={printVentaRef} venta={ventaToPrint} datosNegocio={datosNegocio} cliente={clienteToPrint} formatCurrency={formatCurrency} />
             <PrintNota ref={printNotaRef} nota={notaToPrint} datosNegocio={datosNegocio} clientes={clientes} formatCurrency={formatCurrency} />
 
             <AnimatePresence>
                 {saleDetailModalOpen && (
                     <SaleDetailModal
-                        key="sale-detail-modal"
                         isOpen={saleDetailModalOpen}
-                        onClose={closeSaleDetailModal}
+                        onClose={() => setSaleDetailModalOpen(false)}
                         venta={selectedSaleData}
-                        clienteInfo={selectedSaleClientInfo}
+                        clienteInfo={clientes.find(c => c.id === selectedSaleData?.clienteId)}
                         formatCurrency={formatCurrency}
                     />
                 )}
-                {notaDetailModalOpen && (
+                 {notaDetailModalOpen && (
                     <NotaDetailModal
-                        key="nota-detail-modal"
                         isOpen={notaDetailModalOpen}
-                        onClose={closeNotaDetailModal}
+                        onClose={() => setNotaDetailModalOpen(false)}
                         nota={selectedNotaData}
                         clientes={clientes}
                         formatCurrency={formatCurrency}
