@@ -3,21 +3,19 @@ import { motion } from 'framer-motion';
 import { PlusCircle, Trash2, ShoppingBag, XCircle, Eye, Printer } from 'lucide-react';
 import SearchBar from './SearchBar.jsx';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useAppContext } from '../context/AppContext.jsx'; // Importar hook
-import { formatCurrency } from '../utils/helpers.js'; // Importar helper
+import { useAppContext } from '../context/AppContext.jsx';
+import { formatCurrency } from '../utils/helpers.js';
 
-function NotasCDTab({ onViewDetailsNotaCD, onPrintNotaCD }) { // Solo recibe props para modales/impresión
+function NotasCDTab({ onViewDetailsNotaCD, onPrintNotaCD }) {
     const {
         notasCD,
-        handleGenerarNota,  // Renombrado desde onAddNotaCD
-        handleEliminarNotaCD, // Renombrado desde onDeleteNotaCD
+        handleGenerarNotaManual, // <-- CAMBIO 1: Usamos el nombre correcto del contexto
+        handleEliminarNotaCD,
         clientes,
         productos,
         mostrarMensaje,
-        // formatCurrency (si no se importa directamente)
     } = useAppContext();
 
-    // Estados locales para el formulario de esta pestaña se mantienen
     const [tipoNota, setTipoNota] = useState('credito');
     const [ventaRelacionadaId, setVentaRelacionadaId] = useState('');
     const [clienteId, setClienteId] = useState('');
@@ -27,7 +25,6 @@ function NotasCDTab({ onViewDetailsNotaCD, onPrintNotaCD }) { // Solo recibe pro
     const [itemsDevueltos, setItemsDevueltos] = useState([]);
     const [productoSeleccionadoParaDev, setProductoSeleccionadoParaDev] = useState(null);
     const [cantidadDevolucion, setCantidadDevolucion] = useState(1);
-    const [busquedaProductoDev, setBusquedaProductoDev] = useState('');
     const productoDevRef = useRef(null);
 
     useEffect(() => {
@@ -37,11 +34,11 @@ function NotasCDTab({ onViewDetailsNotaCD, onPrintNotaCD }) { // Solo recibe pro
         }
     }, [implicaDevolucion, tipoNota]);
 
-    const isValidFirestoreIdForSelection = (id) => id && typeof id === 'string' && !id.startsWith("local_") && !id.includes("_inv_") && !id.includes("_err_");
+    const isValidFirestoreIdForSelection = (id) => id && typeof id === 'string' && !id.startsWith("local_");
     const productosValidosParaDevolucion = productos.filter(p => isValidFirestoreIdForSelection(p.id));
     const clientesValidos = clientes.filter(c => isValidFirestoreIdForSelection(c.id));
 
-    const handleSelectProductoDev = (producto) => { setProductoSeleccionadoParaDev(producto); setBusquedaProductoDev(producto ? producto.nombre : ''); };
+    const handleSelectProductoDev = (producto) => { setProductoSeleccionadoParaDev(producto); };
     const handleAgregarItemDevuelto = () => {
         if (!productoSeleccionadoParaDev || !isValidFirestoreIdForSelection(productoSeleccionadoParaDev.id)) { mostrarMensaje("Seleccione un producto válido.", "warning"); return; }
         const cant = parseInt(cantidadDevolucion, 10);
@@ -52,9 +49,9 @@ function NotasCDTab({ onViewDetailsNotaCD, onPrintNotaCD }) { // Solo recibe pro
             nuevosItems[existenteIndex].cantidad += cant;
             setItemsDevueltos(nuevosItems);
         } else {
-            setItemsDevueltos(prev => [...prev, { id: productoSeleccionadoParaDev.id, nombre: productoSeleccionadoParaDev.nombre, cantidad: cant, precioOriginal: productoSeleccionadoParaDev.precio }]);
+            setItemsDevueltos(prev => [...prev, { id: productoSeleccionadoParaDev.id, nombre: productoSeleccionadoParaDev.nombre, cantidad: cant, precioOriginal: productoSeleccionadoParaDev.precio, isTracked: true }]);
         }
-        setProductoSeleccionadoParaDev(null); setCantidadDevolucion(1); setBusquedaProductoDev('');
+        setProductoSeleccionadoParaDev(null); setCantidadDevolucion(1);
         productoDevRef.current?.clearInput?.();
     };
     const handleQuitarItemDevuelto = (index) => setItemsDevueltos(prev => prev.filter((_, i) => i !== index));
@@ -65,28 +62,35 @@ function NotasCDTab({ onViewDetailsNotaCD, onPrintNotaCD }) { // Solo recibe pro
         if (!motivo.trim()) { mostrarMensaje("Ingrese un motivo.", 'warning'); return; }
         if (isNaN(montoNota) || montoNota <= 0) { mostrarMensaje("Ingrese un monto válido.", 'warning'); return; }
         if (implicaDevolucion && tipoNota === 'credito' && itemsDevueltos.length === 0) { mostrarMensaje("Agregue productos a devolver.", "warning"); return; }
-        if (implicaDevolucion && tipoNota === 'credito' && itemsDevueltos.some(item => !isValidFirestoreIdForSelection(item.id))) { mostrarMensaje("Productos devueltos con IDs inválidos.", "error"); return; }
-
+        
         const clienteSeleccionado = clientes.find(c => c.id === clienteId);
         const notaDataParaApp = {
-            tipo: tipoNota, ventaRelacionadaId: ventaRelacionadaId.trim() || null, clienteId: clienteId,
+            tipo: tipoNota, 
+            ventaRelacionadaId: ventaRelacionadaId.trim() || null, 
+            clienteId: clienteId,
             clienteNombre: clienteSeleccionado ? clienteSeleccionado.nombre : 'Cliente Desconocido',
-            motivo: motivo.trim(), monto: montoNota,
+            motivo: motivo.trim(), 
+            monto: montoNota,
+            implicaDevolucion: implicaDevolucion,
             itemsDevueltos: (implicaDevolucion && tipoNota === 'credito') ? itemsDevueltos : [],
         };
-        handleGenerarNota(notaDataParaApp); // Llama al handler del contexto
+
+        // --- CAMBIO 2: Llamamos a la función con el nombre correcto ---
+        handleGenerarNotaManual(notaDataParaApp); 
+        
+        // Limpiar formulario
         setTipoNota('credito'); setVentaRelacionadaId(''); setClienteId(''); setMotivo(''); setMonto('');
         setImplicaDevolucion(false); setItemsDevueltos([]); setProductoSeleccionadoParaDev(null);
-        setCantidadDevolucion(1); setBusquedaProductoDev(''); productoDevRef.current?.clearInput?.();
+        setCantidadDevolucion(1); productoDevRef.current?.clearInput?.();
     };
 
-    const isActionDisabled = (nota) => !nota.id || !!nota._id_original_invalid || (typeof nota.id === 'string' && (nota.id.startsWith("local_") || nota.id.includes("_inv_")));
+    const isActionDisabled = (nota) => !nota.id || (typeof nota.id === 'string' && nota.id.startsWith("local_"));
     const thClasses = "px-3 py-2 text-left text-xs font-medium text-zinc-300 uppercase tracking-wider";
     const tdClasses = "px-3 py-2 text-sm";
 
     return (
         <div id="notas_cd">
-            <h2 className="text-xl sm:text-2xl font-semibold mb-4 text-white">Notas de Crédito / Débito</h2>
+             <h2 className="text-xl sm:text-2xl font-semibold mb-4 text-white">Notas de Crédito / Débito</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 <div className="bg-zinc-800 p-4 sm:p-5 rounded-lg shadow-md">
                     <h3 className="text-lg sm:text-xl font-medium mb-3 text-white border-b border-zinc-700 pb-2">Generar Nueva Nota</h3>
@@ -122,7 +126,7 @@ function NotasCDTab({ onViewDetailsNotaCD, onPrintNotaCD }) { // Solo recibe pro
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end">
                                     <div className="sm:col-span-2">
                                         <label htmlFor="producto-devolucion-buscar" className="block text-xs font-medium text-zinc-400 mb-1">Buscar Producto:</label>
-                                        <SearchBar ref={productoDevRef} items={productosValidosParaDevolucion} placeholder="Buscar producto a devolver..." onSelect={handleSelectProductoDev} displayKey="nombre" filterKeys={['nombre', 'codigoBarras']} inputId="producto-devolucion-buscar" initialValue={busquedaProductoDev}/>
+                                        <SearchBar ref={productoDevRef} items={productosValidosParaDevolucion} placeholder="Buscar producto a devolver..." onSelect={handleSelectProductoDev} displayKey="nombre" filterKeys={['nombre', 'codigoBarras']} inputId="producto-devolucion-buscar"/>
                                     </div>
                                     <div>
                                         <label htmlFor="cantidad-devolucion" className="block text-xs font-medium text-zinc-400 mb-1">Cantidad:</label>

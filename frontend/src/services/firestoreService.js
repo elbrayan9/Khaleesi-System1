@@ -166,3 +166,88 @@ export const saveDatosNegocio = async (userId, data) => {
     return true;
   } catch (error) { console.error("Error guardando datos del negocio:", error); return false; }
 };
+
+// Pega esta función en tu firestoreService.js
+
+/**
+ * Anula una venta: marca la venta como anulada, crea una nota de crédito
+ * y restaura el stock de los productos, todo en una sola operación segura.
+ * @param {string} userId - ID del usuario.
+ * @param {object} ventaOriginal - El objeto completo de la venta a anular.
+ * @param {object} notaData - El objeto con los datos de la nueva nota de crédito.
+ * @returns {Promise<boolean>} - True si la operación fue exitosa, false si no.
+ */
+export const anularVentaConNotaCredito = async (userId, ventaOriginal, notaData) => {
+    if (!userId || !ventaOriginal?.id) return false;
+    
+    // Un "lote de escritura" asegura que todas las operaciones se completen, o ninguna lo haga.
+    const batch = writeBatch(db);
+
+    try {
+        // 1. Marcar la venta original como anulada
+        const ventaRef = doc(db, "ventas", ventaOriginal.id);
+        // También guardamos el ID de la nota de crédito para tener una referencia cruzada
+        batch.update(ventaRef, { anulada: true, notaCreditoId: notaData.id });
+
+        // 2. Crear la nueva nota de crédito
+        const newNotaDocRef = doc(db, "notas_cd", notaData.id);
+        batch.set(newNotaDocRef, notaData);
+
+        // 3. Restaurar el stock de cada producto de la venta original
+        if (Array.isArray(ventaOriginal.items)) {
+            ventaOriginal.items.forEach(item => {
+                const esRastreable = item.id && typeof item.id === 'string' && !item.id.startsWith("manual_");
+                if (esRastreable) {
+                    const productRef = doc(db, "productos", item.id);
+                    batch.update(productRef, { stock: increment(item.cantidad) });
+                }
+            });
+        }
+        
+        // 4. Ejecutar todas las operaciones en la base de datos
+        await batch.commit();
+        return true;
+    } catch (error) {
+        console.error("Error en la transacción de anulación de venta:", error);
+        return false;
+    }
+};
+
+// Pega también esta función en tu firestoreService.js
+
+/**
+ * Crea una nota de crédito/débito manual y, si es de crédito con
+ * devolución, restaura el stock de los productos devueltos.
+ * @param {string} userId - ID del usuario.
+ * @param {object} notaData - El objeto completo de la nota a crear desde el formulario.
+ * @returns {Promise<string|null>} - El ID de la nueva nota o null si falla.
+ */
+export const addNotaManual = async (userId, notaData) => {
+    if (!userId || !notaData) return null;
+    
+    const batch = writeBatch(db);
+
+    try {
+        // 1. Crear la nueva nota de crédito/débito
+        const notasRef = collection(db, "notas_cd");
+        const newNotaDocRef = doc(notasRef);
+        batch.set(newNotaDocRef, { ...notaData, id: newNotaDocRef.id });
+
+        // 2. Si la nota es de crédito e implica devolución, restauramos stock
+        if (notaData.tipo === 'credito' && notaData.implicaDevolucion && Array.isArray(notaData.itemsDevueltos)) {
+            notaData.itemsDevueltos.forEach(item => {
+                if (item.id && !item.id.startsWith('manual_')) {
+                    const productRef = doc(db, "productos", item.id);
+                    batch.update(productRef, { stock: increment(item.cantidad) });
+                }
+            });
+        }
+        
+        // 3. Ejecutar las operaciones
+        await batch.commit();
+        return newNotaDocRef.id;
+    } catch(error) {
+        console.error("Error al crear nota manual:", error);
+        return null;
+    }
+};

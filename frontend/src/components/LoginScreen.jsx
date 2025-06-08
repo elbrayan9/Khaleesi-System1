@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { useAppContext } from '../context/AppContext.jsx';
 import { signIn } from '../services/authService';
 import AppLogo from './AppLogo.jsx';
+import Footer from './Footer.jsx';
 
 function LoginScreen() {
     const { mostrarMensaje } = useAppContext();
@@ -27,14 +28,21 @@ function LoginScreen() {
         }
     };
 
-    return (
-        <div id="login-screen" className="relative min-h-screen flex flex-col items-center justify-center bg-black p-4 overflow-hidden">
-             <div className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: `url(/khaleesi-system.jpg)` }} aria-hidden="true"></div>
-            <div className="absolute inset-0 z-0 bg-black bg-opacity-70" aria-hidden="true"></div>
+// Reemplaza la sección 'return' completa de tu LoginScreen.jsx con esto:
+
+return (
+    <div id="login-screen" className="relative min-h-screen flex flex-col bg-black p-4 overflow-hidden">
+        {/* Capas de Fondo (sin cambios) */}
+        <div className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: `url(/khaleesi-system.jpg)` }} aria-hidden="true"></div>
+        <div className="absolute inset-0 z-0 bg-black bg-opacity-70" aria-hidden="true"></div>
+
+        {/* --- INICIO DE LA CORRECCIÓN --- */}
+        {/* Nuevo contenedor para centrar el contenido principal y permitir que crezca */}
+        <main className="flex-1 flex flex-col items-center justify-center w-full z-10">
             <motion.div 
                 initial={{ opacity: 0, y: 50 }} 
                 animate={{ opacity: 1, y: 0 }} 
-                className="relative z-10 bg-white/10 backdrop-blur-sm p-8 rounded-lg shadow-xl w-full max-w-sm my-4 border border-white/10"
+                className="relative bg-white/10 backdrop-blur-sm p-8 rounded-lg shadow-xl w-full max-w-sm my-4 border border-white/10"
             >
                 <div className="text-center mb-6">
                     <AppLogo onLogoClick={() => {}} className="text-white h-12 w-12 mx-auto" />
@@ -42,6 +50,7 @@ function LoginScreen() {
                 </div>
                 <h2 className="text-2xl font-bold mb-6 text-center text-zinc-100">Iniciar Sesión</h2>
                 <form onSubmit={attemptLogin} className="space-y-4">
+                    {/* ... tu formulario de login no cambia ... */}
                     <div>
                         <label htmlFor="login-email" className="block text-sm font-medium text-zinc-300 mb-1">Email:</label>
                         <input type="email" id="login-email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full p-2 border border-zinc-600 rounded-md bg-zinc-700 text-zinc-100" required />
@@ -53,9 +62,7 @@ function LoginScreen() {
                     <motion.button type="submit" disabled={isLoading} className="w-full bg-white/80 hover:bg-white text-black font-bold py-2 px-4 rounded-md transition" whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}>
                         {isLoading ? 'Ingresando...' : 'Ingresar'}
                     </motion.button>
-                    
-                    {/* --- BLOQUE CORREGIDO Y AÑADIDO --- */}
-                    <div className="mt-4 text-center text-xs text-zinc-300">
+                     <div className="mt-4 text-center text-xs text-zinc-300">
                         <p className="mb-2">
                             ¿No tienes una cuenta?{' '}
                             <Link to="/signup" className="font-medium text-blue-400 hover:underline">
@@ -68,11 +75,17 @@ function LoginScreen() {
                             </Link>
                         </p>
                     </div>
-
                 </form>
             </motion.div>
+        </main>
+
+        <div className="relative z-10">
+             <Footer />
         </div>
-    );
+        {/* --- FIN DE LA CORRECCIÓN --- */}
+
+    </div>
+);
 }
 
 export default LoginScreen;
