@@ -3,6 +3,7 @@ import React, { createContext, useState, useEffect, useCallback, useContext } fr
 import * as fsService from '../services/firestoreService';
 import { monitorAuthState, logOut as authLogOut } from '../services/authService';
 import { obtenerFechaHoraActual } from '../utils/helpers';
+import Swal from 'sweetalert2';
 
 // --- Creación del Contexto ---
 const AppContext = createContext();
@@ -240,8 +241,103 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
         }
     };
 
-    const handleGenerarNota = async (notaData) => { /* Implementación pendiente si se requiere */ };
-    const handleEliminarNotaCD = async (id) => { /* Implementación pendiente si se requiere */ };
+const handleGenerarNotaManual = async (notaDataFromForm) => {
+    setIsLoadingData(true);
+    const { fecha, hora, timestamp } = obtenerFechaHoraActual();
+    const notaCompleta = { ...notaDataFromForm, fecha, hora, timestamp, userId: currentUserId };
+    
+    // Llama a la función de servicio para agregar la nota y manejar el stock si es necesario
+    const newNotaId = await fsService.addNotaManual(currentUserId, notaCompleta);
+    
+    if (isValidFirestoreId(newNotaId)) {
+        await loadAllDataForUser(currentUserId); // Recarga todos los datos para mantener la app sincronizada
+        mostrarMensaje(`Nota de ${notaCompleta.tipo} generada con éxito.`, 'success');
+    } else {
+        mostrarMensaje(`Error al generar nota de ${notaCompleta.tipo}.`, 'error');
+    }
+    setIsLoadingData(false);
+};
+const handleAnularVenta = async (ventaOriginal) => {
+    if (!isValidFirestoreId(ventaOriginal?.id)) {
+        return mostrarMensaje("ID de venta inválido.", "error");
+    }
+    
+    const yaExisteNota = notasCD.some(nota => nota.ventaOriginalId === ventaOriginal.id && nota.tipo === 'credito');
+    if (yaExisteNota) {
+        return mostrarMensaje("Ya existe una nota de crédito para esta venta.", "warning");
+    }
+
+    if (await confirmarAccion('¿Anular Venta?', 'Se generará una Nota de Crédito y se restaurará el stock de los productos. ¿Continuar?', 'warning', 'Sí, anular venta')) {
+        setIsLoadingData(true);
+        const { fecha, hora, timestamp } = obtenerFechaHoraActual();
+        const notaData = {
+            fecha, hora, timestamp, userId: currentUserId,
+            tipo: 'credito',
+            total: ventaOriginal.total,
+            items: ventaOriginal.items,
+            clienteId: ventaOriginal.clienteId,
+            clienteNombre: ventaOriginal.clienteNombre,
+            ventaOriginalId: ventaOriginal.id,
+            motivo: `Anulación de venta #${ventaOriginal.id.substring(0, 6)}...`
+        };
+
+        const success = await fsService.anularVentaConNotaCredito(currentUserId, ventaOriginal, notaData);
+        if (success) {
+            await loadAllDataForUser(currentUserId);
+            mostrarMensaje("Venta anulada y Nota de Crédito generada.", "success");
+        } else {
+            mostrarMensaje("Error al anular la venta.", "error");
+        }
+        setIsLoadingData(false);
+    }
+};
+// En AppContext.jsx, reemplaza esta función
+
+const handleEliminarNotaCD = async (notaId) => {
+    if (!isValidFirestoreId(notaId)) {
+        mostrarMensaje("ID de nota inválido.", "error");
+        return;
+    }
+
+    const notaAEliminar = notasCD.find(n => n.id === notaId);
+    if (!notaAEliminar) {
+        mostrarMensaje("No se encontró la nota a eliminar.", "error");
+        return;
+    }
+
+    // Usamos Swal.fire directamente para tener control sobre la propiedad 'html'
+    const result = await Swal.fire({
+        title: '¿Eliminar Nota?',
+        // Aquí está el cambio clave: usamos la propiedad 'html'
+        html: `¿Seguro de eliminar la nota de tipo <strong>${notaAEliminar.tipo}</strong> para "<strong>${notaAEliminar.clienteNombre}</strong>"?<br/>Esta acción no se puede deshacer.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#52525b',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar',
+        background: '#27272a',
+        color: '#d4d4d8',
+        customClass: {
+            popup: 'text-sm rounded-lg',
+            title: 'text-zinc-100 !text-lg',
+            htmlContainer: 'text-zinc-300',
+        }
+    });
+
+    if (result.isConfirmed) {
+        setIsLoadingData(true);
+        // Usamos la función de servicio genérica que ya tenías
+        const success = await fsService.deleteDocument('notas_cd', notaId); 
+        if (success) {
+            setNotasCD(prev => prev.filter(n => n.id !== notaId));
+            mostrarMensaje("Nota eliminada con éxito.", "success");
+        } else {
+            mostrarMensaje("Error al eliminar la nota.", "error");
+        }
+        setIsLoadingData(false);
+    }
+};
 
     const handleGuardarDatosNegocio = async (datosActualizados) => {
         setIsLoadingData(true);
@@ -265,7 +361,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
         handleSaleConfirmed, handleEliminarVenta,
         handleRegistrarIngresoManual, handleEliminarIngresoManual,
         handleRegistrarEgreso, handleEliminarEgreso,
-        handleGenerarNota, handleEliminarNotaCD,
+        handleGenerarNotaManual,handleEliminarNotaCD, handleAnularVenta,
         handleGuardarDatosNegocio,
         handleAddManualItemToCart,
         mostrarMensaje,
