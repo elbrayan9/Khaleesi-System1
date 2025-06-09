@@ -4,6 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAppContext } from '../context/AppContext.jsx';
 import { signUpWithBusiness } from '../services/authService';
+import { Eye, EyeOff } from 'lucide-react';
 
 function SignUpScreen() {
     const { mostrarMensaje } = useAppContext();
@@ -13,6 +14,7 @@ function SignUpScreen() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     const handleSignUp = async (e) => {
         e.preventDefault();
@@ -56,10 +58,27 @@ function SignUpScreen() {
                         <label htmlFor="signup-email" className="block text-sm font-medium text-zinc-300 mb-1">Email:</label>
                         <input type="email" id="signup-email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full p-2 border border-zinc-600 rounded-md bg-zinc-700 text-zinc-100" required />
                     </div>
-                    <div>
-                        <label htmlFor="signup-password" className="block text-sm font-medium text-zinc-300 mb-1">Contraseña:</label>
-                        <input type="password" id="signup-password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full p-2 border border-zinc-600 rounded-md bg-zinc-700 text-zinc-100" required />
+                   {/* Bloque para el campo Contraseña */}
+                   <div className="relative">
+                   <label htmlFor="signup-password" className="block text-sm font-medium text-zinc-300 mb-1">Contraseña:</label>
+                   <input 
+                        type={showPassword ? "text" : "password"}
+                        id="signup-password" 
+                        value={password} 
+                        onChange={(e) => setPassword(e.target.value)} 
+                        className="w-full p-2 border border-zinc-600 rounded-md bg-zinc-700 text-zinc-100" 
+                        required 
+                   />
+                   <button 
+                        type="button" 
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute inset-y-0 right-0 top-6 flex items-center pr-3 text-zinc-400 hover:text-white"
+                        aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                    >
+                       {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                     </button>
                     </div>
+
                     <motion.button type="submit" disabled={isLoading} className="w-full bg-white/80 hover:bg-white text-black font-bold py-2 px-4 rounded-md transition" whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}>
                         {isLoading ? 'Registrando...' : 'Crear Cuenta'}
                     </motion.button>
