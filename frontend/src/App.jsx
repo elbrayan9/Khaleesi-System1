@@ -20,6 +20,8 @@ import PrintNota from './components/PrintNota.jsx';
 import SaleDetailModal from './components/SaleDetailModal.jsx';
 import NotaDetailModal from './components/NotaDetailModal.jsx';
 import { formatCurrency } from './utils/helpers.js';
+import AdminPanel from './screens/AdminPanel.jsx';
+import UserDetailAdmin from './screens/UserDetailAdmin.jsx';
 
 function App() {
     const { 
@@ -119,6 +121,8 @@ function App() {
                             <Route path="configuracion" element={<ConfiguracionTab />} />
                             <Route path="*" element={<Navigate to="/" replace />} />
                         </Route>
+                        <Route path="/admin" element={<AdminPanel />} />
+                         <Route path="/admin/user/:uid" element={<UserDetailAdmin />} />
                     </Route>
                     <Route path="/forgot-password" element={<ForgotPasswordScreen />} />
                 </Routes>
