@@ -228,12 +228,29 @@ const handleDeleteVendedor = async (vendedorId, vendedorName) => {
     }
 };
 
-    const handleAddManualItemToCart = (descripcion, monto) => {
-        if (!descripcion.trim() || isNaN(monto) || monto <= 0) { mostrarMensaje("Ingrese una descripción y un monto válido.", "warning"); return false; }
-        const manualItem = { id: generateLocalId("manual_"), nombre: descripcion.trim(), precio: Number(monto), cantidad: 1, isTracked: false };
-        setCartItems(prev => [...prev, manualItem]);
-        return true;
+const handleAddManualItemToCart = (descripcion, monto) => {
+    if (!descripcion.trim() || isNaN(monto) || monto <= 0) {
+        mostrarMensaje("Ingrese una descripción y un monto válido.", "warning");
+        return false;
+    }
+
+    const montoNum = Number(monto);
+
+    // --- NUEVA ESTRUCTURA DEL ITEM ---
+    const manualItem = { 
+        id: generateLocalId("manual_"), 
+        nombre: descripcion.trim(), 
+        cantidad: 1, 
+        precioOriginal: montoNum, // El precio original es el monto
+        descuentoPorcentaje: 0,  // Sin descuento por defecto
+        precioFinal: montoNum,     // El precio final es el mismo que el original
+        isTracked: false 
     };
+    // --- FIN DE LA NUEVA ESTRUCTURA ---
+
+    setCartItems(prev => [...prev, manualItem]);
+    return true;
+};;
 
 // src/context/AppContext.jsx
 
