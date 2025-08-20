@@ -67,11 +67,36 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) { // Solo recibe 
     const ingresosManualesMes = ingresosManuales.filter(filterByMonthAndYear);
 
     const totalVentasHoyTodos = ventasHoy.reduce((s, v) => s + (Number(v.total) || 0), 0);
-    const ventasPorMedioHoy = ventasHoy.reduce((acc, v) => { acc[v.metodoPago] = (acc[v.metodoPago] || 0) + (Number(v.total) || 0); return acc; }, {});
+    const ventasPorMedioHoy = useMemo(() => {
+    return ventasHoy.reduce((acumulador, venta) => {
+        // Verificamos si la venta tiene la nueva estructura de 'pagos'
+        if (venta.pagos && Array.isArray(venta.pagos)) {
+            // Si es así, recorremos cada pago individual
+            venta.pagos.forEach(pago => {
+                acumulador[pago.metodo] = (acumulador[pago.metodo] || 0) + (Number(pago.monto) || 0);
+            });
+        } else if (venta.metodoPago) {
+            // Si es una venta antigua, usamos la estructura vieja para no romper nada
+            acumulador[venta.metodoPago] = (acumulador[venta.metodoPago] || 0) + (Number(venta.total) || 0);
+        }
+        return acumulador;
+    }, {});
+}, [ventasHoy]);
     const totalEgresosEfectivoHoy = egresosHoy.reduce((s, e) => s + (Number(e.monto) || 0), 0);
     const totalIngresosManualesHoy = ingresosManualesHoy.reduce((s, i) => s + (Number(i.monto) || 0), 0);
     const saldoEfectivoEsperado = (ventasPorMedioHoy['efectivo'] || 0) + totalIngresosManualesHoy - totalEgresosEfectivoHoy;
     const totalVentasMesTodos = ventasMes.reduce((s, v) => s + (Number(v.total) || 0), 0);
+    const ventasPorVendedorHoy = useMemo(() => {
+    return ventasHoy.reduce((acumulador, venta) => {
+        const vendedor = venta.vendedorNombre || 'Venta Antigua (Sin Vendedor)';
+        if (!acumulador[vendedor]) {
+            acumulador[vendedor] = { total: 0, cantidadVentas: 0 };
+        }
+        acumulador[vendedor].total += venta.total;
+        acumulador[vendedor].cantidadVentas += 1;
+        return acumulador;
+    }, {});
+    }, [ventasHoy]);
     const defaultSort = (a,b) => (new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
     const generateFallbackId = (prefix) => `${prefix}${Date.now()}${Math.random().toString(16).slice(2)}`;
 
@@ -166,15 +191,35 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) { // Solo recibe 
         if (onViewDetailsRequest) onViewDetailsRequest(itemId);
     };
 
-    const handleCerrarCaja = () => {
-        console.log("ReportesTab: Simular Cierre de Caja.");
-        Swal.fire({
-            title: 'Cierre de Caja (Simulado)',
-            html: `<div class="text-left text-sm space-y-1 text-zinc-300"><p>Total Ventas del Día: <strong class="text-zinc-100">$${formatCurrency(totalVentasHoyTodos)}</strong></p><hr class="border-zinc-600 my-2"/><p>+ Ventas en Efectivo: <span class="monto-positivo">$${formatCurrency(ventasPorMedioHoy['efectivo'] || 0)}</span></p><p>+ Ingresos Manuales: <span class="monto-positivo">$${formatCurrency(totalIngresosManualesHoy)}</span></p><p>- Egresos en Efectivo: <span class="monto-negativo">-${formatCurrency(totalEgresosEfectivoHoy)}</span></p><hr class="border-zinc-600 my-2"/><p>Saldo Efectivo Esperado: <strong class="text-blue-400 text-base">$${formatCurrency(saldoEfectivoEsperado)}</strong></p></div>`,
-            icon: 'info', confirmButtonText: 'Entendido', heightAuto: false, background: '#27272a', color: '#d4d4d8',
-            confirmButtonColor: '#3b82f6', customClass: { popup: 'text-sm rounded-lg', title: 'text-zinc-100 !text-lg', htmlContainer: 'text-zinc-300', confirmButton: 'px-4 py-2 rounded-md text-white hover:bg-blue-600' }
+const handleCerrarCaja = () => {
+    let resumenVendedorHtml = '';
+    if (ventasPorVendedorHoy && Object.keys(ventasPorVendedorHoy).length > 0) {
+        resumenVendedorHtml += `<hr class="border-zinc-600 my-2"/><h4 class="font-semibold text-zinc-200 pt-1 text-left">Resumen por Vendedor:</h4><div class="pl-4 space-y-1">`;
+        Object.entries(ventasPorVendedorHoy).forEach(([vendedor, data]) => {
+            resumenVendedorHtml += `<div class="flex justify-between items-center"><span class="text-zinc-400">${vendedor}:</span><span class="font-medium text-zinc-200">$${formatCurrency(data.total)} <span class="text-xs text-zinc-500">(${data.cantidadVentas} v.)</span></span></div>`;
         });
-    };
+        resumenVendedorHtml += `</div>`;
+    }
+    
+    Swal.fire({
+        title: 'Cierre de Caja (Simulado)',
+        html: `<div class="text-left text-sm space-y-1 text-zinc-300">
+                  <p>Total Ventas del Día: <strong class="text-zinc-100">$${formatCurrency(totalVentasHoyTodos)}</strong></p>
+                  <hr class="border-zinc-600 my-2"/>
+                  <p>+ Ventas en Efectivo: <span class="monto-positivo">$${formatCurrency(ventasPorMedioHoy['efectivo'] || 0)}</span></p>
+                  <p>+ Ingresos Manuales: <span class="monto-positivo">$${formatCurrency(totalIngresosManualesHoy)}</span></p>
+                  <p>- Egresos en Efectivo: <span class="monto-negativo">-${formatCurrency(totalEgresosEfectivoHoy)}</span></p>
+                  <hr class="border-zinc-600 my-2"/>
+                  <p>Saldo Efectivo Esperado: <strong class="text-blue-400 text-base">$${formatCurrency(saldoEfectivoEsperado)}</strong></p>
+                  ${resumenVendedorHtml}
+               </div>`,
+        icon: 'info', 
+        confirmButtonText: 'Entendido',
+        // Asegúrate de mantener el resto de tu configuración de Swal aquí...
+        heightAuto: false, background: '#27272a', color: '#d4d4d8',
+        confirmButtonColor: '#3b82f6', customClass: { popup: 'text-sm rounded-lg', title: 'text-zinc-100 !text-lg', htmlContainer: 'text-zinc-300', confirmButton: 'px-4 py-2 rounded-md text-white hover:bg-blue-600' }
+    });
+};
 
     const getSortIcon = (key, config) => { if (!config || config.key !== key) return <Minus className="h-3 w-3 inline-block ml-1 text-zinc-500 opacity-50" />; return config.direction === 'ascending' ? <ArrowUp className="h-4 w-4 inline-block ml-1 text-blue-400" /> : <ArrowDown className="h-4 w-4 inline-block ml-1 text-blue-400" />; };
     const headerButtonClasses = "flex items-center text-left text-xs font-medium text-zinc-300 uppercase tracking-wider hover:text-white focus:outline-none";
@@ -212,6 +257,23 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) { // Solo recibe 
                                 <div className="flex justify-between items-center"><span className="text-zinc-400">Egresos Efectivo:</span><span className="font-medium monto-negativo">-${formatCurrency(totalEgresosEfectivoHoy)}</span></div>
                             </div><hr className="border-zinc-700 my-1" />
                             <div className="flex justify-between items-center pt-2"><span className="font-bold text-zinc-100">Saldo Efectivo Esperado:</span><span className="font-bold text-lg text-blue-400">${formatCurrency(saldoEfectivoEsperado)}</span></div>
+                            {/* --- AÑADIDO: Resumen por vendedor en pantalla --- */}
+{Object.keys(ventasPorVendedorHoy).length > 0 && (
+    <div className="mt-3 pt-3 border-t border-zinc-700">
+        <h4 className="font-semibold text-zinc-200 mb-1">Desglose por Vendedor:</h4>
+        <div className="pl-4 space-y-1">
+            {Object.entries(ventasPorVendedorHoy).map(([vendedor, data]) => (
+                <div key={vendedor} className="flex justify-between items-center">
+                    <span className="text-zinc-400">{vendedor}:</span>
+                    <span className="font-medium text-zinc-200">
+                        ${formatCurrency(data.total)}
+                        <span className="text-xs text-zinc-500 ml-2">({data.cantidadVentas} v.)</span>
+                    </span>
+                </div>
+            ))}
+        </div>
+    </div>
+)}
                         </div>
                         <div className="mt-4 text-right"><motion.button onClick={handleCerrarCaja} className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-3 rounded-md inline-flex items-center" whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}><Archive className="h-4 w-4 mr-2"/>Simular Cierre</motion.button></div>
                     </div>

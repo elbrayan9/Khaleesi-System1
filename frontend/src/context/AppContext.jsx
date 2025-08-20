@@ -16,6 +16,41 @@ const ensureArray = (arr) => Array.isArray(arr) ? arr : [];
 
 // --- Componente Proveedor del Contexto ---
 export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
+    const handleAddToCart = (producto, cantidad, descuento = 0) => {
+    if (!producto || cantidad <= 0) return;
+
+    const descuentoNum = Number(descuento) || 0;
+    if (descuentoNum < 0 || descuentoNum > 100) {
+        mostrarMensaje("El descuento debe estar entre 0 y 100.", "warning");
+        return;
+    }
+
+    const precioOriginal = producto.precio;
+    const precioFinal = precioOriginal - (precioOriginal * descuentoNum / 100);
+
+    const itemExistente = cartItems.find(item => item.id === producto.id && item.descuentoPorcentaje === descuentoNum);
+
+    if (itemExistente) {
+        // Si ya existe un item con el mismo descuento, solo aumenta la cantidad
+        setCartItems(prevItems =>
+            prevItems.map(item =>
+                item.id === producto.id && item.descuentoPorcentaje === descuentoNum
+                    ? { ...item, cantidad: item.cantidad + cantidad }
+                    : item
+            )
+        );
+    } else {
+        // Si es un producto nuevo o con un descuento diferente, lo añade como nueva línea
+        const newItem = {
+            ...producto,
+            cantidad,
+            precioOriginal,
+            descuentoPorcentaje: descuentoNum,
+            precioFinal
+        };
+        setCartItems(prevItems => [...prevItems, newItem]);
+    }
+};
     // --- ESTADOS DE AUTENTICACIÓN Y CARGA ---
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [currentUserId, setCurrentUserId] = useState(null);
@@ -25,6 +60,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     // --- ESTADOS DE DATOS DE LA APLICACIÓN ---
     const [productos, setProductos] = useState([]);
     const [clientes, setClientes] = useState([]);
+    const [vendedores, setVendedores] = useState([]);
     const [cartItems, setCartItems] = useState([]);
     const [ventas, setVentas] = useState([]);
     const [egresos, setEgresos] = useState([]);
@@ -35,6 +71,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     // --- ESTADOS DE UI (EDICIÓN) ---
     const [editingProduct, setEditingProduct] = useState(null);
     const [editingClient, setEditingClient] = useState(null);
+    const [vendedorActivoId, setVendedorActivoId] = useState(null);
 
     // --- EFECTO PRINCIPAL: MANEJO DE AUTENTICACIÓN Y CARGA DE DATOS ---
     useEffect(() => {
@@ -52,7 +89,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
                 setIsLoggedIn(false);
                 setIsAdmin(false);
                 setProductos([]); setClientes([]); setCartItems([]); setVentas([]);
-                setEgresos([]); setIngresosManuales([]); setNotasCD([]); setDatosNegocio(null);
+                setEgresos([]); setIngresosManuales([]); setNotasCD([]); setDatosNegocio(null); setVendedores([]);
             }
             setIsLoadingData(false);
         });
@@ -62,14 +99,14 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     const loadAllDataForUser = async (userId) => {
         if (!userId) return;
         try {
-            const [p, c, v, e, i, nc, dn] = await Promise.all([
+            const [p, c, v, e, i, nc, dn, vend] = await Promise.all([
                 fsService.getProductos(userId), fsService.getClientes(userId), fsService.getVentas(userId),
                 fsService.getEgresos(userId), fsService.getIngresosManuales(userId), fsService.getNotasCD(userId),
-                fsService.getDatosNegocio(userId)
+                fsService.getDatosNegocio(userId), fsService.getAllDataForUser(userId, 'vendedores')
             ]);
             setProductos(ensureArray(p)); setClientes(ensureArray(c)); setVentas(ensureArray(v));
             setEgresos(ensureArray(e)); setIngresosManuales(ensureArray(i)); setNotasCD(ensureArray(nc));
-            setDatosNegocio(dn);
+            setDatosNegocio(dn); setVendedores(ensureArray(vend));
         } catch (error) {
             console.error("Error crítico cargando datos del usuario:", error);
             if (error.code === 'permission-denied') {
@@ -156,6 +193,41 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
         }
     };
 
+const handleSaveVendedor = async (vendedorData, vendedorId = null) => {
+    setIsLoadingData(true);
+    if (isValidFirestoreId(vendedorId)) {
+        // Para actualizar, llamamos a updateVendedor
+        if (await fsService.updateVendedor(vendedorId, vendedorData)) {
+            setVendedores(prev => prev.map(v => v.id === vendedorId ? { ...v, ...vendedorData } : v));
+            mostrarMensaje('Vendedor actualizado.', 'success');
+        } else { 
+            mostrarMensaje('Error al actualizar vendedor.', 'error'); 
+        }
+    } else {
+        // Para agregar, llamamos a addVendedor, pasando el userId y los datos
+        const newId = await fsService.addVendedor(currentUserId, vendedorData);
+        if (isValidFirestoreId(newId)) {
+            setVendedores(prev => [...prev, { ...vendedorData, id: newId, userId: currentUserId }]);
+            mostrarMensaje('Vendedor agregado.', 'success');
+        } else { 
+            mostrarMensaje('Error al agregar vendedor.', 'error'); 
+        }
+    }
+    setIsLoadingData(false);
+};
+
+const handleDeleteVendedor = async (vendedorId, vendedorName) => {
+    if (!isValidFirestoreId(vendedorId)) return;
+    if (await confirmarAccion('¿Eliminar Vendedor?', `¿Seguro de eliminar a "${vendedorName}"?`, 'warning', 'Sí, eliminar')) {
+        setIsLoadingData(true);
+        if (await fsService.deleteDocument('vendedores', vendedorId)) {
+            setVendedores(prev => prev.filter(v => v.id !== vendedorId));
+            mostrarMensaje(`Vendedor "${vendedorName}" eliminado.`, 'success');
+        } else { mostrarMensaje("Error al eliminar vendedor.", 'error'); }
+        setIsLoadingData(false);
+    }
+};
+
     const handleAddManualItemToCart = (descripcion, monto) => {
         if (!descripcion.trim() || isNaN(monto) || monto <= 0) { mostrarMensaje("Ingrese una descripción y un monto válido.", "warning"); return false; }
         const manualItem = { id: generateLocalId("manual_"), nombre: descripcion.trim(), precio: Number(monto), cantidad: 1, isTracked: false };
@@ -163,31 +235,66 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
         return true;
     };
 
-    const handleSaleConfirmed = async (itemsInCart, total, cliente, metodoPago, tipoFactura) => {
-        setIsLoadingData(true);
-        const { fecha, hora, timestamp } = obtenerFechaHoraActual();
-        const clienteIdFinal = cliente && isValidFirestoreId(cliente.id) ? cliente.id : "consumidor_final";
-        const newSaleData = {
-            fecha, hora, timestamp, clienteId: clienteIdFinal, clienteNombre: cliente?.nombre || "Consumidor Final",
-            items: itemsInCart.map(item => ({ id: item.id, nombre: item.nombre, cantidad: item.cantidad, precio: item.precio })),
-            total, metodoPago, tipoFactura, userId: currentUserId
-        };
-        try {
-            const ventaId = await fsService.addVenta(currentUserId, newSaleData);
-            if (isValidFirestoreId(ventaId)) {
-                setVentas(prev => [...prev, { ...newSaleData, id: ventaId }]);
-                const updatedProductos = productos.map(p => {
-                    const itemInCart = itemsInCart.find(i => i.id === p.id && i.isTracked !== false);
-                    return itemInCart ? { ...p, stock: p.stock - itemInCart.cantidad } : p;
-                });
-                setProductos(updatedProductos);
-                setCartItems([]);
-                mostrarMensaje('Venta registrada con éxito.', 'success');
-            }
-        } catch (error) { mostrarMensaje(error.message || "Error al procesar la venta.", 'error'); }
-        finally { setIsLoadingData(false); }
+// src/context/AppContext.jsx
+
+// En AppContext.jsx, reemplaza esta función
+
+const handleSaleConfirmed = async (itemsInCart, total, cliente, pagos, tipoFactura) => {
+    // La validación del vendedor activo se mantiene igual
+    if (!vendedorActivoId) {
+        mostrarMensaje("Debe seleccionar un vendedor para registrar la venta.", "warning");
+        return;
+    }
+    const vendedorSeleccionado = vendedores.find(v => v.id === vendedorActivoId);
+    if (!vendedorSeleccionado) {
+        mostrarMensaje("El vendedor seleccionado no es válido.", "error");
+        return;
+    }
+
+    setIsLoadingData(true);
+    const { fecha, hora, timestamp } = obtenerFechaHoraActual();
+    const clienteIdFinal = cliente && isValidFirestoreId(cliente.id) ? cliente.id : "consumidor_final";
+
+    // --- CÁLCULO DE VUELTO FINAL ---
+    const totalPagado = pagos.reduce((sum, p) => sum + p.monto, 0);
+    const vueltoFinal = totalPagado > total ? totalPagado - total : 0;
+
+    const newSaleData = {
+        fecha, hora, timestamp,
+        clienteId: clienteIdFinal,
+        clienteNombre: cliente?.nombre || "Consumidor Final",
+        items: itemsInCart.map(item => ({
+            id: item.id,
+            nombre: item.nombre,
+            cantidad: item.cantidad,
+            precioOriginal: item.precioOriginal || item.precio,
+            descuentoPorcentaje: item.descuentoPorcentaje || 0,
+            precioFinal: item.precioFinal || item.precio,
+        })),
+        total,
+        // --- NUEVA ESTRUCTURA DE PAGO ---
+        pagos: pagos,
+        vuelto: vueltoFinal,
+        tipoFactura,
+        userId: currentUserId,
+        vendedorId: vendedorSeleccionado.id,
+        vendedorNombre: vendedorSeleccionado.nombre
     };
 
+    try {
+        const ventaId = await fsService.addVenta(currentUserId, newSaleData);
+        if (isValidFirestoreId(ventaId)) {
+            setVentas(prev => [...prev, { ...newSaleData, id: ventaId }]);
+            // ...lógica para actualizar stock...
+            setCartItems([]);
+            mostrarMensaje('Venta registrada con éxito.', 'success');
+        }
+    } catch (error) { 
+        mostrarMensaje(error.message || "Error al procesar la venta.", 'error'); 
+    } finally { 
+        setIsLoadingData(false); 
+    }
+};
     const handleEliminarVenta = async (ventaId) => {
         if (!isValidFirestoreId(ventaId)) { mostrarMensaje("ID de venta inválido.", "error"); return; }
         if (await confirmarAccion('¿Eliminar Venta?', 'Esto restaurará el stock. ¿Continuar?', 'warning', 'Sí, eliminar')) {
@@ -244,13 +351,27 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
 const handleGenerarNotaManual = async (notaDataFromForm) => {
     setIsLoadingData(true);
     const { fecha, hora, timestamp } = obtenerFechaHoraActual();
-    const notaCompleta = { ...notaDataFromForm, fecha, hora, timestamp, userId: currentUserId };
-    
-    // Llama a la función de servicio para agregar la nota y manejar el stock si es necesario
+
+    // --- LÓGICA AÑADIDA para manejar cliente opcional ---
+    const cliente = notaDataFromForm.cliente;
+    const clienteIdFinal = cliente && isValidFirestoreId(cliente.id) ? cliente.id : "consumidor_final";
+    const clienteNombreFinal = cliente ? cliente.nombre : "Consumidor Final";
+
+    const notaCompleta = { 
+        ...notaDataFromForm,
+        clienteId: clienteIdFinal,
+        clienteNombre: clienteNombreFinal,
+        fecha, 
+        hora, 
+        timestamp, 
+        userId: currentUserId 
+    };
+    delete notaCompleta.cliente; // Limpiamos el objeto 'cliente' que ya no es necesario
+
     const newNotaId = await fsService.addNotaManual(currentUserId, notaCompleta);
-    
+
     if (isValidFirestoreId(newNotaId)) {
-        await loadAllDataForUser(currentUserId); // Recarga todos los datos para mantener la app sincronizada
+        await loadAllDataForUser(currentUserId);
         mostrarMensaje(`Nota de ${notaCompleta.tipo} generada con éxito.`, 'success');
     } else {
         mostrarMensaje(`Error al generar nota de ${notaCompleta.tipo}.`, 'error');
@@ -352,13 +473,15 @@ const handleEliminarNotaCD = async (notaId) => {
 
     const contextValue = {
         isLoggedIn, isLoadingData, currentUserId, isAdmin,
-        productos, clientes, cartItems, ventas, egresos, ingresosManuales, notasCD, datosNegocio,
+        productos, clientes, cartItems, ventas, egresos, ingresosManuales, notasCD, datosNegocio, vendedores, vendedorActivoId, 
         editingProduct, editingClient,
+        setVendedorActivoId,  
         setCartItems,
         handleLogout,
         handleSaveProduct, handleEditProduct, handleCancelEditProduct, handleDeleteProduct,
-        handleSaveClient, handleEditClient, handleCancelEditClient, handleDeleteClient,
-        handleSaleConfirmed, handleEliminarVenta,
+        handleSaveClient, handleEditClient, handleCancelEditClient, handleDeleteClient, handleSaveVendedor,
+        handleDeleteVendedor,
+        handleSaleConfirmed, handleAddToCart, handleEliminarVenta,
         handleRegistrarIngresoManual, handleEliminarIngresoManual,
         handleRegistrarEgreso, handleEliminarEgreso,
         handleGenerarNotaManual,handleEliminarNotaCD, handleAnularVenta,

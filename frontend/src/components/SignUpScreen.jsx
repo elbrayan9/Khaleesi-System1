@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { useAppContext } from '../context/AppContext.jsx';
 import { signUpWithBusiness } from '../services/authService';
 import { Eye, EyeOff } from 'lucide-react';
+import ParticleBackground from './ParticleBackground.jsx';
 
 function SignUpScreen() {
     const { mostrarMensaje } = useAppContext();
@@ -40,13 +41,13 @@ function SignUpScreen() {
     };
 
     return (
-        <div id="signup-screen" className="relative min-h-screen flex flex-col items-center justify-center bg-black p-4 overflow-hidden">
-             <div className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: `url(/khaleesi-system.jpg)` }} aria-hidden="true"></div>
-            <div className="absolute inset-0 z-0 bg-black bg-opacity-70" aria-hidden="true"></div>
+        <div id="signup-screen" className="relative min-h-screen flex items-center justify-center bg-black p-4 overflow-hidden">
+             <ParticleBackground />
+
             <motion.div 
                 initial={{ opacity: 0, y: 50 }} 
                 animate={{ opacity: 1, y: 0 }} 
-                className="relative z-10 bg-white/10 backdrop-blur-sm p-8 rounded-lg shadow-xl w-full max-w-sm my-4 border border-white/10"
+                className="relative z-10 bg-black/30 backdrop-blur-sm p-8 rounded-lg shadow-xl w-full max-w-sm my-4 border border-cyan-400/20"
             >
                 <h2 className="text-2xl font-bold mb-6 text-center text-zinc-100">Crear Cuenta de Negocio</h2>
                 <form onSubmit={handleSignUp} className="space-y-4">
@@ -58,7 +59,6 @@ function SignUpScreen() {
                         <label htmlFor="signup-email" className="block text-sm font-medium text-zinc-300 mb-1">Email:</label>
                         <input type="email" id="signup-email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full p-2 border border-zinc-600 rounded-md bg-zinc-700 text-zinc-100" required />
                     </div>
-                   {/* Bloque para el campo Contraseña */}
                    <div className="relative">
                    <label htmlFor="signup-password" className="block text-sm font-medium text-zinc-300 mb-1">Contraseña:</label>
                    <input 

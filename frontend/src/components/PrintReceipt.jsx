@@ -1,60 +1,64 @@
 import React from 'react';
 
-// Componente oculto para la impresión, usa forwardRef para obtener la referencia desde App
 const PrintReceipt = React.forwardRef(({ venta, datosNegocio, cliente, formatCurrency }, ref) => {
-    if (!venta) return null; // No renderizar si no hay datos de venta
-
-    const clienteData = cliente || { nombre: "Consumidor Final", cuit: "" }; // Default
+    if (!venta) return null;
+    const clienteData = cliente || { nombre: "Consumidor Final", cuit: "" };
 
     return (
-        <div ref={ref} className="hidden print:block p-2" id="comprobante-imprimir-react">
-             {/* Estilos específicos para impresión */}
-            <style>
-                {`
-                @media print {
-                    body * { visibility: hidden; }
-                    #comprobante-imprimir-react, #comprobante-imprimir-react * { visibility: visible; }
-                    #comprobante-imprimir-react {
-                        position: absolute; left: 0; top: 0; width: 90%; /* Ajustar */
-                        margin: 0 auto; font-family: 'Courier New', Courier, monospace;
-                        font-size: 10pt; color: #000; padding: 5px;
-                        background-color: white !important; -webkit-print-color-adjust: exact; color-adjust: exact;
-                    }
-                    #comprobante-imprimir-react h4 { text-align: center; font-weight: bold; margin-bottom: 5px; font-size: 12pt; }
-                    #comprobante-imprimir-react p { margin: 2px 0; line-height: 1.2; }
-                    #comprobante-imprimir-react hr { border-top: 1px dashed #000; margin: 5px 0; }
-                    #comprobante-imprimir-react table { width: 100%; border-collapse: collapse; margin: 5px 0; font-size: 9pt; }
-                    #comprobante-imprimir-react th, #comprobante-imprimir-react td { text-align: left; padding: 1px 0; }
-                    #comprobante-imprimir-react th:nth-child(1), #comprobante-imprimir-react td:nth-child(1) { width: 50%; } /* Desc */
-                    #comprobante-imprimir-react th:nth-child(2), #comprobante-imprimir-react td:nth-child(2) { width: 15%; text-align: right; padding-right: 3px;} /* Qty */
-                    #comprobante-imprimir-react th:nth-child(3), #comprobante-imprimir-react td:nth-child(3) { width: 15%; text-align: right; padding-right: 3px;} /* Price */
-                    #comprobante-imprimir-react th:nth-child(4), #comprobante-imprimir-react td:nth-child(4) { width: 20%; text-align: right; } /* Subtotal */
-                    #comprobante-imprimir-react .total-final { text-align: right; font-weight: bold; font-size: 11pt; margin-top: 5px; }
-                    #comprobante-imprimir-react .pie-pagina { text-align: center; margin-top: 10px; font-size: 8pt; }
-                }
-                `}
-            </style>
-            {/* Contenido del Comprobante */}
-            <h4>{datosNegocio.nombre}</h4>
-            <p>{datosNegocio.direccion}</p>
-            <p>CUIT: {datosNegocio.cuit}</p>
+        <div ref={ref} className="hidden print:block" id="comprobante-imprimir-react">
+<style>
+    {`
+    /* Ya no necesitamos @media print, estos estilos se aplicarán directamente en el iframe */
+    #comprobante-imprimir-react {
+        width: 76mm;
+        margin: 0;
+        padding: 0;
+        font-family: 'monospace', 'Courier New', Courier;
+        font-size: 9.5pt;
+        color: #000;
+    }
+    h4 { text-align: center; font-weight: bold; margin-bottom: 8px; font-size: 12pt; }
+    p { margin: 2px 0; line-height: 1.3; }
+    hr { border: none; border-top: 1px dashed #000; margin: 8px 0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 9pt; }
+    th, td { text-align: left; padding: 3px 1px; vertical-align: top; }
+    .total-final { text-align: right; font-weight: bold; font-size: 11pt; margin-top: 8px; }
+    .pie-pagina { text-align: center; margin-top: 12px; font-size: 8pt; }
+    .text-right { text-align: right; }
+    .text-center { text-align: center; }
+    `}
+</style>
+            
+            <h4>{datosNegocio?.nombre || 'Mi Negocio'}</h4>
+            <p>{datosNegocio?.direccion}</p>
+            <p>CUIT: {datosNegocio?.cuit}</p>
             <hr />
             <p>Fecha: {venta.fecha} {venta.hora}</p>
-            <p>Comprobante Venta #{venta.id}</p>
+            <p>Comprobante Venta #{venta.id.substring(0, 12)}...</p>
             <p>Cliente: {clienteData.nombre}</p>
             {clienteData.cuit && <p>CUIT/CUIL: {clienteData.cuit}</p>}
+            {venta.vendedorNombre && <p>Atendido por: {venta.vendedorNombre}</p>}
             <hr />
             <table>
                 <thead>
-                    <tr><th>Producto</th><th>Cant.</th><th>P.Unit</th><th>Subt.</th></tr>
+                    <tr>
+                        <th>Producto</th>
+                        <th className="text-center">Cant.</th>
+                        <th className="text-right">P.Unit</th>
+                        {/* --- AÑADIDO: Columna de Descuento --- */}
+                        <th className="text-center">Desc.</th>
+                        <th className="text-right">Subt.</th>
+                    </tr>
                 </thead>
                 <tbody>
                     {venta.items.map((item, index) => (
                         <tr key={index}>
                             <td>{item.nombre}</td>
-                            <td style={{ textAlign: 'right' }}>{item.cantidad}</td>
-                            <td style={{ textAlign: 'right' }}>${formatCurrency(item.precio)}</td>
-                            <td style={{ textAlign: 'right' }}>${formatCurrency(item.precio * item.cantidad)}</td>
+                            <td className="text-center">{item.cantidad}</td>
+                            <td className="text-right">${formatCurrency(item.precioOriginal || item.precioFinal)}</td>
+                            {/* --- AÑADIDO: Celda para el valor del descuento --- */}
+                            <td className="text-center">{item.descuentoPorcentaje > 0 ? `${item.descuentoPorcentaje}%` : '-'}</td>
+                            <td className="text-right">${formatCurrency(item.precioFinal * item.cantidad)}</td>
                         </tr>
                     ))}
                 </tbody>
@@ -70,7 +74,5 @@ const PrintReceipt = React.forwardRef(({ venta, datosNegocio, cliente, formatCur
     );
 });
 
-PrintReceipt.displayName = 'PrintReceipt'; // Nombre para DevTools
-
+PrintReceipt.displayName = 'PrintReceipt';
 export default PrintReceipt;
-

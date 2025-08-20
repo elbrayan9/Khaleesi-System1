@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { sendPasswordReset } from '../services/authService';
+import ParticleBackground from '../components/ParticleBackground';
 
 const ForgotPasswordScreen = () => {
   const [email, setEmail] = useState('');
@@ -33,14 +34,13 @@ const ForgotPasswordScreen = () => {
   };
 
   return (
-    <div className="relative min-h-screen flex flex-col items-center justify-center bg-black p-4 overflow-hidden">
-      <div className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: `url(/khaleesi-system.jpg)` }} aria-hidden="true"></div>
-      <div className="absolute inset-0 z-0 bg-black bg-opacity-70" aria-hidden="true"></div>
+    <div className="relative min-h-screen flex items-center justify-center bg-black p-4 overflow-hidden">
+      <ParticleBackground />
       
       <motion.div 
         initial={{ opacity: 0, y: 50 }} 
         animate={{ opacity: 1, y: 0 }} 
-        className="relative z-10 bg-white/10 backdrop-blur-sm p-8 rounded-lg shadow-xl w-full max-w-sm my-4 border border-white/10"
+        className="relative z-10 bg-black/30 backdrop-blur-sm p-8 rounded-lg shadow-xl w-full max-w-sm my-4 border border-cyan-400/20"
       >
         <h2 className="text-2xl font-bold mb-2 text-center text-zinc-100">Recuperar Contraseña</h2>
         <p className="text-center text-zinc-300 text-sm mb-6">

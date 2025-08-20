@@ -1,16 +1,17 @@
-// src/services/firestoreService.js
-import { db } from '../firebaseConfig';
+// frontend/src/services/firestoreService.js
+import { db } from '../firebaseConfig'; // Asegúrate que esta ruta sea correcta
 import {
   collection, doc, addDoc, getDocs, getDoc,
   updateDoc, deleteDoc, query, where, writeBatch,
   serverTimestamp, setDoc, increment
 } from "firebase/firestore";
 
+// --- FUNCIÓN DE AYUDA QUE FALTABA ---
 const getCollectionPathForUser = (collectionName) => {
   return collectionName;
 };
 
-// --- Funciones CRUD Genéricas ---
+// --- FUNCIONES CRUD GENÉRICAS ---
 export const getAllDataForUser = async (userId, collectionName) => {
   if (!userId) return [];
   const collPath = getCollectionPathForUser(collectionName);
@@ -45,21 +46,21 @@ export const addDocument = async (userId, collectionName, data) => {
 };
 
 export const updateDocument = async (collectionName, docId, dataToUpdate) => {
-  if (!docId) return false;
-  const docRef = doc(db, collectionName, docId);
-  try {
-    const cleanDataToUpdate = { ...dataToUpdate };
-    if (cleanDataToUpdate.hasOwnProperty('id')) delete cleanDataToUpdate.id;
-    await updateDoc(docRef, { ...cleanDataToUpdate, lastUpdated: serverTimestamp() });
-    return true;
-  } catch (error) { console.error(`Error actualizando ${docId} en ${collectionName}:`, error); return false; }
+    if (!docId) return false;
+    const docRef = doc(db, collectionName, docId);
+    try {
+        const cleanDataToUpdate = { ...dataToUpdate };
+        if (cleanDataToUpdate.hasOwnProperty('id')) delete cleanDataToUpdate.id;
+        await updateDoc(docRef, { ...cleanDataToUpdate, lastUpdated: serverTimestamp() });
+        return true;
+    } catch (error) { console.error(`Error actualizando ${docId} en ${collectionName}:`, error); return false; }
 };
 
 export const deleteDocument = async (collectionName, docId) => {
-  if (!docId) return false;
-  const docRef = doc(db, collectionName, docId);
-  try { await deleteDoc(docRef); return true; }
-  catch (error) { console.error(`Error eliminando ${docId} de ${collectionName}:`, error); return false; }
+    if (!docId) return false;
+    const docRef = doc(db, collectionName, docId);
+    try { await deleteDoc(docRef); return true; }
+    catch (error) { console.error(`Error eliminando ${docId} de ${collectionName}:`, error); return false; }
 };
 
 // --- PRODUCTOS ---
@@ -73,6 +74,12 @@ export const getClientes = (userId) => getAllDataForUser(userId, 'clientes');
 export const addCliente = (userId, clienteData) => addDocument(userId, 'clientes', clienteData);
 export const updateCliente = (docId, clienteData) => updateDocument('clientes', docId, clienteData);
 export const deleteCliente = (docId) => deleteDocument('clientes', docId);
+
+// --- VENDEDORES ---
+export const getVendedores = (userId) => getAllDataForUser(userId, 'vendedores');
+export const addVendedor = (userId, vendedorData) => addDocument(userId, 'vendedores', vendedorData);
+export const updateVendedor = (docId, vendedorData) => updateDocument('vendedores', docId, vendedorData);
+export const deleteVendedor = (docId) => deleteDocument('vendedores', docId);
 
 // --- VENTAS ---
 export const getVentas = (userId) => getAllDataForUser(userId, 'ventas');
@@ -112,27 +119,44 @@ export const addVenta = async (userId, ventaData) => {
 };
 
 export const deleteVentaAndRestoreStock = async (userId, ventaId) => {
-  if (!userId || !ventaId) return false;
-  const batch = writeBatch(db);
-  const ventaRef = doc(db, getCollectionPathForUser('ventas'), ventaId);
-  try {
-    const ventaDoc = await getDoc(ventaRef);
-    if (!ventaDoc.exists()) throw new Error(`Venta ${ventaId} no encontrada.`);
-    const ventaData = ventaDoc.data();
-    batch.delete(ventaRef);
+    if (!userId || !ventaId) return false;
 
-    if (ventaData.items && Array.isArray(ventaData.items)) {
-      for (const itemVendido of ventaData.items) {
-        const esProductoRastreable = itemVendido.id && typeof itemVendido.id === 'string' && !itemVendido.id.startsWith("manual_") && !itemVendido.id.startsWith("local_");
-        if (esProductoRastreable) {
-          const productoRef = doc(db, getCollectionPathForUser('productos'), itemVendido.id);
-          batch.update(productoRef, { stock: increment(Number(itemVendido.cantidad)) });
+    const batch = writeBatch(db);
+    const ventaRef = doc(db, 'ventas', ventaId);
+
+    try {
+        const ventaDoc = await getDoc(ventaRef);
+        if (!ventaDoc.exists()) throw new Error(`Venta ${ventaId} no encontrada.`);
+
+        const ventaData = ventaDoc.data();
+        batch.delete(ventaRef);
+
+        if (ventaData.items && Array.isArray(ventaData.items)) {
+            // Usamos un bucle for...of para poder usar await adentro
+            for (const itemVendido of ventaData.items) {
+                const esRastreable = itemVendido.id && !itemVendido.id.startsWith("manual_");
+
+                if (esRastreable) {
+                    const productRef = doc(db, "productos", itemVendido.id);
+                    const productDoc = await getDoc(productRef);
+
+                    // ¡Aquí está la verificación clave!
+                    // Solo actualizamos el stock si el producto todavía existe.
+                    if (productDoc.exists()) {
+                        batch.update(productRef, { stock: increment(itemVendido.cantidad) });
+                    } else {
+                        console.warn(`Se intentó restaurar stock para un producto eliminado (ID: ${itemVendido.id}), se omitió.`);
+                    }
+                }
+            }
         }
-      }
+
+        await batch.commit();
+        return true;
+    } catch (error) { 
+        console.error(`Error eliminando venta ${ventaId} y restaurando stock:`, error); 
+        return false; 
     }
-    await batch.commit();
-    return true;
-  } catch (error) { console.error(`Error eliminando venta ${ventaId} y restaurando stock:`, error); return false; }
 };
 
 // --- EGRESOS E INGRESOS MANUALES ---
