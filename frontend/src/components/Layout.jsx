@@ -1,12 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react'; // Se añade useState
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import AppLogo from './AppLogo.jsx';
 import Footer from './Footer.jsx';
 import { motion } from 'framer-motion';
-import { ShoppingCart, Package, Users, LineChart, FileText, Settings, LogOut, Shield } from 'lucide-react';
+import { MessageSquare, ShoppingCart, Package, Users, LineChart, FileText, Settings, LogOut, Shield, UserPlus } from 'lucide-react';
+import ChatbotModal from './ChatbotModal.jsx';
+
 
 function Layout() {
+    // Dentro de function Layout() { ... }
+    const [isChatOpen, setIsChatOpen] = useState(false);
     // Se obtiene 'isAdmin' para mostrar el enlace condicionalmente
     const { handleLogout, isAdmin } = useAppContext();
     const navigate = useNavigate();
@@ -20,6 +24,7 @@ function Layout() {
         { id: 'venta', label: 'Nueva Venta', Icon: ShoppingCart, shortLabel: 'Venta', path: '/' },
         { id: 'productos', label: 'Productos', Icon: Package, shortLabel: 'Productos', path: '/productos' },
         { id: 'clientes', label: 'Clientes', Icon: Users, shortLabel: 'Clientes', path: '/clientes' },
+        { id: 'vendedores', label: 'Vendedores', Icon: UserPlus, shortLabel: 'Vendedores', path: '/vendedores' },
         { id: 'reportes', label: 'Caja y Reportes', Icon: LineChart, shortLabel: 'Caja', path: '/reportes' },
         { id: 'notas_cd', label: 'Notas C/D', Icon: FileText, shortLabel: 'Notas', path: '/notas' },
         { id: 'configuracion', label: 'Configuración', Icon: Settings, shortLabel: 'Config', path: '/configuracion' }
@@ -85,6 +90,24 @@ function Layout() {
             </main>
 
             <Footer />
+            {/* --- INICIO DEL CÓDIGO AÑADIDO --- */}
+
+{/* Botón flotante para el chatbot */}
+<motion.button
+    onClick={() => setIsChatOpen(true)}
+    className="fixed bottom-6 right-6 bg-blue-600 text-white p-4 rounded-full shadow-lg z-40"
+    whileHover={{ scale: 1.1 }}
+    whileTap={{ scale: 0.9 }}
+    aria-label="Abrir asistente de chat"
+>
+    <MessageSquare size={24} />
+</motion.button>
+
+{/* El componente del modal del chatbot */}
+{/* Se muestra solo si isChatOpen es true */}
+<ChatbotModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+
+{/* --- FIN DEL CÓDIGO AÑADIDO --- */}
         </div>
     );
 }

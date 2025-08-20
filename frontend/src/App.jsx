@@ -12,6 +12,7 @@ import ProtectedRoute from './components/ProtectedRoute.jsx';
 import VentaTab from './components/VentaTab.jsx';
 import ProductosTab from './components/ProductosTab.jsx';
 import ClientesTab from './components/ClientesTab.jsx';
+import VendedoresTab from './components/VendedoresTab.jsx';
 import ReportesTab from './components/ReportesTab.jsx';
 import NotasCDTab from './components/NotasCDTab.jsx';
 import ConfiguracionTab from './components/ConfiguracionTab.jsx';
@@ -40,11 +41,7 @@ function App() {
     const [notaDetailModalOpen, setNotaDetailModalOpen] = useState(false);
     const [selectedNotaData, setSelectedNotaData] = useState(null);
     
-    useEffect(() => {
-        if (ventaToPrint && printVentaRef.current) {
-            setTimeout(() => { window.print(); setVentaToPrint(null); setClienteToPrint(null); }, 150);
-        }
-    }, [ventaToPrint]);
+
 
     useEffect(() => {
         if (notaToPrint && printNotaRef.current) {
@@ -52,15 +49,42 @@ function App() {
         }
     }, [notaToPrint]);
     
-    const handlePrintRequest = (ventaObjeto) => {
-        if (ventaObjeto && ventaObjeto.id) {
-            const cliente = clientes.find(c => c.id === ventaObjeto.clienteId);
-            setVentaToPrint(ventaObjeto);
-            setClienteToPrint(cliente);
-        } else {
-            mostrarMensaje('Datos de venta inválidos para imprimir.', 'error');
+const handlePrintRequest = (ventaObjeto) => {
+    if (!ventaObjeto || !ventaObjeto.id) {
+        mostrarMensaje('Datos de venta inválidos para imprimir.', 'error');
+        return;
+    }
+
+    const cliente = clientes.find(c => c.id === ventaObjeto.clienteId);
+    setVentaToPrint(ventaObjeto);
+    setClienteToPrint(cliente);
+
+    setTimeout(() => {
+        const content = printVentaRef.current;
+        if (content) {
+            const iframe = document.createElement('iframe');
+            iframe.style.position = 'absolute';
+            iframe.style.width = '0';
+            iframe.style.height = '0';
+            iframe.style.border = '0';
+            document.body.appendChild(iframe);
+
+            const pri = iframe.contentWindow;
+            pri.document.open();
+            pri.document.write('<html><head><title>&zwnj;</title></head><body>');
+            pri.document.write(content.innerHTML);
+            pri.document.write('</body></html>');
+            pri.document.close();
+
+            pri.focus();
+            pri.print();
+
+            document.body.removeChild(iframe);
+            setVentaToPrint(null);
+            setClienteToPrint(null);
         }
-    };
+    }, 200);
+};
     
     const openSaleDetailModal = (ventaId) => {
         const venta = ventas.find(v => v.id === ventaId);
@@ -110,6 +134,7 @@ function App() {
                             <Route index element={<VentaTab />} />
                             <Route path="productos" element={<ProductosTab />} />
                             <Route path="clientes" element={<ClientesTab />} />
+                            <Route path="vendedores" element={<VendedoresTab />} />
                             <Route 
                                 path="reportes" 
                                 element={<ReportesTab onPrintRequest={handlePrintRequest} onViewDetailsRequest={openSaleDetailModal} />} 

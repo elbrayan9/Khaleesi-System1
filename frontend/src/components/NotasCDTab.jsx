@@ -18,7 +18,7 @@ function NotasCDTab({ onViewDetailsNotaCD, onPrintNotaCD }) {
 
     const [tipoNota, setTipoNota] = useState('credito');
     const [ventaRelacionadaId, setVentaRelacionadaId] = useState('');
-    const [clienteId, setClienteId] = useState('');
+    const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
     const [motivo, setMotivo] = useState('');
     const [monto, setMonto] = useState('');
     const [implicaDevolucion, setImplicaDevolucion] = useState(false);
@@ -56,33 +56,32 @@ function NotasCDTab({ onViewDetailsNotaCD, onPrintNotaCD }) {
     };
     const handleQuitarItemDevuelto = (index) => setItemsDevueltos(prev => prev.filter((_, i) => i !== index));
 
-    const handleLocalGenerarNotaClick = () => {
-        const montoNota = parseFloat(monto);
-        if (!clienteId) { mostrarMensaje("Seleccione un cliente.", 'warning'); return; }
-        if (!motivo.trim()) { mostrarMensaje("Ingrese un motivo.", 'warning'); return; }
-        if (isNaN(montoNota) || montoNota <= 0) { mostrarMensaje("Ingrese un monto válido.", 'warning'); return; }
-        if (implicaDevolucion && tipoNota === 'credito' && itemsDevueltos.length === 0) { mostrarMensaje("Agregue productos a devolver.", "warning"); return; }
-        
-        const clienteSeleccionado = clientes.find(c => c.id === clienteId);
-        const notaDataParaApp = {
-            tipo: tipoNota, 
-            ventaRelacionadaId: ventaRelacionadaId.trim() || null, 
-            clienteId: clienteId,
-            clienteNombre: clienteSeleccionado ? clienteSeleccionado.nombre : 'Cliente Desconocido',
-            motivo: motivo.trim(), 
-            monto: montoNota,
-            implicaDevolucion: implicaDevolucion,
-            itemsDevueltos: (implicaDevolucion && tipoNota === 'credito') ? itemsDevueltos : [],
-        };
-
-        // --- CAMBIO 2: Llamamos a la función con el nombre correcto ---
-        handleGenerarNotaManual(notaDataParaApp); 
-        
-        // Limpiar formulario
-        setTipoNota('credito'); setVentaRelacionadaId(''); setClienteId(''); setMotivo(''); setMonto('');
-        setImplicaDevolucion(false); setItemsDevueltos([]); setProductoSeleccionadoParaDev(null);
-        setCantidadDevolucion(1); productoDevRef.current?.clearInput?.();
+const handleLocalGenerarNotaClick = () => {
+    const montoNota = parseFloat(monto);
+    // Se elimina la validación obligatoria de cliente
+    if (!motivo.trim()) { mostrarMensaje("Ingrese un motivo.", 'warning'); return; }
+    if (isNaN(montoNota) || montoNota <= 0) { mostrarMensaje("Ingrese un monto válido.", 'warning'); return; }
+    if (implicaDevolucion && tipoNota === 'credito' && itemsDevueltos.length === 0) { mostrarMensaje("Agregue productos a devolver.", "warning"); return; }
+    
+    const notaDataParaApp = {
+        tipo: tipoNota, 
+        ventaRelacionadaId: ventaRelacionadaId.trim() || null, 
+        cliente: clienteSeleccionado, // Se pasa el objeto cliente completo
+        motivo: motivo.trim(), 
+        monto: montoNota,
+        implicaDevolucion: implicaDevolucion,
+        itemsDevueltos: (implicaDevolucion && tipoNota === 'credito') ? itemsDevueltos : [],
     };
+
+    handleGenerarNotaManual(notaDataParaApp); 
+    
+        // Limpiar formulario
+        setTipoNota('credito'); setVentaRelacionadaId(''); setClienteSeleccionado(null); setMotivo(''); setMonto('');
+        setImplicaDevolucion(false); setItemsDevueltos([]); setProductoSeleccionadoParaDev(null);
+        setCantidadDevolucion(1);
+        productoDevRef.current?.clearInput?.();
+        clienteRef.current?.clearInput?.();
+};
 
     const isActionDisabled = (nota) => !nota.id || (typeof nota.id === 'string' && nota.id.startsWith("local_"));
     const thClasses = "px-3 py-2 text-left text-xs font-medium text-zinc-300 uppercase tracking-wider";
@@ -103,13 +102,16 @@ function NotasCDTab({ onViewDetailsNotaCD, onPrintNotaCD }) {
                             </select>
                         </div>
                         <div><label htmlFor="nota-venta-rel-form" className="block text-sm font-medium text-zinc-300 mb-1">Venta Relacionada (ID - Opc.):</label><input type="text" id="nota-venta-rel-form" value={ventaRelacionadaId} onChange={(e) => setVentaRelacionadaId(e.target.value)} placeholder="ID Venta Original" className="w-full p-2 border border-zinc-600 rounded-md bg-zinc-700 text-zinc-100 placeholder-zinc-400"/></div>
-                        <div>
-                            <label htmlFor="nota-cliente-form" className="block text-sm font-medium text-zinc-300 mb-1">Cliente:</label>
-                            <select id="nota-cliente-form" value={clienteId} onChange={(e) => setClienteId(e.target.value)} className="w-full p-2 border border-zinc-600 rounded-md bg-zinc-700 text-zinc-100" required>
-                                <option value="">Seleccione Cliente...</option>
-                                {clientesValidos.map(c => (<option key={c.id} value={c.id}>{c.nombre} ({c.cuit || 'S/N CUIT'})</option>))}
-                            </select>
-                        </div>
+<div>
+    <label htmlFor="nota-cliente-form" className="block text-sm font-medium text-zinc-300 mb-1">Cliente (Opcional):</label>
+    <SearchBar
+        items={clientes}
+        placeholder="Buscar o dejar vacío para Consumidor Final"
+        onSelect={setClienteSeleccionado}
+        displayKey="nombre"
+        filterKeys={['nombre', 'cuit']}
+    />
+</div>
                         <div><label htmlFor="nota-motivo-form" className="block text-sm font-medium text-zinc-300 mb-1">Motivo:</label><textarea id="nota-motivo-form" value={motivo} onChange={(e) => setMotivo(e.target.value)} rows="2" placeholder="Ej: Devolución, ajuste..." className="w-full p-2 border border-zinc-600 rounded-md bg-zinc-700 text-zinc-100 placeholder-zinc-400" required></textarea></div>
                         <div><label htmlFor="nota-monto-form" className="block text-sm font-medium text-zinc-300 mb-1">Monto Total ($):</label><input type="number" id="nota-monto-form" value={monto} onChange={(e) => setMonto(e.target.value)} step="0.01" min="0.01" placeholder="Monto de la nota" className="w-full p-2 border border-zinc-600 rounded-md bg-zinc-700 text-zinc-100" required /></div>
                         {tipoNota === 'credito' && (

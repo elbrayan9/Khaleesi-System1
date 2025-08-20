@@ -12,22 +12,41 @@ const PrintNota = React.forwardRef(({ nota, datosNegocio, formatCurrency, client
     // Estilos similares a PrintReceipt.jsx, pero adaptados para una nota
     const printStyles = `
         @media print {
-            body * { visibility: hidden; }
-            #nota-imprimir-react, #nota-imprimir-react * { visibility: visible; }
-            #nota-imprimir-react {
-                position: absolute; left: 0; top: 0; width: 90mm; /* Ajustar para impresora térmica */
-                margin: 0 auto; font-family: 'Courier New', Courier, monospace;
-                font-size: 9pt; color: #000; padding: 5mm;
-                background-color: white !important; -webkit-print-color-adjust: exact; color-adjust: exact;
+            @page {
+                size: 80mm auto; /* Forzamos el tamaño del papel a ser como el de un ticket */
+                margin: 3mm;
             }
-            #nota-imprimir-react h4 { text-align: center; font-weight: bold; margin-bottom: 5px; font-size: 11pt; }
-            #nota-imprimir-react p { margin: 1mm 0; line-height: 1.2; }
-            #nota-imprimir-react hr { border-top: 1px dashed #000; margin: 3mm 0; }
-            #nota-imprimir-react table { width: 100%; border-collapse: collapse; margin: 3mm 0; font-size: 8pt; }
-            #nota-imprimir-react th, #nota-imprimir-react td { text-align: left; padding: 0.5mm 0; }
-            #nota-imprimir-react .text-right { text-align: right; }
-            #nota-imprimir-react .total-final { text-align: right; font-weight: bold; font-size: 10pt; margin-top: 3mm; }
-            #nota-imprimir-react .pie-pagina { text-align: center; margin-top: 5mm; font-size: 7pt; }
+            body, html {
+                background: white !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            body * {
+                visibility: hidden;
+            }
+            #nota-imprimir-react, #nota-imprimir-react * {
+                visibility: visible;
+            }
+            #nota-imprimir-react {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+            /* Estilos visuales */
+            #nota-imprimir-react {
+                font-family: 'monospace', 'Courier New', Courier;
+                font-size: 9.5pt;
+                color: #000;
+            }
+            h4 { text-align: center; font-weight: bold; margin-bottom: 8px; font-size: 12pt; }
+            p { margin: 2px 0; line-height: 1.3; }
+            hr { border: none; border-top: 1px dashed #000; margin: 8px 0; }
+            table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 8.5pt; }
+            th, td { text-align: left; padding: 2px 1px; }
+            .text-right { text-align: right; }
+            .total-final { text-align: right; font-weight: bold; font-size: 10pt; margin-top: 5mm; }
+            .pie-pagina { text-align: center; margin-top: 5mm; font-size: 7pt; }
         }
     `;
 
