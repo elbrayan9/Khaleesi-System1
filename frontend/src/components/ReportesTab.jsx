@@ -66,51 +66,88 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) { // Solo recibe 
     const egresosMes = egresos.filter(filterByMonthAndYear);
     const ingresosManualesMes = ingresosManuales.filter(filterByMonthAndYear);
 
+    // Lógica de cálculo (con correcciones para pagos divididos)
     const totalVentasHoyTodos = ventasHoy.reduce((s, v) => s + (Number(v.total) || 0), 0);
     const ventasPorMedioHoy = useMemo(() => {
-    return ventasHoy.reduce((acumulador, venta) => {
-        // Verificamos si la venta tiene la nueva estructura de 'pagos'
-        if (venta.pagos && Array.isArray(venta.pagos)) {
-            // Si es así, recorremos cada pago individual
-            venta.pagos.forEach(pago => {
-                acumulador[pago.metodo] = (acumulador[pago.metodo] || 0) + (Number(pago.monto) || 0);
-            });
-        } else if (venta.metodoPago) {
-            // Si es una venta antigua, usamos la estructura vieja para no romper nada
-            acumulador[venta.metodoPago] = (acumulador[venta.metodoPago] || 0) + (Number(venta.total) || 0);
-        }
-        return acumulador;
-    }, {});
-}, [ventasHoy]);
+        return ventasHoy.reduce((acumulador, venta) => {
+            if (venta.pagos && Array.isArray(venta.pagos)) {
+                venta.pagos.forEach(pago => {
+                    acumulador[pago.metodo] = (acumulador[pago.metodo] || 0) + (Number(pago.monto) || 0);
+                });
+            } else if (venta.metodoPago) {
+                acumulador[venta.metodoPago] = (acumulador[venta.metodoPago] || 0) + (Number(venta.total) || 0);
+            }
+            return acumulador;
+        }, {});
+    }, [ventasHoy]);
     const totalEgresosEfectivoHoy = egresosHoy.reduce((s, e) => s + (Number(e.monto) || 0), 0);
     const totalIngresosManualesHoy = ingresosManualesHoy.reduce((s, i) => s + (Number(i.monto) || 0), 0);
     const saldoEfectivoEsperado = (ventasPorMedioHoy['efectivo'] || 0) + totalIngresosManualesHoy - totalEgresosEfectivoHoy;
     const totalVentasMesTodos = ventasMes.reduce((s, v) => s + (Number(v.total) || 0), 0);
     const ventasPorVendedorHoy = useMemo(() => {
-    return ventasHoy.reduce((acumulador, venta) => {
-        const vendedor = venta.vendedorNombre || 'Venta Antigua (Sin Vendedor)';
-        if (!acumulador[vendedor]) {
-            acumulador[vendedor] = { total: 0, cantidadVentas: 0 };
-        }
-        acumulador[vendedor].total += venta.total;
-        acumulador[vendedor].cantidadVentas += 1;
-        return acumulador;
-    }, {});
+        return ventasHoy.reduce((acumulador, venta) => {
+            const vendedor = venta.vendedorNombre || 'Venta Antigua';
+            if (!acumulador[vendedor]) {
+                acumulador[vendedor] = { total: 0, cantidadVentas: 0 };
+            }
+            acumulador[vendedor].total += venta.total;
+            acumulador[vendedor].cantidadVentas += 1;
+            return acumulador;
+        }, {});
     }, [ventasHoy]);
-    const defaultSort = (a,b) => (new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
-    const generateFallbackId = (prefix) => `${prefix}${Date.now()}${Math.random().toString(16).slice(2)}`;
 
-    const todosMovimientosEfectivoHoy = useMemo(() => [
-        ...ventasHoy.filter(v => v.metodoPago === 'efectivo').map(v => ({ ...v, id: v.id || generateFallbackId('vh_'), tipo: 'Venta', montoDisplay: v.total, desc: `Venta #${(v.id || 'N/A').substring(0,8)}... - ${v.clienteNombre || 'Cons. Final'}` })),
-        ...ingresosManualesHoy.map(i => ({ ...i, id: i.id || generateFallbackId('ih_'), tipo: 'Ingreso Manual', montoDisplay: i.monto, desc: i.descripcion })),
-        ...egresosHoy.map(e => ({ ...e, id: e.id || generateFallbackId('eh_'), tipo: 'Egreso', montoDisplay: -(Number(e.monto) || 0), desc: e.descripcion }))
-    ].sort(defaultSort), [ventasHoy, ingresosManualesHoy, egresosHoy]);
+    // --- FUNCIÓN DE ORDENAMIENTO CORREGIDA ---
+    const defaultSort = (a, b) => {
+        const getTime = (timestamp) => {
+            if (!timestamp) return 0;
+            if (typeof timestamp.toMillis === 'function') {
+                return timestamp.toMillis(); // Es un timestamp de Firestore
+            }
+            const date = new Date(timestamp); // Es una fecha de JS o un string
+            return !isNaN(date) ? date.getTime() : 0;
+        };
+        return getTime(b.timestamp) - getTime(a.timestamp);
+    };
 
-    const todosMovimientosMes = useMemo(() => [
-        ...ventasMes.map(v => ({ ...v, id: v.id || generateFallbackId('vm_'), tipo: 'Venta', montoDisplay: v.total, desc: `Venta #${(v.id || 'N/A').substring(0,8)}... - ${v.clienteNombre || 'Cons. Final'} (${v.metodoPago})` })),
-        ...ingresosManualesMes.map(i => ({ ...i, id: i.id || generateFallbackId('im_'), tipo: 'Ingreso Manual', montoDisplay: i.monto, desc: i.descripcion })),
-        ...egresosMes.map(e => ({ ...e, id: e.id || generateFallbackId('em_'), tipo: 'Egreso', montoDisplay: -(Number(e.monto) || 0), desc: e.descripcion }))
-    ].sort(defaultSort), [ventasMes, ingresosManualesMes, egresosMes]);
+    // Lógica de agrupación de movimientos (sin cambios, ahora usa el defaultSort corregido)
+// Reemplaza esto en ReportesTab.jsx
+const todosMovimientosHoy = useMemo(() => {
+    // Función para obtener una descripción clara de los métodos de pago
+    const getMetodosPagoString = (venta) => {
+        if (venta.pagos && Array.isArray(venta.pagos)) {
+            return venta.pagos.map(p => p.metodo.charAt(0).toUpperCase() + p.metodo.slice(1)).join(' + ');
+        }
+        return venta.metodoPago || 'N/A'; // Para compatibilidad con ventas antiguas
+    };
+
+    const ventasDelDia = ventasHoy.map(v => ({
+        ...v,
+        tipo: 'Venta',
+        montoDisplay: v.total, // Usamos el total de la venta
+        desc: `Venta #${(v.id || '').substring(0,8)}... (${getMetodosPagoString(v)})`
+    }));
+
+    return [
+        ...ventasDelDia,
+        ...ingresosManualesHoy.map(i => ({ ...i, tipo: 'Ingreso Manual', montoDisplay: i.monto, desc: i.descripcion })),
+        ...egresosHoy.map(e => ({ ...e, tipo: 'Egreso', montoDisplay: -(Number(e.monto) || 0), desc: e.descripcion }))
+    ].sort(defaultSort);
+}, [ventasHoy, ingresosManualesHoy, egresosHoy]);
+
+    const todosMovimientosMes = useMemo(() => {
+        const getMetodosPagoString = (venta) => {
+            if (venta.pagos && Array.isArray(venta.pagos)) {
+                return venta.pagos.map(p => p.metodo.charAt(0).toUpperCase() + p.metodo.slice(1)).join(' + ');
+            }
+            return venta.metodoPago || 'N/A';
+        };
+        return [
+            ...ventasMes.map(v => ({ ...v, tipo: 'Venta', montoDisplay: v.total, desc: `${v.clienteNombre || 'Cons. Final'} (${getMetodosPagoString(v)})` })),
+            ...ingresosManualesMes.map(i => ({ ...i, tipo: 'Ingreso Manual', montoDisplay: i.monto, desc: i.descripcion })),
+            ...egresosMes.map(e => ({ ...e, tipo: 'Egreso', montoDisplay: -(Number(e.monto) || 0), desc: e.descripcion }))
+        ].sort(defaultSort);
+    }, [ventasMes, ingresosManualesMes, egresosMes]);
+
 
     const salesDataForChart = useMemo(() => {
         const salesByDay = ventasMes.reduce((acc, venta) => {
@@ -134,10 +171,10 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) { // Solo recibe 
     };
 
     const filteredSortedMovimientosDia = useMemo(() => {
-        let items = todosMovimientosEfectivoHoy;
+        let items = todosMovimientosHoy;
         if (searchTermDia) { const lower = searchTermDia.toLowerCase(); items = items.filter(m => String(m.tipo).toLowerCase().includes(lower) || String(m.desc).toLowerCase().includes(lower) || String(m.montoDisplay).includes(lower) || String(m.hora).toLowerCase().includes(lower)); }
         return sortItems(items, sortConfigDia);
-    }, [todosMovimientosEfectivoHoy, searchTermDia, sortConfigDia]);
+    }, [todosMovimientosHoy, searchTermDia, sortConfigDia]);
     const totalPagesDia = Math.ceil(filteredSortedMovimientosDia.length / ITEMS_PER_PAGE_REPORTE);
     const paginatedMovimientosDia = useMemo(() => { const first = (currentPageDia - 1) * ITEMS_PER_PAGE_REPORTE; return filteredSortedMovimientosDia.slice(first, first + ITEMS_PER_PAGE_REPORTE); }, [currentPageDia, filteredSortedMovimientosDia]);
     useEffect(() => { if (currentPageDia > totalPagesDia && totalPagesDia > 0) setCurrentPageDia(totalPagesDia); else if (currentPageDia <= 0 && totalPagesDia > 0) setCurrentPageDia(1); else if (filteredSortedMovimientosDia.length === 0 && currentPageDia !== 1) setCurrentPageDia(1); }, [currentPageDia, totalPagesDia, filteredSortedMovimientosDia.length]);

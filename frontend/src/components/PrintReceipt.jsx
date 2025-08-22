@@ -63,13 +63,39 @@ const PrintReceipt = React.forwardRef(({ venta, datosNegocio, cliente, formatCur
                     ))}
                 </tbody>
             </table>
-            <hr />
-            <p className="total-final">TOTAL: ${formatCurrency(venta.total)}</p>
-            <p>Medio de Pago: {venta.metodoPago}</p>
-            <p>Tipo Factura: {venta.tipoFactura}</p>
-            <hr />
-            <p className="pie-pagina">¡Gracias por su compra!</p>
-            <p className="pie-pagina">Documento no válido como factura.</p>
+{/* En PrintReceipt.jsx, reemplaza esta sección final */}
+
+<hr />
+<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', paddingTop: '5px' }}>
+
+    {/* Columna Izquierda: Detalles del Pago */}
+    <div style={{ fontSize: '9pt' }}>
+        <p><strong>Medios de Pago:</strong></p>
+        <div style={{ paddingLeft: '8px' }}>
+            {(venta.pagos && venta.pagos.length > 0) ? (
+                venta.pagos.map((p, i) => (
+                    <div key={i}>
+                        <span style={{ textTransform: 'capitalize' }}>{p.metodo.replace('_', ' ')}: </span>
+                        <span>${formatCurrency(p.monto)}</span>
+                    </div>
+                ))
+            ) : (
+                // Compatibilidad con ventas antiguas
+                <p>{venta.metodoPago || 'N/A'}</p>
+            )}
+        </div>
+        <p style={{ marginTop: '5px' }}><strong>Tipo Factura:</strong> {venta.tipoFactura}</p>
+    </div>
+
+    {/* Columna Derecha: Total Final */}
+    <div style={{ textAlign: 'right' }}>
+        <p className="total-final">TOTAL: ${formatCurrency(venta.total)}</p>
+    </div>
+
+</div>
+<hr />
+<p className="pie-pagina">¡Gracias por su compra!</p>
+<p className="pie-pagina">Documento no válido como factura.</p>
         </div>
     );
 });
