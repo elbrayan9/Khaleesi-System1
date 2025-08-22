@@ -53,7 +53,21 @@ function SaleDetailModal({ isOpen, onClose, venta, formatCurrency, clienteInfo }
                 <p className="col-span-2 sm:col-span-1"><strong>Cliente:</strong> {clienteNombre}</p>
                 {clienteCuit && <p><strong>CUIT/CUIL:</strong> {clienteCuit}</p>}
                 {venta.vendedorNombre && <p className="col-span-2 sm:col-span-1"><strong>Atendido por:</strong> {venta.vendedorNombre}</p>}
-                <p><strong>Método Pago:</strong> <span className="capitalize">{venta.metodoPago?.replace('_', ' ') || 'N/A'}</span></p>
+                <div className="col-span-2 sm:col-span-1">
+    <strong>Método Pago:</strong>
+    <div className="pl-2">
+        {(venta.pagos && venta.pagos.length > 0) ? (
+            venta.pagos.map((p, i) => (
+                <div key={i} className="flex justify-between text-xs">
+                    <span className="capitalize text-zinc-400">{p.metodo.replace('_', ' ')}:</span>
+                    <span className="text-zinc-300 font-medium">${formatCurrency(p.monto)}</span>
+                </div>
+            ))
+        ) : (
+            <span className="capitalize">{venta.metodoPago || 'N/A'}</span>
+        )}
+    </div>
+</div>
                 <p><strong>Tipo Factura:</strong> {venta.tipoFactura || 'N/A'}</p>
             </div>
 
