@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import SearchBar from './SearchBar.jsx';
 import { useAppContext } from '../context/AppContext.jsx'; // Importamos el contexto
 import { formatCurrency } from '../utils/helpers.js';
-import { Trash2 } from 'lucide-react'; // Usaremos el ícono de Lucide
+import { Trash2, PlusCircle, MinusCircle } from 'lucide-react'; // Importamos íconos
 
 function Cart({
     onCheckout, // Renombrado de onConfirmSale a onCheckout para claridad
@@ -12,7 +12,7 @@ function Cart({
     onClientSelect
 }) {
     // --- MODIFICADO: Obtenemos cartItems y setCartItems del contexto ---
-    const { cartItems, setCartItems } = useAppContext();
+    const { cartItems, setCartItems, productos } = useAppContext();
 
     // --- MODIFICADO: El total se calcula aquí con el precio final ---
     const total = cartItems.reduce((acc, item) => acc + (item.precioFinal * item.cantidad), 0);
@@ -22,16 +22,29 @@ function Cart({
         setCartItems(prevItems => prevItems.filter(item => item.id !== itemId));
     };
 
-    const handleUpdateQuantity = (itemId, newQuantity) => {
-        if (newQuantity < 1) {
-            handleRemoveItem(itemId);
+    const handleUpdateQuantity = (itemId, change) => {
+        const itemToUpdate = cartItems.find(item => item.id === itemId);
+        if (!itemToUpdate) return;
+
+        const productoInfo = productos.find(p => p.id === itemId);
+        const newQuantity = itemToUpdate.cantidad + change;
+
+        if (newQuantity > productoInfo?.stock && itemToUpdate.isTracked) {
+            // No usamos mostrarMensaje aquí para no ser muy invasivos
+            console.warn(`Stock insuficiente para ${itemToUpdate.nombre}.`);
             return;
         }
-        setCartItems(prevItems =>
-            prevItems.map(item =>
-                item.id === itemId ? { ...item, cantidad: newQuantity } : item
-            )
-        );
+
+        if (newQuantity <= 0) {
+            // Si la cantidad es 0 o menos, eliminamos el item
+            setCartItems(prev => prev.filter(item => item.id !== itemId));
+        } else {
+            setCartItems(prev =>
+                prev.map(item =>
+                    item.id === itemId ? { ...item, cantidad: newQuantity } : item
+                )
+            );
+        }
     };
 
     const clientObject = selectedClientId ? clients.find(c => c.id === selectedClientId) : null;
@@ -57,17 +70,11 @@ function Cart({
                                 )}
                                 <p className="text-zinc-300 text-xs">{item.cantidad} x ${formatCurrency(item.precioFinal)}</p>
                             </div>
-                            <div className="flex items-center flex-shrink-0">
-                                <span className="mr-2 font-medium text-right w-20 text-zinc-200">${formatCurrency(item.precioFinal * item.cantidad)}</span>
-                                <motion.button
-                                    onClick={() => handleRemoveItem(item.id)}
-                                    className="text-red-500 hover:text-red-400 p-1"
-                                    title="Quitar"
-                                    whileHover={{ scale: 1.15 }}
-                                    whileTap={{ scale: 0.9 }}
-                                >
-                                    <Trash2 className="h-4 w-4"/>
-                                </motion.button>
+                            <div className="col-span-2 flex items-center justify-end gap-1">
+                                <motion.button onClick={() => handleUpdateQuantity(item.id, -1)} className="p-1 text-zinc-400 hover:text-white" whileTap={{ scale: 0.9 }}><MinusCircle size={18}/></motion.button>
+                                <span className="font-bold text-lg text-white w-8 text-center">{item.cantidad}</span>
+                                <motion.button onClick={() => handleUpdateQuantity(item.id, 1)} className="p-1 text-zinc-400 hover:text-white" whileTap={{ scale: 0.9 }}><PlusCircle size={18}/></motion.button>
+                                <motion.button onClick={() => handleRemoveItem(item.id)} className="p-1 text-red-500 hover:text-red-400 ml-2" title="Quitar" whileTap={{ scale: 0.9 }}><Trash2 size={18}/></motion.button>
                             </div>
                         </div>
                     ))
