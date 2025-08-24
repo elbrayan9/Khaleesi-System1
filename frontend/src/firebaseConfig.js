@@ -1,4 +1,5 @@
 // src/firebaseConfig.js
+import { getAuth } from "firebase/auth";
 import { initializeApp } from "firebase/app";
 import {
   initializeFirestore,
@@ -43,3 +44,4 @@ if (typeof window !== "undefined") {
     if (ok) analytics = getAnalytics(app);
   });
 }
+export const auth = getAuth(app);
