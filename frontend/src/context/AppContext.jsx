@@ -1,8 +1,11 @@
 // src/context/AppContext.jsx
-import React, { createContext, useState, useEffect, useCallback, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext } from 'react';
+import { db, auth } from '../firebaseConfig'; // Asegúrate que la ruta es correcta
+import { collection, onSnapshot, query, where, doc } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
 import * as fsService from '../services/firestoreService';
-import { monitorAuthState, logOut as authLogOut } from '../services/authService';
 import { obtenerFechaHoraActual } from '../utils/helpers';
+import { logOut as authLogOut } from '../services/authService';
 import Swal from 'sweetalert2';
 
 // --- Creación del Contexto ---
@@ -73,28 +76,64 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     const [editingClient, setEditingClient] = useState(null);
     const [vendedorActivoId, setVendedorActivoId] = useState(null);
 
-    // --- EFECTO PRINCIPAL: MANEJO DE AUTENTICACIÓN Y CARGA DE DATOS ---
+    // --- EFECTO 1: MANEJO DE AUTENTICACIÓN ---
     useEffect(() => {
         setIsLoadingData(true);
-        const unsubscribe = monitorAuthState(async (user) => {
+        const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
             if (user) {
                 const tokenResult = await user.getIdTokenResult();
-                const userIsAdmin = tokenResult.claims.admin === true;
+                setIsAdmin(tokenResult.claims.admin === true);
                 setCurrentUserId(user.uid);
                 setIsLoggedIn(true);
-                setIsAdmin(userIsAdmin);
-                await loadAllDataForUser(user.uid);
             } else {
+                // Limpiamos todo al cerrar sesión
                 setCurrentUserId(null);
                 setIsLoggedIn(false);
                 setIsAdmin(false);
-                setProductos([]); setClientes([]); setCartItems([]); setVentas([]);
-                setEgresos([]); setIngresosManuales([]); setNotasCD([]); setDatosNegocio(null); setVendedores([]);
+                setProductos([]); setClientes([]); setVendedores([]); setCartItems([]);
+                setVentas([]); setEgresos([]); setIngresosManuales([]); setNotasCD([]);
+                setDatosNegocio(null);
             }
             setIsLoadingData(false);
         });
-        return () => unsubscribe();
+        return () => unsubscribeAuth();
     }, []);
+
+        // --- EFECTO 2: LISTENERS DE DATOS EN TIEMPO REAL ---
+    useEffect(() => {
+        if (!currentUserId) return; // Si no hay usuario, no hacemos nada
+
+        const collectionsToListen = [
+            { name: 'productos', setter: setProductos },
+            { name: 'clientes', setter: setClientes },
+            { name: 'vendedores', setter: setVendedores },
+            { name: 'ventas', setter: setVentas },
+            { name: 'egresos', setter: setEgresos },
+            { name: 'ingresos_manuales', setter: setIngresosManuales },
+            { name: 'notas_cd', setter: setNotasCD },
+        ];
+
+        const unsubscribes = collectionsToListen.map(({ name, setter }) => {
+            const q = query(collection(db, name), where("userId", "==", currentUserId));
+            return onSnapshot(q, (querySnapshot) => {
+                const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                setter(ensureArray(data));
+            }, (error) => {
+                console.error(`Error escuchando la colección ${name}:`, error);
+                mostrarMensaje(`No se pudo conectar a ${name} en tiempo real.`, "error");
+            });
+        });
+
+        const unsubDatosNegocio = onSnapshot(doc(db, 'datosNegocio', currentUserId), (doc) => {
+            setDatosNegocio(doc.exists() ? { id: doc.id, ...doc.data() } : null);
+        });
+        unsubscribes.push(unsubDatosNegocio);
+
+        return () => {
+            unsubscribes.forEach(unsub => unsub());
+        };
+    }, [currentUserId]);
+
 
     const loadAllDataForUser = async (userId) => {
         if (!userId) return;
@@ -122,111 +161,66 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     const handleLogout = async () => { await authLogOut(); };
     
     const handleSaveProduct = async (productDataFromForm) => {
-        const productDataFirebase = { ...productDataFromForm, userId: currentUserId };
         const isEditing = isValidFirestoreId(productDataFromForm.id);
-        const existingProductByBarcode = productos.find(p => p.codigoBarras && productDataFirebase.codigoBarras && p.codigoBarras === productDataFirebase.codigoBarras && p.id !== productDataFromForm.id);
-        if (existingProductByBarcode) { mostrarMensaje(`Código de barras "${productDataFirebase.codigoBarras}" ya asignado.`, 'warning'); return; }
-        setIsLoadingData(true);
         if (isEditing) {
-            const { id, ...dataToUpdate } = productDataFirebase;
-            if (await fsService.updateProducto(id, dataToUpdate)) {
-                setProductos(prev => prev.map(p => p.id === id ? { ...dataToUpdate, id } : p));
-                mostrarMensaje("Producto actualizado.", 'success');
-            } else { mostrarMensaje("Error al actualizar producto.", 'error'); }
+            await fsService.updateProducto(productDataFromForm.id, productDataFromForm);
+            mostrarMensaje("Producto actualizado.", 'success');
         } else {
-            const { id, ...dataToAdd } = productDataFirebase;
-            const newId = await fsService.addProducto(currentUserId, dataToAdd);
-            if (isValidFirestoreId(newId)) {
-                setProductos(prev => [...prev, { ...dataToAdd, id: newId }]);
-                mostrarMensaje("Producto agregado.", 'success');
-            } else { mostrarMensaje("Error al agregar producto.", 'error'); }
+            await fsService.addProducto(currentUserId, productDataFromForm);
+            mostrarMensaje("Producto agregado.", 'success');
         }
-        setIsLoadingData(false); setEditingProduct(null);
+        setEditingProduct(null);
     };
+    
     const handleEditProduct = (product) => setEditingProduct(product);
     const handleCancelEditProduct = () => setEditingProduct(null);
+    
     const handleDeleteProduct = async (productId, productName) => {
-        if (!isValidFirestoreId(productId)) { mostrarMensaje("ID de producto inválido.", "error"); return; }
         if (await confirmarAccion('¿Eliminar Producto?', `¿Seguro de eliminar "${productName}"?`, 'warning', 'Sí, eliminar')) {
-            setIsLoadingData(true);
-            if (await fsService.deleteProducto(productId)) {
-                setProductos(prev => prev.filter(p => p.id !== productId));
-                mostrarMensaje(`Producto "${productName}" eliminado.`, 'success');
-                if (editingProduct?.id === productId) setEditingProduct(null);
-            } else { mostrarMensaje("Error al eliminar producto.", 'error'); }
-            setIsLoadingData(false);
+            await fsService.deleteProducto(productId);
+            mostrarMensaje(`Producto "${productName}" eliminado.`, 'success');
         }
+    };
+    
+    const handleSaveClient = async (clientDataFromForm) => {
+        const isEditing = isValidFirestoreId(clientDataFromForm.id);
+        if (isEditing) {
+            await fsService.updateCliente(clientDataFromForm.id, clientDataFromForm);
+            mostrarMensaje("Cliente actualizado.", 'success');
+        } else {
+            await fsService.addCliente(currentUserId, clientDataFromForm);
+            mostrarMensaje("Cliente agregado.", 'success');
+        }
+        setEditingClient(null);
     };
 
-    const handleSaveClient = async (clientDataFromForm) => {
-        const clientDataFirebase = { ...clientDataFromForm, userId: currentUserId };
-        const isEditing = isValidFirestoreId(clientDataFromForm.id);
-        setIsLoadingData(true);
-        if (isEditing) {
-            const { id, ...dataToUpdate } = clientDataFirebase;
-            if (await fsService.updateCliente(id, dataToUpdate)) {
-                setClientes(prev => prev.map(c => c.id === id ? { ...dataToUpdate, id } : c));
-                mostrarMensaje("Cliente actualizado.", 'success');
-            } else { mostrarMensaje("Error al actualizar cliente.", 'error'); }
-        } else {
-            const { id, ...dataToAdd } = clientDataFirebase;
-            const newId = await fsService.addCliente(currentUserId, dataToAdd);
-            if (isValidFirestoreId(newId)) {
-                setClientes(prev => [...prev, { ...dataToAdd, id: newId }]);
-                mostrarMensaje("Cliente agregado.", 'success');
-            } else { mostrarMensaje("Error al agregar cliente.", 'error'); }
-        }
-        setIsLoadingData(false); setEditingClient(null);
-    };
     const handleEditClient = (client) => setEditingClient(client);
     const handleCancelEditClient = () => setEditingClient(null);
+
     const handleDeleteClient = async (clientId, clientName) => {
-        if (!isValidFirestoreId(clientId)) { mostrarMensaje("ID de cliente inválido.", "error"); return; }
         if (await confirmarAccion('¿Eliminar Cliente?', `¿Seguro de eliminar a "${clientName}"?`, 'warning', 'Sí, eliminar')) {
-            setIsLoadingData(true);
-            if (await fsService.deleteCliente(clientId)) {
-                setClientes(prev => prev.filter(c => c.id !== clientId));
-                mostrarMensaje(`Cliente "${clientName}" eliminado.`, 'success');
-                if (editingClient?.id === clientId) setEditingClient(null);
-            } else { mostrarMensaje("Error al eliminar cliente.", 'error'); }
-            setIsLoadingData(false);
+            await fsService.deleteCliente(clientId);
+            mostrarMensaje(`Cliente "${clientName}" eliminado.`, 'success');
         }
     };
 
-const handleSaveVendedor = async (vendedorData, vendedorId = null) => {
-    setIsLoadingData(true);
-    if (isValidFirestoreId(vendedorId)) {
-        // Para actualizar, llamamos a updateVendedor
-        if (await fsService.updateVendedor(vendedorId, vendedorData)) {
-            setVendedores(prev => prev.map(v => v.id === vendedorId ? { ...v, ...vendedorData } : v));
+    const handleSaveVendedor = async (vendedorData, vendedorId = null) => {
+        if (isValidFirestoreId(vendedorId)) {
+            await fsService.updateVendedor(vendedorId, vendedorData);
             mostrarMensaje('Vendedor actualizado.', 'success');
-        } else { 
-            mostrarMensaje('Error al actualizar vendedor.', 'error'); 
-        }
-    } else {
-        // Para agregar, llamamos a addVendedor, pasando el userId y los datos
-        const newId = await fsService.addVendedor(currentUserId, vendedorData);
-        if (isValidFirestoreId(newId)) {
-            setVendedores(prev => [...prev, { ...vendedorData, id: newId, userId: currentUserId }]);
+        } else {
+            await fsService.addVendedor(currentUserId, vendedorData);
             mostrarMensaje('Vendedor agregado.', 'success');
-        } else { 
-            mostrarMensaje('Error al agregar vendedor.', 'error'); 
         }
-    }
-    setIsLoadingData(false);
-};
+    };
 
-const handleDeleteVendedor = async (vendedorId, vendedorName) => {
-    if (!isValidFirestoreId(vendedorId)) return;
-    if (await confirmarAccion('¿Eliminar Vendedor?', `¿Seguro de eliminar a "${vendedorName}"?`, 'warning', 'Sí, eliminar')) {
-        setIsLoadingData(true);
-        if (await fsService.deleteDocument('vendedores', vendedorId)) {
-            setVendedores(prev => prev.filter(v => v.id !== vendedorId));
+    const handleDeleteVendedor = async (vendedorId, vendedorName) => {
+        if (await confirmarAccion('¿Eliminar Vendedor?', `¿Seguro de eliminar a "${vendedorName}"?`, 'warning', 'Sí, eliminar')) {
+            await fsService.deleteVendedor(vendedorId);
             mostrarMensaje(`Vendedor "${vendedorName}" eliminado.`, 'success');
-        } else { mostrarMensaje("Error al eliminar vendedor.", 'error'); }
-        setIsLoadingData(false);
-    }
-};
+        }
+    };
+
 
 const handleAddManualItemToCart = (descripcion, monto) => {
     if (!descripcion.trim() || isNaN(monto) || monto <= 0) {
