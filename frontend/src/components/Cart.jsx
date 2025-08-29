@@ -87,7 +87,7 @@ function Cart({
                 </div>
                 <div className="mb-3">
                      <label htmlFor="cliente-buscar-react-cart" className="block text-sm font-medium text-zinc-300 mb-1">Buscar Cliente (Nombre/CUIT):</label>
-                     <SearchBar items={clients} placeholder="Dejar vacío para Consumidor Final" onSelect={handleClientSelectedInCart} displayKey="nombre" filterKeys={['nombre', 'cuit']} initialValue={clientObject ? clientObject.nombre : ''} />
+                     <SearchBar items={clients} placeholder="Dejar vacío para Consumidor Final" onSelect={handleClientSelectedInCart} displayKey="nombre" filterKeys={['nombre', 'cuit']} initialValue={clientObject ? clientObject.nombre : ''} inputId="cliente-buscar-react-cart" />
                 </div>
                 <motion.button
                     onClick={onCheckout}
