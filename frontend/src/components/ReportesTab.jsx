@@ -1,12 +1,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Printer, Trash2, PlusCircle, MinusCircle, Archive, Search, ArrowUp, ArrowDown, Minus, Eye } from 'lucide-react';
+import { Printer, Trash2, PlusCircle, MinusCircle, Archive, Search, ArrowUp, ArrowDown, Minus, Eye, Calendar, Download, ChevronLeft, ChevronRight, CornerDownLeft } from 'lucide-react';
 import Swal from 'sweetalert2'; // Se puede quitar si mostrarMensaje del contexto es suficiente
 import PaginationControls from './PaginationControls.jsx';
 import SalesChart from './SalesChart.jsx';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAppContext } from '../context/AppContext.jsx'; // Importar hook
 import { formatCurrency, obtenerNombreMes } from '../utils/helpers.js'; // Importar helpers directamente
+import * as XLSX from 'xlsx';
 
 const ITEMS_PER_PAGE_REPORTE = 10;
 
@@ -26,7 +27,8 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) { // Solo recibe 
         // confirmarAccion // Si se usa directamente aquí, o a través de los handlers del contexto
     } = useAppContext();
     const { datosNegocio } = useAppContext(); // Obtener datosNegocio específicamente si no se desestructuró antes
-
+// --- FASE 1: Estado para manejar la fecha seleccionada ---
+    const [selectedDate, setSelectedDate] = useState(new Date());
     // Estados locales para los formularios de esta pestaña se mantienen
     const [formIngresoDesc, setFormIngresoDesc] = useState('');
     const [formIngresoMonto, setFormIngresoMonto] = useState('');
@@ -40,61 +42,55 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) { // Solo recibe 
     const [sortConfigMes, setSortConfigMes] = useState({ key: 'timestamp', direction: 'descending' });
     const [currentPageMes, setCurrentPageMes] = useState(1);
 
-    const ahora = new Date();
-    const hoyStr = ahora.toLocaleDateString('es-AR');
-    const mesActual = ahora.getMonth();
-    const anioActual = ahora.getFullYear();
-    const nombreMesActual = obtenerNombreMes(mesActual);
-
-    const parseDateFromReport = (fechaStr) => {
-        if (!fechaStr || typeof fechaStr !== 'string') return null;
-        const parts = fechaStr.split('/');
-        if (parts.length === 3) return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-        return null;
-    };
-
-    const ventasHoy = ventas.filter(v => v.fecha === hoyStr);
-    const egresosHoy = egresos.filter(e => e.fecha === hoyStr);
-    const ingresosManualesHoy = ingresosManuales.filter(i => i.fecha === hoyStr);
+// --- FASE 2: La lógica ahora se basa en 'selectedDate' en lugar de 'new Date()' ---
+    const diaSeleccionadoStr = selectedDate.toLocaleDateString('es-AR');
+    const mesSeleccionado = selectedDate.getMonth();
+    const anioSeleccionado = selectedDate.getFullYear();
+    const nombreMesSeleccionado = obtenerNombreMes(mesSeleccionado);
+    
+    // Filtramos los datos basados en la fecha seleccionada
+    const ventasDelDia = ventas.filter(v => v.fecha === diaSeleccionadoStr);
+    const egresosDelDia = egresos.filter(e => e.fecha === diaSeleccionadoStr);
+    const ingresosManualesDelDia = ingresosManuales.filter(i => i.fecha === diaSeleccionadoStr);
 
     const filterByMonthAndYear = (item) => {
-        const itemDate = item.timestamp ? new Date(item.timestamp) : parseDateFromReport(item.fecha);
-        return itemDate && itemDate.getMonth() === mesActual && itemDate.getFullYear() === anioActual;
+        // Usamos una forma más robusta de obtener la fecha del item
+        const itemDate = new Date(item.timestamp || item.fecha.split('/').reverse().join('-'));
+        return itemDate.getMonth() === mesSeleccionado && itemDate.getFullYear() === anioSeleccionado;
     };
 
     const ventasMes = ventas.filter(filterByMonthAndYear);
     const egresosMes = egresos.filter(filterByMonthAndYear);
     const ingresosManualesMes = ingresosManuales.filter(filterByMonthAndYear);
 
-    // Lógica de cálculo (con correcciones para pagos divididos)
-    const totalVentasHoyTodos = ventasHoy.reduce((s, v) => s + (Number(v.total) || 0), 0);
-    const ventasPorMedioHoy = useMemo(() => {
-        return ventasHoy.reduce((acumulador, venta) => {
-            if (venta.pagos && Array.isArray(venta.pagos)) {
-                venta.pagos.forEach(pago => {
-                    acumulador[pago.metodo] = (acumulador[pago.metodo] || 0) + (Number(pago.monto) || 0);
-                });
-            } else if (venta.metodoPago) {
-                acumulador[venta.metodoPago] = (acumulador[venta.metodoPago] || 0) + (Number(venta.total) || 0);
-            }
-            return acumulador;
-        }, {});
-    }, [ventasHoy]);
-    const totalEgresosEfectivoHoy = egresosHoy.reduce((s, e) => s + (Number(e.monto) || 0), 0);
-    const totalIngresosManualesHoy = ingresosManualesHoy.reduce((s, i) => s + (Number(i.monto) || 0), 0);
-    const saldoEfectivoEsperado = (ventasPorMedioHoy['efectivo'] || 0) + totalIngresosManualesHoy - totalEgresosEfectivoHoy;
-    const totalVentasMesTodos = ventasMes.reduce((s, v) => s + (Number(v.total) || 0), 0);
-    const ventasPorVendedorHoy = useMemo(() => {
-        return ventasHoy.reduce((acumulador, venta) => {
-            const vendedor = venta.vendedorNombre || 'Venta Antigua';
-            if (!acumulador[vendedor]) {
-                acumulador[vendedor] = { total: 0, cantidadVentas: 0 };
-            }
-            acumulador[vendedor].total += venta.total;
-            acumulador[vendedor].cantidadVentas += 1;
-            return acumulador;
-        }, {});
-    }, [ventasHoy]);
+// --- Lógica de cálculo (CORREGIDA) ---
+const totalVentasDia = ventasDelDia.reduce((s, v) => s + (Number(v.total) || 0), 0);
+
+const ventasPorMedioDia = useMemo(() => {
+    return ventasDelDia.reduce((acc, venta) => {
+        if (venta.pagos && Array.isArray(venta.pagos)) {
+            venta.pagos.forEach(p => {
+                acc[p.metodo] = (acc[p.metodo] || 0) + (Number(p.monto) || 0);
+            });
+        }
+        return acc;
+    }, {});
+}, [ventasDelDia]);
+
+const totalEgresosDia = egresosDelDia.reduce((s, e) => s + (Number(e.monto) || 0), 0);
+const totalIngresosManualesDia = ingresosManualesDelDia.reduce((s, i) => s + (Number(i.monto) || 0), 0);
+const saldoEfectivoEsperado = (ventasPorMedioDia['efectivo'] || 0) + totalIngresosManualesDia - totalEgresosDia;
+const totalVentasMes = ventasMes.reduce((s, v) => s + (Number(v.total) || 0), 0);
+
+const ventasPorVendedorDia = useMemo(() => {
+    return ventasDelDia.reduce((acc, venta) => {
+        const vendedor = venta.vendedorNombre || 'N/A';
+        if (!acc[vendedor]) acc[vendedor] = { total: 0, cantidadVentas: 0 };
+        acc[vendedor].total += venta.total;
+        acc[vendedor].cantidadVentas += 1;
+        return acc;
+    }, {});
+}, [ventasDelDia]);
 
     // --- FUNCIÓN DE ORDENAMIENTO CORREGIDA ---
     const defaultSort = (a, b) => {
@@ -111,28 +107,28 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) { // Solo recibe 
 
     // Lógica de agrupación de movimientos (sin cambios, ahora usa el defaultSort corregido)
 // Reemplaza esto en ReportesTab.jsx
-const todosMovimientosHoy = useMemo(() => {
-    // Función para obtener una descripción clara de los métodos de pago
+const todosMovimientosDia = useMemo(() => {
     const getMetodosPagoString = (venta) => {
         if (venta.pagos && Array.isArray(venta.pagos)) {
             return venta.pagos.map(p => p.metodo.charAt(0).toUpperCase() + p.metodo.slice(1)).join(' + ');
         }
-        return venta.metodoPago || 'N/A'; // Para compatibilidad con ventas antiguas
+        return venta.metodoPago || 'N/A';
     };
 
-    const ventasDelDia = ventasHoy.map(v => ({
+    // CORRECCIÓN: Usamos un nuevo nombre de variable 'ventasMapeadas'
+    const ventasMapeadas = ventasDelDia.map(v => ({
         ...v,
         tipo: 'Venta',
-        montoDisplay: v.total, // Usamos el total de la venta
+        montoDisplay: v.total,
         desc: `Venta #${(v.id || '').substring(0,8)}... (${getMetodosPagoString(v)})`
     }));
 
     return [
-        ...ventasDelDia,
-        ...ingresosManualesHoy.map(i => ({ ...i, tipo: 'Ingreso Manual', montoDisplay: i.monto, desc: i.descripcion })),
-        ...egresosHoy.map(e => ({ ...e, tipo: 'Egreso', montoDisplay: -(Number(e.monto) || 0), desc: e.descripcion }))
+        ...ventasMapeadas, // Y la usamos aquí
+        ...ingresosManualesDelDia.map(i => ({ ...i, tipo: 'Ingreso Manual', montoDisplay: i.monto, desc: i.descripcion })),
+        ...egresosDelDia.map(e => ({ ...e, tipo: 'Egreso', montoDisplay: -(Number(e.monto) || 0), desc: e.descripcion }))
     ].sort(defaultSort);
-}, [ventasHoy, ingresosManualesHoy, egresosHoy]);
+}, [ventasDelDia, ingresosManualesDelDia, egresosDelDia]);
 
     const todosMovimientosMes = useMemo(() => {
         const getMetodosPagoString = (venta) => {
@@ -171,10 +167,10 @@ const todosMovimientosHoy = useMemo(() => {
     };
 
     const filteredSortedMovimientosDia = useMemo(() => {
-        let items = todosMovimientosHoy;
+        let items = todosMovimientosDia;
         if (searchTermDia) { const lower = searchTermDia.toLowerCase(); items = items.filter(m => String(m.tipo).toLowerCase().includes(lower) || String(m.desc).toLowerCase().includes(lower) || String(m.montoDisplay).includes(lower) || String(m.hora).toLowerCase().includes(lower)); }
         return sortItems(items, sortConfigDia);
-    }, [todosMovimientosHoy, searchTermDia, sortConfigDia]);
+    }, [todosMovimientosDia, searchTermDia, sortConfigDia]);
     const totalPagesDia = Math.ceil(filteredSortedMovimientosDia.length / ITEMS_PER_PAGE_REPORTE);
     const paginatedMovimientosDia = useMemo(() => { const first = (currentPageDia - 1) * ITEMS_PER_PAGE_REPORTE; return filteredSortedMovimientosDia.slice(first, first + ITEMS_PER_PAGE_REPORTE); }, [currentPageDia, filteredSortedMovimientosDia]);
     useEffect(() => { if (currentPageDia > totalPagesDia && totalPagesDia > 0) setCurrentPageDia(totalPagesDia); else if (currentPageDia <= 0 && totalPagesDia > 0) setCurrentPageDia(1); else if (filteredSortedMovimientosDia.length === 0 && currentPageDia !== 1) setCurrentPageDia(1); }, [currentPageDia, totalPagesDia, filteredSortedMovimientosDia.length]);
@@ -230,9 +226,9 @@ const todosMovimientosHoy = useMemo(() => {
 
 const handleCerrarCaja = () => {
     let resumenVendedorHtml = '';
-    if (ventasPorVendedorHoy && Object.keys(ventasPorVendedorHoy).length > 0) {
+    if (ventasPorVendedorDia && Object.keys(ventasPorVendedorDia).length > 0) {
         resumenVendedorHtml += `<hr class="border-zinc-600 my-2"/><h4 class="font-semibold text-zinc-200 pt-1 text-left">Resumen por Vendedor:</h4><div class="pl-4 space-y-1">`;
-        Object.entries(ventasPorVendedorHoy).forEach(([vendedor, data]) => {
+        Object.entries(ventasPorVendedorDia).forEach(([vendedor, data]) => {
             resumenVendedorHtml += `<div class="flex justify-between items-center"><span class="text-zinc-400">${vendedor}:</span><span class="font-medium text-zinc-200">$${formatCurrency(data.total)} <span class="text-xs text-zinc-500">(${data.cantidadVentas} v.)</span></span></div>`;
         });
         resumenVendedorHtml += `</div>`;
@@ -241,11 +237,11 @@ const handleCerrarCaja = () => {
     Swal.fire({
         title: 'Cierre de Caja (Simulado)',
         html: `<div class="text-left text-sm space-y-1 text-zinc-300">
-                  <p>Total Ventas del Día: <strong class="text-zinc-100">$${formatCurrency(totalVentasHoyTodos)}</strong></p>
+                  <p>Total Ventas del Día: <strong class="text-zinc-100">$${formatCurrency(totalVentasDia)}</strong></p>
                   <hr class="border-zinc-600 my-2"/>
-                  <p>+ Ventas en Efectivo: <span class="monto-positivo">$${formatCurrency(ventasPorMedioHoy['efectivo'] || 0)}</span></p>
-                  <p>+ Ingresos Manuales: <span class="monto-positivo">$${formatCurrency(totalIngresosManualesHoy)}</span></p>
-                  <p>- Egresos en Efectivo: <span class="monto-negativo">-${formatCurrency(totalEgresosEfectivoHoy)}</span></p>
+                  <p>+ Ventas en Efectivo: <span class="monto-positivo">$${formatCurrency(ventasPorMedioDia['efectivo'] || 0)}</span></p>
+                  <p>+ Ingresos Manuales: <span class="monto-positivo">$${formatCurrency(totalIngresosManualesDia)}</span></p>
+                  <p>- Egresos en Efectivo: <span class="monto-negativo">-${formatCurrency(totalEgresosDia)}</span></p>
                   <hr class="border-zinc-600 my-2"/>
                   <p>Saldo Efectivo Esperado: <strong class="text-blue-400 text-base">$${formatCurrency(saldoEfectivoEsperado)}</strong></p>
                   ${resumenVendedorHtml}
@@ -260,10 +256,103 @@ const handleCerrarCaja = () => {
 
     const getSortIcon = (key, config) => { if (!config || config.key !== key) return <Minus className="h-3 w-3 inline-block ml-1 text-zinc-500 opacity-50" />; return config.direction === 'ascending' ? <ArrowUp className="h-4 w-4 inline-block ml-1 text-blue-400" /> : <ArrowDown className="h-4 w-4 inline-block ml-1 text-blue-400" />; };
     const headerButtonClasses = "flex items-center text-left text-xs font-medium text-zinc-300 uppercase tracking-wider hover:text-white focus:outline-none";
+        // --- FASE 1: Funciones para cambiar la fecha ---
+    const changeDate = (amount) => {
+        setSelectedDate(prevDate => {
+            const newDate = new Date(prevDate);
+            newDate.setDate(newDate.getDate() + amount);
+            return newDate;
+        });
+    };
+    
+const handleDateChange = (e) => {
+    // Esta forma asegura que la fecha se interprete en la zona horaria local
+    // y evita el problema del día anterior.
+    const dateString = e.target.value;
+    setSelectedDate(new Date(dateString.replace(/-/g, '/')));
+};
+
+  // --- FASE 3: Función para exportar el reporte del mes ---
+    const handleExportarMes = () => {
+        if (ventasMes.length === 0 && egresosMes.length === 0 && ingresosManualesMes.length === 0) {
+            mostrarMensaje("No hay movimientos en el mes seleccionado para exportar.", "warning");
+            return;
+        }
+
+        const totalIngresosMes = ingresosManualesMes.reduce((acc, item) => acc + item.monto, 0);
+        const totalEgresosMes = egresosMes.reduce((acc, item) => acc + item.monto, 0);
+
+        const ventasPorVendedorMes = ventasMes.reduce((acc, venta) => {
+            const vendedor = venta.vendedorNombre || 'N/A';
+            if (!acc[vendedor]) acc[vendedor] = { total: 0, cantidadVentas: 0 };
+            acc[vendedor].total += venta.total;
+            acc[vendedor].cantidadVentas += 1;
+            return acc;
+        }, {});
+
+        const resumenData = [
+            { Concepto: 'Total Ventas del Mes', Valor: formatCurrency(totalVentasMes) },
+            { Concepto: 'Total Ingresos Manuales', Valor: formatCurrency(totalIngresosMes) },
+            { Concepto: 'Total Egresos', Valor: formatCurrency(totalEgresosMes) },
+            { Concepto: 'Balance (Ventas + Ingresos - Egresos)', Valor: formatCurrency(totalVentasMes + totalIngresosMes - totalEgresosMes) },
+        ];
+        
+        const desgloseVendedorData = Object.entries(ventasPorVendedorMes).map(([vendedor, data]) => ({
+            'Vendedor': vendedor,
+            'Ventas Realizadas': data.cantidadVentas,
+            'Monto Total Vendido': formatCurrency(data.total),
+        }));
+
+        const movimientosData = todosMovimientosMes.map(m => ({
+            'Fecha': m.fecha,
+            'Hora': m.hora,
+            'Tipo': m.tipo,
+            'Descripción': m.desc,
+            'Monto': formatCurrency(m.montoDisplay)
+        }));
+
+        // Creamos hojas de cálculo separadas
+        const wsResumen = XLSX.utils.json_to_sheet(resumenData, { skipHeader: true });
+        const wsVendedores = XLSX.utils.json_to_sheet(desgloseVendedorData);
+        const wsMovimientos = XLSX.utils.json_to_sheet(movimientosData);
+
+        // Nombramos las hojas
+        XLSX.utils.sheet_add_aoa(wsResumen, [['Resumen del Mes']], { origin: 'A1' });
+        XLSX.utils.sheet_add_aoa(wsVendedores, [['Desglose por Vendedor']], { origin: 'A1' });
+        XLSX.utils.sheet_add_aoa(wsMovimientos, [['Todos los Movimientos del Mes']], { origin: 'A1' });
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen');
+        XLSX.utils.book_append_sheet(wb, wsVendedores, 'Vendedores');
+        XLSX.utils.book_append_sheet(wb, wsMovimientos, 'Movimientos');
+
+        XLSX.writeFile(wb, `Reporte_Mes_${nombreMesSeleccionado}_${anioSeleccionado}.xlsx`);
+    };
 
     return (
         <div id="reportes">
-            <h2 className="text-xl sm:text-2xl font-semibold mb-4 text-white">Caja y Reportes</h2>
+                {/* --- FASE 1: Controles de Fecha --- */}
+    <div className="flex flex-wrap items-center gap-2 mb-4 p-3 bg-zinc-800 rounded-lg border border-zinc-700">
+        <h2 className="text-xl font-semibold text-white mr-4">Caja y Reportes</h2>
+        <div className="relative">
+            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+            <input 
+                type="date"
+                value={selectedDate.toISOString().split('T')[0]}
+                onChange={handleDateChange}
+                className="bg-zinc-700 border border-zinc-600 rounded-md py-1.5 pl-9 pr-2 text-zinc-200 text-sm focus:ring-blue-500 focus:border-blue-500"
+            />
+        </div>
+        <motion.button onClick={() => changeDate(-1)} className="p-2 bg-zinc-700 hover:bg-zinc-600 rounded-md" title="Día Anterior" whileTap={{ scale: 0.9 }}><ChevronLeft className="h-4 w-4" /></motion.button>
+        <motion.button onClick={() => changeDate(1)} className="p-2 bg-zinc-700 hover:bg-zinc-600 rounded-md" title="Día Siguiente" whileTap={{ scale: 0.9 }}><ChevronRight className="h-4 w-4" /></motion.button>
+        <motion.button onClick={() => setSelectedDate(new Date())} className="text-sm py-1.5 px-3 bg-blue-600 hover:bg-blue-700 rounded-md flex items-center gap-1.5" whileTap={{ scale: 0.95 }}>
+            <CornerDownLeft className="h-4 w-4" /> Volver a Hoy
+        </motion.button>
+{/* --- FASE 3: Botón de Exportar --- */}
+                <motion.button onClick={handleExportarMes} className="text-sm py-1.5 px-3 bg-green-600 hover:bg-green-700 rounded-md flex items-center gap-1.5 ml-auto" whileTap={{ scale: 0.95 }}>
+                    <Download className="h-4 w-4" /> Exportar Mes
+                </motion.button>
+    </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
                 <div className="lg:col-span-1 space-y-5">
                     <div className="bg-zinc-800 p-4 sm:p-5 rounded-lg shadow-md">
@@ -283,23 +372,23 @@ const handleCerrarCaja = () => {
                         </div>
                     </div>
                     <div className="bg-zinc-800 p-4 sm:p-5 rounded-lg shadow-md">
-                        <h3 className="text-lg sm:text-xl font-medium mb-3 text-white border-b border-zinc-700 pb-2">Resumen del Día ({hoyStr})</h3>
+                        <h3 className="text-lg sm:text-xl font-medium mb-3 text-white border-b border-zinc-700 pb-2">Resumen del Día ({diaSeleccionadoStr})</h3>
                         <div className="space-y-2 text-sm">
-                            <div className="flex justify-between items-center"><span className="text-zinc-400">Total Ventas (Todos):</span><span className="font-semibold text-zinc-100">${formatCurrency(totalVentasHoyTodos)}</span></div><hr className="border-zinc-700 my-1" />
+                            <div className="flex justify-between items-center"><span className="text-zinc-400">Total Ventas (Todos):</span><span className="font-semibold text-zinc-100">${formatCurrency(totalVentasDia)}</span></div><hr className="border-zinc-700 my-1" />
                             <h4 className="font-semibold text-zinc-200 pt-1">Desglose Ventas:</h4>
-                            <div className="pl-4 space-y-1">{['efectivo', 'tarjeta', 'qr_banco', 'qr_billetera', 'transferencia'].map(medio => (<div key={medio} className="flex justify-between items-center"><span className="text-zinc-400 capitalize">{medio.replace('_', ' ')}:</span><span className="font-medium text-zinc-200">${formatCurrency(ventasPorMedioHoy[medio] || 0)}</span></div>))}</div><hr className="border-zinc-700 my-1" />
+                            <div className="pl-4 space-y-1">{['efectivo', 'tarjeta', 'qr_banco', 'qr_billetera', 'transferencia'].map(medio => (<div key={medio} className="flex justify-between items-center"><span className="text-zinc-400 capitalize">{medio.replace('_', ' ')}:</span><span className="font-medium text-zinc-200">${formatCurrency(ventasPorMedioDia[medio] || 0)}</span></div>))}</div><hr className="border-zinc-700 my-1" />
                             <h4 className="font-semibold text-zinc-200 pt-1">Movimientos Efectivo:</h4>
                             <div className="pl-4 space-y-1">
-                                <div className="flex justify-between items-center"><span className="text-zinc-400">Ingresos Manuales:</span><span className="font-medium monto-positivo">${formatCurrency(totalIngresosManualesHoy)}</span></div>
-                                <div className="flex justify-between items-center"><span className="text-zinc-400">Egresos Efectivo:</span><span className="font-medium monto-negativo">-${formatCurrency(totalEgresosEfectivoHoy)}</span></div>
+                                <div className="flex justify-between items-center"><span className="text-zinc-400">Ingresos Manuales:</span><span className="font-medium monto-positivo">${formatCurrency(totalIngresosManualesDia)}</span></div>
+                                <div className="flex justify-between items-center"><span className="text-zinc-400">Egresos Efectivo:</span><span className="font-medium monto-negativo">-${formatCurrency(totalEgresosDia)}</span></div>
                             </div><hr className="border-zinc-700 my-1" />
                             <div className="flex justify-between items-center pt-2"><span className="font-bold text-zinc-100">Saldo Efectivo Esperado:</span><span className="font-bold text-lg text-blue-400">${formatCurrency(saldoEfectivoEsperado)}</span></div>
                             {/* --- AÑADIDO: Resumen por vendedor en pantalla --- */}
-{Object.keys(ventasPorVendedorHoy).length > 0 && (
+{Object.keys(ventasPorVendedorDia).length > 0 && (
     <div className="mt-3 pt-3 border-t border-zinc-700">
         <h4 className="font-semibold text-zinc-200 mb-1">Desglose por Vendedor:</h4>
         <div className="pl-4 space-y-1">
-            {Object.entries(ventasPorVendedorHoy).map(([vendedor, data]) => (
+            {Object.entries(ventasPorVendedorDia).map(([vendedor, data]) => (
                 <div key={vendedor} className="flex justify-between items-center">
                     <span className="text-zinc-400">{vendedor}:</span>
                     <span className="font-medium text-zinc-200">
@@ -316,9 +405,9 @@ const handleCerrarCaja = () => {
                     </div>
                 </div>
                 <div className="lg:col-span-2 space-y-5">
-                    <div className="bg-zinc-800 p-4 sm:p-5 rounded-lg shadow-md"><h3 className="text-lg sm:text-xl font-medium mb-3 text-white border-b border-zinc-700 pb-2">Ventas Diarias del Mes ({nombreMesActual})</h3><SalesChart data={salesDataForChart} /></div>
+                    <div className="bg-zinc-800 p-4 sm:p-5 rounded-lg shadow-md"><h3 className="text-lg sm:text-xl font-medium mb-3 text-white border-b border-zinc-700 pb-2">Ventas Diarias del Mes ({nombreMesSeleccionado})</h3><SalesChart data={salesDataForChart} /></div>
                     <div className="bg-zinc-800 p-4 sm:p-5 rounded-lg shadow-md overflow-hidden">
-                        <div className="flex flex-col sm:flex-row justify-between items-center mb-3 border-b border-zinc-700 pb-2 gap-2"><h3 className="text-lg sm:text-xl font-medium text-white whitespace-nowrap">Movimientos Caja del Día ({hoyStr})</h3><div className="relative w-full sm:w-auto"><span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400"><Search className="h-4 w-4" /></span><input type="text" placeholder="Buscar..." value={searchTermDia} onChange={(e) => {setSearchTermDia(e.target.value); setCurrentPageDia(1);}} className="w-full sm:w-64 pl-10 pr-4 py-2 border border-zinc-600 rounded-md bg-zinc-700 text-zinc-100 placeholder-zinc-400 text-sm" /></div></div>
+                        <div className="flex flex-col sm:flex-row justify-between items-center mb-3 border-b border-zinc-700 pb-2 gap-2"><h3 className="text-lg sm:text-xl font-medium text-white whitespace-nowrap">Movimientos Caja del Día ({diaSeleccionadoStr})</h3><div className="relative w-full sm:w-auto"><span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400"><Search className="h-4 w-4" /></span><input type="text" placeholder="Buscar..." value={searchTermDia} onChange={(e) => {setSearchTermDia(e.target.value); setCurrentPageDia(1);}} className="w-full sm:w-64 pl-10 pr-4 py-2 border border-zinc-600 rounded-md bg-zinc-700 text-zinc-100 placeholder-zinc-400 text-sm" /></div></div>
                         <div className="overflow-x-auto">
                             <Table>
                                 <TableHeader><TableRow className="hover:bg-transparent border-b-zinc-700"><TableHead><button onClick={() => requestSortDia('timestamp')} className={headerButtonClasses}>Hora {getSortIcon('timestamp', sortConfigDia)}</button></TableHead><TableHead><button onClick={() => requestSortDia('tipo')} className={headerButtonClasses}>Tipo {getSortIcon('tipo', sortConfigDia)}</button></TableHead><TableHead><button onClick={() => requestSortDia('desc')} className={headerButtonClasses}>Descripción {getSortIcon('desc', sortConfigDia)}</button></TableHead><TableHead className="text-right"><button onClick={() => requestSortDia('montoDisplay')} className={`${headerButtonClasses} justify-end w-full`}>Monto {getSortIcon('montoDisplay', sortConfigDia)}</button></TableHead><TableHead className="text-center">Acción</TableHead></TableRow></TableHeader>
@@ -344,7 +433,7 @@ const handleCerrarCaja = () => {
                         <PaginationControls currentPage={currentPageDia} totalPages={totalPagesDia} onPageChange={page => setCurrentPageDia(page)} itemsPerPage={ITEMS_PER_PAGE_REPORTE} totalItems={filteredSortedMovimientosDia.length} />
                     </div>
                     <div className="bg-zinc-800 p-4 sm:p-5 rounded-lg shadow-md overflow-hidden">
-                        <div className="flex flex-col sm:flex-row justify-between items-center mb-3 border-b border-zinc-700 pb-2 gap-2"><h3 className="text-lg sm:text-xl font-medium text-white whitespace-nowrap">Movimientos del Mes ({nombreMesActual})</h3><div className="relative w-full sm:w-auto"><span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400"><Search className="h-4 w-4" /></span><input type="text" placeholder="Buscar..." value={searchTermMes} onChange={(e) => {setSearchTermMes(e.target.value); setCurrentPageMes(1);}} className="w-full sm:w-64 pl-10 pr-4 py-2 border border-zinc-600 rounded-md bg-zinc-700 text-zinc-100 placeholder-zinc-400 text-sm" /></div></div>
+                        <div className="flex flex-col sm:flex-row justify-between items-center mb-3 border-b border-zinc-700 pb-2 gap-2"><h3 className="text-lg sm:text-xl font-medium text-white whitespace-nowrap">Movimientos del Mes ({nombreMesSeleccionado})</h3><div className="relative w-full sm:w-auto"><span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400"><Search className="h-4 w-4" /></span><input type="text" placeholder="Buscar..." value={searchTermMes} onChange={(e) => {setSearchTermMes(e.target.value); setCurrentPageMes(1);}} className="w-full sm:w-64 pl-10 pr-4 py-2 border border-zinc-600 rounded-md bg-zinc-700 text-zinc-100 placeholder-zinc-400 text-sm" /></div></div>
                         <div className="overflow-x-auto">
                             <Table>
                                 <TableHeader><TableRow className="hover:bg-transparent border-b-zinc-700"><TableHead><button onClick={() => requestSortMes('timestamp')} className={headerButtonClasses}>Fecha/Hora {getSortIcon('timestamp', sortConfigMes)}</button></TableHead><TableHead><button onClick={() => requestSortMes('tipo')} className={headerButtonClasses}>Tipo {getSortIcon('tipo', sortConfigMes)}</button></TableHead><TableHead><button onClick={() => requestSortMes('desc')} className={headerButtonClasses}>Descripción {getSortIcon('desc', sortConfigMes)}</button></TableHead><TableHead className="text-right"><button onClick={() => requestSortMes('montoDisplay')} className={`${headerButtonClasses} justify-end w-full`}>Monto {getSortIcon('montoDisplay', sortConfigMes)}</button></TableHead><TableHead className="text-center">Acción</TableHead></TableRow></TableHeader>
@@ -368,7 +457,7 @@ const handleCerrarCaja = () => {
                             </Table>
                         </div>
                         <PaginationControls currentPage={currentPageMes} totalPages={totalPagesMes} onPageChange={page => setCurrentPageMes(page)} itemsPerPage={ITEMS_PER_PAGE_REPORTE} totalItems={filteredSortedMovimientosMes.length} />
-                        <div className="mt-3 text-right text-sm text-zinc-400">Total Ventas del Mes: ${formatCurrency(totalVentasMesTodos)}</div>
+                        <div className="mt-3 text-right text-sm text-zinc-400">Total Ventas del Mes: ${formatCurrency(totalVentasMes)}</div>
                     </div>
                 </div>
             </div>

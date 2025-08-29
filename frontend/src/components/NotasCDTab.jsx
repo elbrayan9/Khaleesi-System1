@@ -110,6 +110,7 @@ const handleLocalGenerarNotaClick = () => {
         onSelect={setClienteSeleccionado}
         displayKey="nombre"
         filterKeys={['nombre', 'cuit']}
+        inputId="nota-cliente-form"
     />
 </div>
                         <div><label htmlFor="nota-motivo-form" className="block text-sm font-medium text-zinc-300 mb-1">Motivo:</label><textarea id="nota-motivo-form" value={motivo} onChange={(e) => setMotivo(e.target.value)} rows="2" placeholder="Ej: Devolución, ajuste..." className="w-full p-2 border border-zinc-600 rounded-md bg-zinc-700 text-zinc-100 placeholder-zinc-400" required></textarea></div>
