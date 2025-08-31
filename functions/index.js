@@ -1,6 +1,7 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { defineSecret } = require("firebase-functions/params"); // <-- necesario para secrets
 
@@ -208,26 +209,21 @@ function isInScope(prompt = "") {
 }
 const OOS_MESSAGE = "Puedo ayudarte solo con temas del sistema de pagos Khaleesi (comprobantes, facturas, notas C/D, ventas, reembolsos, suscripciones, medios de pago, etc.). Por favor, reformulá tu pregunta en ese contexto.";
 
+// functions/index.js
+
 exports.askGemini = onCall({ secrets: [GEMINI_KEY] }, async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "Debes estar autenticado para usar el chat.");
   }
 
   const userPrompt = request.data?.prompt;
+  const userId = request.auth.uid;
+
   if (!userPrompt || typeof userPrompt !== "string") {
     throw new HttpsError("invalid-argument", "Se requiere una pregunta válida.");
   }
-  console.log("askGemini call", {
-  uid: request.auth.uid,
-  dateKey: getLocalDateKey(),
-  promptPreview: String(userPrompt).slice(0, 80)
-});
 
-  await enforceDailyLimit(request.auth.uid, 10);
-
-if (!isInScope(userPrompt)) {
-  return { reply: OOS_MESSAGE };
-}
+  await enforceDailyLimit(userId, 10);
 
   try {
     const apiKey = GEMINI_KEY.value();
@@ -237,28 +233,51 @@ if (!isInScope(userPrompt)) {
 
     const genAI = new GoogleGenerativeAI(apiKey);
 
-    // Podés meter tu instrucción de sistema acá:
+    let finalPrompt = userPrompt;
+    let context = "";
+
+    const stockKeywords = ["stock", "inventario", "cuánto hay", "cuantos quedan", "disponible"];
+    const isStockQuery = stockKeywords.some(k => userPrompt.toLowerCase().includes(k));
+
+    if (isStockQuery) {
+      console.log(`[Usuario: ${userId}] Intención detectada: Consulta de Stock.`);
+
+      const words = userPrompt.split(' ');
+      const productNameIndex = words.findIndex(w => w.toLowerCase() === 'producto' || w.toLowerCase() === 'de') + 1;
+      const productName = words.slice(productNameIndex).join(' ').replace(/[?¿!¡]/g, '');
+
+      if (productName) {
+        const productsRef = db.collection('productos');
+        const query = productsRef.where('userId', '==', userId).where('nombre', '==', productName);
+        const productSnapshot = await query.get();
+
+        if (!productSnapshot.empty) {
+          const productData = productSnapshot.docs[0].data();
+          context = `Contexto de la base de datos: El producto "${productData.nombre}" tiene un stock de ${productData.stock} unidades.`;
+        } else {
+          context = `Contexto de la base de datos: No se encontró un producto con el nombre exacto "${productName}".`;
+        }
+        console.log(`[Usuario: ${userId}] Contexto generado: ${context}`);
+      }
+    } else if (!isInScope(userPrompt)) {
+      // Si NO es una consulta de stock, revisamos si está en el alcance general.
+      return { reply: OOS_MESSAGE };
+    }
+
+    if (context) {
+      finalPrompt = `${context}\n\nPregunta del usuario: "${userPrompt}"\n\nResponde a la pregunta basándote únicamente en el contexto proporcionado.`;
+    }
+
     const systemInstruction = `
-Eres 'Asistente Khaleesi'… 
-- No respondas temas fuera del sistema. 
-- No pidas PAN completo ni CVV; a lo sumo últimos 4 dígitos.
-- Si falta info, pide 1 dato breve (fecha/monto/cliente).
-`.trim(); 
+      Eres 'Asistente Khaleesi', un experto en el sistema de punto de venta.
+      - Si se te proporciona un "Contexto de la base de datos", tu respuesta DEBE basarse estrictamente en esa información.
+      - No inventes datos. Si el contexto dice que no se encontró algo, informa al usuario que no encontraste el producto.
+      - Sé breve, amable y directo.
+    `.trim();
 
-    const model = genAI.getGenerativeModel({
-      model: MODEL_NAME,
-      systemInstruction,
-    });
+    const model = genAI.getGenerativeModel({ model: MODEL_NAME, systemInstruction });
 
-    const chat = model.startChat({
-      history: [],
-      generationConfig: {
-        maxOutputTokens: 512,
-        // temperature: 0.7,
-      },
-    });
-
-    const result = await chat.sendMessage(userPrompt);
+    const result = await model.generateContent(finalPrompt);
     const text = result?.response?.text?.();
 
     if (!text) {
@@ -267,8 +286,63 @@ Eres 'Asistente Khaleesi'…
 
     return { reply: text };
   } catch (error) {
-    console.error("Error al contactar la API de Gemini:", error);
-    const extra = error?.status ? ` (status ${error.status})` : "";
-    throw new HttpsError("internal", "No se pudo obtener una respuesta del asistente" + extra);
+    console.error("Error al contactar la API de Gemini o Firestore:", error);
+    throw new HttpsError("internal", "No se pudo obtener una respuesta del asistente.");
+  }
+});
+// ===============================================
+// FUNCIONES AUTOMÁTICAS (CRON JOBS)
+// ===============================================
+/**
+ * Se ejecuta todos los días a las 3:00 AM (hora de Argentina) para verificar
+ * y actualizar las suscripciones vencidas.
+ */
+exports.checkExpiredSubscriptions = onSchedule("every day 03:00", async (event) => {
+  console.log("Iniciando verificación de suscripciones vencidas...");
+
+  const now = new Date();
+  const subscriptionsRef = db.collection("datosNegocio");
+
+  // 1. Buscamos todas las suscripciones que estén activas o en prueba.
+  const query = subscriptionsRef.where("subscriptionStatus", "in", ["active", "trial"]);
+
+  try {
+    const snapshot = await query.get();
+    if (snapshot.empty) {
+      console.log("No hay suscripciones activas o en prueba para verificar.");
+      return null;
+    }
+
+    const batch = db.batch();
+    let expiredCount = 0;
+
+    snapshot.forEach(doc => {
+      const sub = doc.data();
+      // Convertimos la fecha de Firestore a un objeto Date de JavaScript
+      const endDate = sub.subscriptionEndDate.toDate();
+
+      // 2. Comparamos si la fecha de vencimiento ya pasó.
+      if (endDate < now) {
+        console.log(`Suscripción vencida encontrada para el usuario ${doc.id}. Fecha fin: ${endDate.toLocaleDateString()}`);
+
+        // 3. Si está vencida, la añadimos al lote para actualizarla a "expired".
+        const docRef = db.collection("datosNegocio").doc(doc.id);
+        batch.update(docRef, { subscriptionStatus: "expired" });
+        expiredCount++;
+      }
+    });
+
+    if (expiredCount > 0) {
+      // 4. Ejecutamos todas las actualizaciones de una sola vez.
+      await batch.commit();
+      console.log(`Se actualizaron ${expiredCount} suscripciones a "expired".`);
+    } else {
+      console.log("No se encontraron suscripciones para actualizar en esta ejecución.");
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Error al verificar suscripciones vencidas:", error);
+    return null;
   }
 });

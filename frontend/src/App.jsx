@@ -23,6 +23,7 @@ import NotaDetailModal from './components/NotaDetailModal.jsx';
 import { formatCurrency } from './utils/helpers.js';
 import AdminPanel from './screens/AdminPanel.jsx';
 import UserDetailAdmin from './screens/UserDetailAdmin.jsx';
+import LandingPage from './screens/LandingPage.jsx';
 
 function App() {
     const { 
@@ -126,31 +127,38 @@ const handlePrintRequest = (ventaObjeto) => {
     return (
         <>
             <AnimatePresence mode="wait">
-                <Routes location={location} key={location.pathname}>
-                    <Route path="/login" element={isLoggedIn ? <Navigate to="/" replace /> : <LoginScreen />} />
-                    <Route path="/signup" element={isLoggedIn ? <Navigate to="/" replace /> : <SignUpScreen />} />
-                    <Route element={<ProtectedRoute />}>
-                        <Route path="/" element={<Layout />}>
-                            <Route index element={<VentaTab />} />
-                            <Route path="productos" element={<ProductosTab />} />
-                            <Route path="clientes" element={<ClientesTab />} />
-                            <Route path="vendedores" element={<VendedoresTab />} />
-                            <Route 
-                                path="reportes" 
-                                element={<ReportesTab onPrintRequest={handlePrintRequest} onViewDetailsRequest={openSaleDetailModal} />} 
-                            />
-                            <Route 
-                                path="notas" 
-                                element={<NotasCDTab onPrintNotaCD={handlePrintNota} onViewDetailsNotaCD={openNotaDetailModal}/>} 
-                            />
-                            <Route path="configuracion" element={<ConfiguracionTab />} />
-                            <Route path="*" element={<Navigate to="/" replace />} />
-                        </Route>
-                        <Route path="/admin" element={<AdminPanel />} />
-                         <Route path="/admin/user/:uid" element={<UserDetailAdmin />} />
-                    </Route>
-                    <Route path="/forgot-password" element={<ForgotPasswordScreen />} />
-                </Routes>
+<Routes>
+    {/* Rutas Públicas */}
+    <Route path="/" element={isLoggedIn ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
+    <Route path="/login" element={isLoggedIn ? <Navigate to="/dashboard" replace /> : <LoginScreen />} />
+    <Route path="/signup" element={isLoggedIn ? <Navigate to="/dashboard" replace /> : <SignUpScreen />} />
+    <Route path="/forgot-password" element={<ForgotPasswordScreen />} />
+
+    {/* Rutas Protegidas */}
+    <Route element={<ProtectedRoute />}>
+        <Route path="/dashboard" element={<Layout />}>
+            <Route index element={<VentaTab />} />
+            <Route path="productos" element={<ProductosTab />} />
+            <Route path="clientes" element={<ClientesTab />} />
+            <Route path="vendedores" element={<VendedoresTab />} />
+            <Route 
+                path="reportes" 
+                element={<ReportesTab onPrintRequest={handlePrintRequest} onViewDetailsRequest={openSaleDetailModal} />} 
+            />
+            <Route 
+                path="notas" 
+                element={<NotasCDTab onPrintNotaCD={handlePrintNota} onViewDetailsNotaCD={openNotaDetailModal}/>} 
+            />
+            <Route path="configuracion" element={<ConfiguracionTab />} />
+        </Route>
+        {/* Rutas de Admin también protegidas */}
+        <Route path="/admin" element={<AdminPanel />} />
+        <Route path="/admin/user/:uid" element={<UserDetailAdmin />} />
+    </Route>
+
+    {/* Redirección para cualquier ruta no encontrada */}
+    <Route path="*" element={<Navigate to={isLoggedIn ? "/dashboard" : "/"} replace />} />
+</Routes>
             </AnimatePresence>
 
             <PrintReceipt ref={printVentaRef} venta={ventaToPrint} datosNegocio={datosNegocio} cliente={clienteToPrint} formatCurrency={formatCurrency} />
@@ -158,7 +166,7 @@ const handlePrintRequest = (ventaObjeto) => {
 
             <AnimatePresence>
                 {saleDetailModalOpen && (
-                    <SaleDetailModal isOpen={saleDetailModalOpen} onClose={() => setSaleDetailModalOpen(false)} venta={selectedSaleData} clienteInfo={clientes.find(c => c.id === selectedSaleData?.clienteId)} formatCurrency={formatCurrency} />
+                    <SaleDetailModal isOpen={saleDetailModalOpen} onClose={() => setSaleDetailModalOpen(false)} venta={selectedSaleData} clienteInfo={clientes.find(c => c.id === selectedSaleData?.clienteId)} formatCurrency={formatCurrency} datosNegocio={datosNegocio} />
                 )}
                  {notaDetailModalOpen && (
                     <NotaDetailModal isOpen={notaDetailModalOpen} onClose={() => setNotaDetailModalOpen(false)} nota={selectedNotaData} clientes={clientes} formatCurrency={formatCurrency} />

@@ -71,7 +71,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       { name: 'vendedores', setter: setVendedores },
       { name: 'ventas', setter: setVentas },
       { name: 'egresos', setter: setEgresos },
-      { name: 'ingresosManuales', setter: setIngresosManuales }, // nombre unificado
+      { name: 'ingresos_manuales', setter: setIngresosManuales },
       { name: 'notas_cd', setter: setNotasCD },
     ];
 
@@ -96,8 +96,12 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       );
     });
 
-    const unsubDatosNegocio = onSnapshot(doc(db, 'datos_negocio', currentUserId), (snap) => {
+const unsubDatosNegocio = onSnapshot(doc(db, 'datosNegocio', currentUserId), (snap) => {
       setDatosNegocio(snap.exists() ? { id: snap.id, ...snap.data() } : null);
+    },
+    (error) => {
+      console.error("Error escuchando datos del negocio:", error);
+      mostrarMensaje?.('No se pudo conectar a los datos de tu negocio.', 'error');
     });
     unsubscribes.push(unsubDatosNegocio);
 

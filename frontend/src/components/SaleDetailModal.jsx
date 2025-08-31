@@ -2,8 +2,10 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { X } from 'lucide-react';
+import { Download } from 'lucide-react';
+import { generarPdfVenta } from '../services/pdfService.js';
 
-function SaleDetailModal({ isOpen, onClose, venta, formatCurrency, clienteInfo }) {
+function SaleDetailModal({ isOpen, onClose, venta, formatCurrency, clienteInfo, datosNegocio }) {
   if (!isOpen || !venta) return null;
 
   const clienteNombre = clienteInfo?.nombre || venta?.clienteNombre || 'Consumidor Final';
@@ -120,16 +122,25 @@ function SaleDetailModal({ isOpen, onClose, venta, formatCurrency, clienteInfo }
             </div>
         </div>
 
-         <div className="mt-5 pt-4 border-t border-zinc-700 text-right">
-            <motion.button
-              onClick={onClose}
-              className="bg-zinc-600 hover:bg-zinc-500 text-zinc-200 font-bold py-2 px-4 rounded-md transition duration-150 ease-in-out"
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-            >
-                Cerrar
-            </motion.button>
-         </div>
+<div className="mt-5 pt-4 border-t border-zinc-700 flex justify-end gap-3">
+    <motion.button
+      onClick={() => generarPdfVenta(venta, datosNegocio, clienteInfo)}
+      className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition duration-150 ease-in-out inline-flex items-center"
+      whileHover={{ scale: 1.03 }}
+      whileTap={{ scale: 0.97 }}
+    >
+        <Download className="h-4 w-4 mr-2"/>
+        Descargar PDF
+    </motion.button>
+    <motion.button
+      onClick={onClose}
+      className="bg-zinc-600 hover:bg-zinc-500 text-zinc-200 font-bold py-2 px-4 rounded-md transition duration-150 ease-in-out"
+      whileHover={{ scale: 1.03 }}
+      whileTap={{ scale: 0.97 }}
+    >
+        Cerrar
+    </motion.button>
+ </div>
       </motion.div>
     </motion.div>
   );
