@@ -86,13 +86,13 @@ function AdminPanel() {
                                 <TableRow key={user.uid} className="hover:bg-zinc-700/50 border-b-zinc-700">
                                     <TableCell className="font-medium text-zinc-100">{user.email}</TableCell>
                                     <TableCell>
-                                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                                            user.datosNegocio.subscriptionStatus === 'active' ? 'bg-green-500/20 text-green-400' :
-                                            user.datosNegocio.subscriptionStatus === 'trial' ? 'bg-blue-500/20 text-blue-400' :
-                                            'bg-red-500/20 text-red-400'
-                                        }`}>
-                                            {user.datosNegocio.subscriptionStatus}
-                                        </span>
+<span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+    user.datosNegocio.subscriptionStatus === 'active' ? 'bg-green-500/20 text-green-400' :
+    user.datosNegocio.subscriptionStatus === 'trial' ? 'bg-blue-500/20 text-blue-400' :
+    'bg-red-500/20 text-red-400'
+}`}>
+    {user.datosNegocio.subscriptionStatus}
+</span>
                                     </TableCell>
                                     <TableCell className="text-zinc-300">{formatDate(user.datosNegocio.subscriptionEndDate)}</TableCell>
                                     <TableCell className="text-zinc-400">{formatDate(user.fechaCreacion)}</TableCell>

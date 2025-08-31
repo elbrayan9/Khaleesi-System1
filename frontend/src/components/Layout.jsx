@@ -20,15 +20,15 @@ function Layout() {
     const currentPath = location.pathname;
 
     // Se definen las pestañas base que todos los usuarios ven
-    const tabsData = [
-        { id: 'venta', label: 'Nueva Venta', Icon: ShoppingCart, shortLabel: 'Venta', path: '/' },
-        { id: 'productos', label: 'Productos', Icon: Package, shortLabel: 'Productos', path: '/productos' },
-        { id: 'clientes', label: 'Clientes', Icon: Users, shortLabel: 'Clientes', path: '/clientes' },
-        { id: 'vendedores', label: 'Vendedores', Icon: UserPlus, shortLabel: 'Vendedores', path: '/vendedores' },
-        { id: 'reportes', label: 'Caja y Reportes', Icon: LineChart, shortLabel: 'Caja', path: '/reportes' },
-        { id: 'notas_cd', label: 'Notas C/D', Icon: FileText, shortLabel: 'Notas', path: '/notas' },
-        { id: 'configuracion', label: 'Configuración', Icon: Settings, shortLabel: 'Config', path: '/configuracion' }
-    ];
+const tabsData = [
+    { id: 'venta', label: 'Nueva Venta', Icon: ShoppingCart, shortLabel: 'Venta', path: '/dashboard' },
+    { id: 'productos', label: 'Productos', Icon: Package, shortLabel: 'Productos', path: '/dashboard/productos' },
+    { id: 'clientes', label: 'Clientes', Icon: Users, shortLabel: 'Clientes', path: '/dashboard/clientes' },
+    { id: 'vendedores', label: 'Vendedores', Icon: UserPlus, shortLabel: 'Vendedores', path: '/dashboard/vendedores' },
+    { id: 'reportes', label: 'Caja y Reportes', Icon: LineChart, shortLabel: 'Caja', path: '/dashboard/reportes' },
+    { id: 'notas_cd', label: 'Notas C/D', Icon: FileText, shortLabel: 'Notas', path: '/dashboard/notas' },
+    { id: 'configuracion', label: 'Configuración', Icon: Settings, shortLabel: 'Config', path: '/dashboard/configuracion' }
+];
 
     // Si el usuario es admin, se añade dinámicamente la pestaña del panel
     if (isAdmin) {
@@ -41,9 +41,9 @@ function Layout() {
         });
     }
 
-    const onLogoClick = () => {
-        navigate('/'); 
-    };
+const onLogoClick = () => {
+    navigate('/dashboard'); 
+};
 
     return (
         <div className="flex flex-col min-h-screen bg-zinc-900 text-zinc-200">
