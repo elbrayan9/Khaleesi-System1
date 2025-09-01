@@ -5,6 +5,7 @@ import { collection, onSnapshot, query, where, doc } from 'firebase/firestore';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import * as fsService from '../services/firestoreService';
 import { obtenerFechaHoraActual } from '../utils/helpers';
+import { getFunctions, httpsCallable } from "firebase/functions";
 import Swal from 'sweetalert2';
 
 // --- Creación del Contexto ---
@@ -21,6 +22,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
   // --- Datos ---
@@ -56,7 +58,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
         setVentas([]); setEgresos([]); setIngresosManuales([]); setNotasCD([]);
         setDatosNegocio(null);
       }
-      setIsLoadingData(false);
+      setIsLoadingData(false);setIsLoading(false);
     });
     return () => unsub();
   }, []);
@@ -109,6 +111,28 @@ const unsubDatosNegocio = onSnapshot(doc(db, 'datosNegocio', currentUserId), (sn
   }, [currentUserId]);
 
   // ---- Handlers ----
+  // frontend/src/context/AppContext.jsx
+
+const handleCreatePayment = async () => {
+    setIsLoading(true);
+    mostrarMensaje("Redirigiendo a la pasarela de pago...", "info");
+    try {
+        const functions = getFunctions();
+        const createPaymentPreference = httpsCallable(functions, 'createPaymentPreference');
+        const result = await createPaymentPreference();
+
+        const preferenceUrl = result.data.init_point;
+        if (preferenceUrl) {
+            window.location.href = preferenceUrl; // Redirige al usuario al checkout
+        } else {
+            throw new Error("No se recibió la URL de pago de Mercado Pago.");
+        }
+    } catch (error) {
+        console.error("Error al crear la preferencia de pago:", error);
+        mostrarMensaje("No se pudo generar el link de pago. Por favor, intenta de nuevo.", "error");
+        setIsLoading(false);
+    }
+};
   const handleLogout = async () => { await signOut(auth); };
 
   // Carrito (agregar desde producto con descuento por línea)
@@ -416,10 +440,11 @@ const unsubDatosNegocio = onSnapshot(doc(db, 'datosNegocio', currentUserId), (sn
     handleRegistrarEgreso, handleEliminarEgreso,
     handleGenerarNotaManual, handleEliminarNotaCD, handleAnularVenta,
     handleGuardarDatosNegocio,
-    handleAddManualItemToCart,
+    handleAddManualItemToCart,handleCreatePayment,
     // utilidades
     mostrarMensaje,
     confirmarAccion,
+    isLoading,
   };
 
   return <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>;

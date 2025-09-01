@@ -1,6 +1,6 @@
-const functions = require("firebase-functions");
 const admin = require("firebase-admin");
-const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { MercadoPagoConfig, Preference, Payment } = require("mercadopago");
+const { onCall, HttpsError, onRequest } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { defineSecret } = require("firebase-functions/params"); // <-- necesario para secrets
@@ -10,6 +10,7 @@ const db = admin.firestore();
 
 // Secret de Gemini (configurado con `firebase functions:secrets:set GEMINI_KEY`)
 const GEMINI_KEY = defineSecret("GEMINI_KEY");
+const MERCADOPAGO_ACCESS_TOKEN = defineSecret("MERCADOPAGO_ACCESS_TOKEN"); // <-- AÑADE ESTA LÍNEA
 
 // =======================
 // Funciones de administración
@@ -345,4 +346,119 @@ exports.checkExpiredSubscriptions = onSchedule("every day 03:00", async (event) 
     console.error("Error al verificar suscripciones vencidas:", error);
     return null;
   }
+});
+// functions/index.js
+
+// ===============================================
+// PASARELA DE PAGO (MERCADO PAGO)
+// ===============================================
+/**
+ * Crea una preferencia de pago en Mercado Pago y devuelve la URL de checkout.
+ */
+exports.createPaymentPreference = onCall({ secrets: [MERCADOPAGO_ACCESS_TOKEN] }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Debes estar autenticado para crear un pago.");
+  }
+
+  const userId = request.auth.uid;
+  const userEmail = request.auth.token.email;
+
+  // 1. Inicializamos Mercado Pago con nuestro Access Token secreto.
+  const client = new MercadoPagoConfig({
+    accessToken: MERCADOPAGO_ACCESS_TOKEN.value(),
+  });
+  const preference = new Preference(client);
+
+  try {
+    console.log(`Creando preferencia de pago para el usuario: ${userId}`);
+
+    // 2. Creamos el cuerpo de la preferencia de pago.
+    const preferenceData = {
+      body: {
+        items: [
+          {
+            id: "sub-khaleesi-monthly",
+            title: "Suscripción Mensual - Khaleesi System",
+            quantity: 1,
+            unit_price: 15000, // <-- ¡IMPORTANTE! CAMBIA ESTE PRECIO
+            currency_id: "ARS",   // <-- ¡IMPORTANTE! CAMBIA A TU MONEDA (ej: "ARS", "MXN")
+          },
+        ],
+        payer: {
+          email: userEmail,
+        },
+        back_urls: {
+          success: "https://khaleesy-system.web.app/dashboard",
+          failure: "https://khaleesy-system.web.app/dashboard",
+          pending: "https://khaleesy-system.web.app/dashboard",
+        },
+        auto_return: "approved",
+        // Guardamos el ID del usuario para saber quién pagó cuando recibamos la notificación.
+        external_reference: userId,
+        // URL a la que Mercado Pago enviará una notificación automática (webhook)
+        // IMPORTANTE: El nombre "paymentWebhook" debe coincidir con el de la función que crearemos después.
+        notification_url: `https://us-central1-khaleesy-system.cloudfunctions.net/paymentWebhook`,
+      },
+    };
+
+    // 3. Creamos la preferencia y obtenemos el resultado.
+    const result = await preference.create(preferenceData);
+
+    // 4. Devolvemos la URL de pago al frontend.
+    console.log(`Preferencia creada con ID: ${result.id}`);
+    return { preferenceId: result.id, init_point: result.init_point };
+
+  } catch (error) {
+    console.error("Error al crear la preferencia de pago:", error);
+    throw new HttpsError("internal", "No se pudo generar el link de pago.");
+  }
+});
+// functions/index.js
+
+/**
+ * Webhook para recibir notificaciones de pago de Mercado Pago.
+ * Esta es una función HTTP pública que Mercado Pago llamará.
+ */
+exports.paymentWebhook = onRequest({ secrets: [MERCADOPAGO_ACCESS_TOKEN] }, async (req, res) => {
+  // Usamos el SDK de Mercado Pago para interpretar la notificación
+  const client = new MercadoPagoConfig({ accessToken: MERCADOPAGO_ACCESS_TOKEN.value() });
+  const payment = new Payment(client);
+
+  const body = req.body;
+  console.log("Webhook de Mercado Pago recibido:", body);
+
+  // Verificamos que sea una notificación de un pago creado y que tenga un ID.
+  if (body.type === "payment" && body.data && body.data.id) {
+    const paymentId = body.data.id;
+
+    try {
+      console.log(`Obteniendo detalles del pago ID: ${paymentId}`);
+      // Obtenemos los detalles completos y verificados del pago desde la API de Mercado Pago.
+      const paymentDetails = await payment.get({ id: paymentId });
+
+      // Si el pago está aprobado y tiene una referencia externa (nuestro userId)
+      if (paymentDetails && paymentDetails.status === 'approved' && paymentDetails.external_reference) {
+        const userId = paymentDetails.external_reference;
+        console.log(`Pago aprobado para el usuario: ${userId}`);
+
+        // Actualizamos la suscripción del usuario en Firestore
+        const userRef = db.collection('datosNegocio').doc(userId);
+
+        const newEndDate = new Date();
+        newEndDate.setDate(newEndDate.getDate() + 30); // Añade 30 días a la fecha actual
+
+        await userRef.update({
+          subscriptionStatus: 'active',
+          subscriptionEndDate: newEndDate
+        });
+
+        console.log(`Suscripción actualizada para el usuario: ${userId}`);
+      }
+    } catch (error) {
+      console.error("Error al procesar el webhook de Mercado Pago:", error);
+    }
+  }
+
+  // Respondemos a Mercado Pago con un "200 OK" para que sepa que recibimos la notificación.
+  res.status(200).send("OK");
 });

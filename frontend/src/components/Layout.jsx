@@ -6,6 +6,7 @@ import Footer from './Footer.jsx';
 import { motion } from 'framer-motion';
 import { MessageSquare, ShoppingCart, Package, Users, LineChart, FileText, Settings, LogOut, Shield, UserPlus } from 'lucide-react';
 import ChatbotModal from './ChatbotModal.jsx';
+import SubscriptionStatusBanner from './SubscriptionStatusBanner.jsx';
 
 
 function Layout() {
@@ -86,6 +87,7 @@ const onLogoClick = () => {
             </header>
             
             <main className="flex-1 p-3 md:p-6 overflow-y-auto">
+                 <SubscriptionStatusBanner />
                  <Outlet />
             </main>
 
