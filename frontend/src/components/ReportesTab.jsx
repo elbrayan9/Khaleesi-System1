@@ -94,16 +94,17 @@ const ventasPorVendedorDia = useMemo(() => {
 
     // --- FUNCIÓN DE ORDENAMIENTO CORREGIDA ---
     const defaultSort = (a, b) => {
-        const getTime = (timestamp) => {
-            if (!timestamp) return 0;
-            if (typeof timestamp.toMillis === 'function') {
-                return timestamp.toMillis(); // Es un timestamp de Firestore
-            }
-            const date = new Date(timestamp); // Es una fecha de JS o un string
-            return !isNaN(date) ? date.getTime() : 0;
-        };
-        return getTime(b.timestamp) - getTime(a.timestamp);
+    // Esta función convierte la fecha de Firestore (que es un objeto) a un número para poder comparar.
+    const getTime = (item) => {
+        const timestamp = item.createdAt || item.timestamp; // Usa createdAt, o timestamp como respaldo
+        if (!timestamp) return 0;
+        if (typeof timestamp.toDate === 'function') {
+            return timestamp.toDate().getTime(); // Método para Timestamps de Firestore
+        }
+        return new Date(timestamp).getTime(); // Para fechas guardadas como texto
     };
+    return getTime(b) - getTime(a);
+};
 
     // Lógica de agrupación de movimientos (sin cambios, ahora usa el defaultSort corregido)
 // Reemplaza esto en ReportesTab.jsx
