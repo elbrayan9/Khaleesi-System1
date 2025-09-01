@@ -1,1 +1,2 @@
+/*
   Content-Security-Policy: script-src 'self' 'unsafe-eval' https://www.gstatic.com https://*.firebaseio.com https://www.googleapis.com https://www.googletagmanager.com https://*.mercadolibre.com.ar https://*.mercadopago.com.ar https://*.mercadolibre.com https://http2.mlstatic.com; object-src 'self'
