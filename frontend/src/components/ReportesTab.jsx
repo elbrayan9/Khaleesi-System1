@@ -27,8 +27,14 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) { // Solo recibe 
         // confirmarAccion // Si se usa directamente aquí, o a través de los handlers del contexto
     } = useAppContext();
     const { datosNegocio } = useAppContext(); // Obtener datosNegocio específicamente si no se desestructuró antes
-// --- FASE 1: Estado para manejar la fecha seleccionada ---
-    const [selectedDate, setSelectedDate] = useState(new Date());
+// Versión corregida
+const getCleanToday = () => {
+    const today = new Date();
+    // Esto toma el año, mes y día de TU calendario local y crea una fecha UTC
+    // a la medianoche. Elimina el problema de la zona horaria.
+    return new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
+};
+const [selectedDate, setSelectedDate] = useState(getCleanToday());
     // Estados locales para los formularios de esta pestaña se mantienen
     const [formIngresoDesc, setFormIngresoDesc] = useState('');
     const [formIngresoMonto, setFormIngresoMonto] = useState('');
@@ -43,10 +49,19 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) { // Solo recibe 
     const [currentPageMes, setCurrentPageMes] = useState(1);
 
 // --- FASE 2: La lógica ahora se basa en 'selectedDate' en lugar de 'new Date()' ---
-    const diaSeleccionadoStr = selectedDate.toLocaleDateString('es-AR');
-    const mesSeleccionado = selectedDate.getMonth();
+    // Creamos un formateador de fecha que siempre respete la fecha UTC.
+const dateFormatter = new Intl.DateTimeFormat('es-AR', {
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    timeZone: 'UTC', // Le decimos que la fecha que le damos ya está en UTC
+});
+
+const diaSeleccionadoStr = dateFormatter.format(selectedDate);
+    const mesSeleccionado = selectedDate.getUTCMonth();
     const anioSeleccionado = selectedDate.getFullYear();
-    const nombreMesSeleccionado = obtenerNombreMes(mesSeleccionado);
+    // Versión corregida
+const nombreMesSeleccionado = obtenerNombreMes(selectedDate.getUTCMonth());
     
     // Filtramos los datos basados en la fecha seleccionada
     const ventasDelDia = ventas.filter(v => v.fecha === diaSeleccionadoStr);
@@ -93,17 +108,20 @@ const ventasPorVendedorDia = useMemo(() => {
 }, [ventasDelDia]);
 
     // --- FUNCIÓN DE ORDENAMIENTO CORREGIDA ---
-    const defaultSort = (a, b) => {
-    // Esta función convierte la fecha de Firestore (que es un objeto) a un número para poder comparar.
+const defaultSort = (a, b) => {
+    // Esta función convierte la fecha de Firestore a un número para poder comparar.
     const getTime = (item) => {
-        const timestamp = item.createdAt || item.timestamp; // Usa createdAt, o timestamp como respaldo
+        // Primero busca 'createdAt', si no lo encuentra, busca 'timestamp' como respaldo.
+        const timestamp = item.createdAt || item.timestamp; 
         if (!timestamp) return 0;
+        // El método .toDate() es la forma correcta de manejar Timestamps de Firestore.
         if (typeof timestamp.toDate === 'function') {
-            return timestamp.toDate().getTime(); // Método para Timestamps de Firestore
+            return timestamp.toDate().getTime();
         }
-        return new Date(timestamp).getTime(); // Para fechas guardadas como texto
+        // Si es un texto, lo convierte a fecha.
+        return new Date(timestamp).getTime(); 
     };
-    return getTime(b) - getTime(a);
+    return getTime(b) - getTime(a); // Ordena del más reciente al más antiguo
 };
 
     // Lógica de agrupación de movimientos (sin cambios, ahora usa el defaultSort corregido)
@@ -267,10 +285,9 @@ const handleCerrarCaja = () => {
     };
     
 const handleDateChange = (e) => {
-    // Esta forma asegura que la fecha se interprete en la zona horaria local
-    // y evita el problema del día anterior.
-    const dateString = e.target.value;
-    setSelectedDate(new Date(dateString.replace(/-/g, '/')));
+    const [year, month, day] = e.target.value.split('-').map(Number);
+    // Creamos la fecha en UTC para evitar que la zona horaria la cambie al día anterior.
+    setSelectedDate(new Date(Date.UTC(year, month - 1, day)));
 };
 
   // --- FASE 3: Función para exportar el reporte del mes ---
@@ -346,7 +363,7 @@ const handleDateChange = (e) => {
         </div>
         <motion.button onClick={() => changeDate(-1)} className="p-2 bg-zinc-700 hover:bg-zinc-600 rounded-md" title="Día Anterior" whileTap={{ scale: 0.9 }}><ChevronLeft className="h-4 w-4" /></motion.button>
         <motion.button onClick={() => changeDate(1)} className="p-2 bg-zinc-700 hover:bg-zinc-600 rounded-md" title="Día Siguiente" whileTap={{ scale: 0.9 }}><ChevronRight className="h-4 w-4" /></motion.button>
-        <motion.button onClick={() => setSelectedDate(new Date())} className="text-sm py-1.5 px-3 bg-blue-600 hover:bg-blue-700 rounded-md flex items-center gap-1.5" whileTap={{ scale: 0.95 }}>
+        <motion.button onClick={() => setSelectedDate(getCleanToday())} className="text-sm py-1.5 px-3 bg-blue-600 hover:bg-blue-700 rounded-md flex items-center gap-1.5" whileTap={{ scale: 0.95 }}>
             <CornerDownLeft className="h-4 w-4" /> Volver a Hoy
         </motion.button>
 {/* --- FASE 3: Botón de Exportar --- */}

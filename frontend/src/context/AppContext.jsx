@@ -112,26 +112,21 @@ const unsubDatosNegocio = onSnapshot(doc(db, 'datosNegocio', currentUserId), (sn
 
   // ---- Handlers ----
   // frontend/src/context/AppContext.jsx
-
-const handleCreatePayment = async () => {
-    setIsLoading(true);
-    mostrarMensaje("Redirigiendo a la pasarela de pago...", "info");
-    try {
-        const functions = getFunctions();
-        const createPaymentPreference = httpsCallable(functions, 'createPaymentPreference');
-        const result = await createPaymentPreference();
-
-        const preferenceUrl = result.data.init_point;
-        if (preferenceUrl) {
-            window.location.href = preferenceUrl; // Redirige al usuario al checkout
-        } else {
-            throw new Error("No se recibió la URL de pago de Mercado Pago.");
-        }
-    } catch (error) {
-        console.error("Error al crear la preferencia de pago:", error);
-        mostrarMensaje("No se pudo generar el link de pago. Por favor, intenta de nuevo.", "error");
-        setIsLoading(false);
-    }
+const handleNotifyPayment = async () => {
+  setIsLoading(true);
+  try {
+    const functions = getFunctions();
+    const notifyAdmin = httpsCallable(functions, 'notifyAdminOfPayment');
+    await notifyAdmin();
+    mostrarMensaje("Notificación enviada con éxito.", "success");
+    return true; // Devuelve true si tuvo éxito
+  } catch (error) {
+    console.error("Error al notificar el pago:", error);
+    mostrarMensaje("No se pudo enviar la notificación. Intenta de nuevo.", "error");
+    return false; // Devuelve false si falló
+  } finally {
+    setIsLoading(false);
+  }
 };
   const handleLogout = async () => { await signOut(auth); };
 
@@ -440,7 +435,7 @@ const handleCreatePayment = async () => {
     handleRegistrarEgreso, handleEliminarEgreso,
     handleGenerarNotaManual, handleEliminarNotaCD, handleAnularVenta,
     handleGuardarDatosNegocio,
-    handleAddManualItemToCart,handleCreatePayment,
+    handleAddManualItemToCart, handleNotifyPayment,
     // utilidades
     mostrarMensaje,
     confirmarAccion,

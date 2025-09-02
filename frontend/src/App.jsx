@@ -24,6 +24,7 @@ import { formatCurrency } from './utils/helpers.js';
 import AdminPanel from './screens/AdminPanel.jsx';
 import UserDetailAdmin from './screens/UserDetailAdmin.jsx';
 import LandingPage from './screens/LandingPage.jsx';
+import PaymentInstructions from './screens/PaymentInstructions.jsx';
 
 function App() {
     const { 
@@ -154,6 +155,7 @@ const handlePrintRequest = (ventaObjeto) => {
         {/* Rutas de Admin también protegidas */}
         <Route path="/admin" element={<AdminPanel />} />
         <Route path="/admin/user/:uid" element={<UserDetailAdmin />} />
+        <Route path="payment-instructions" element={<PaymentInstructions />} />
     </Route>
 
     {/* Redirección para cualquier ruta no encontrada */}

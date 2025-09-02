@@ -3,8 +3,8 @@ import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import AppLogo from './AppLogo.jsx';
 import Footer from './Footer.jsx';
-import { motion } from 'framer-motion';
-import { MessageSquare, ShoppingCart, Package, Users, LineChart, FileText, Settings, LogOut, Shield, UserPlus } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Bot, ShoppingCart, Package, Users, LineChart, FileText, Settings, LogOut, Shield, UserPlus } from 'lucide-react';
 import ChatbotModal from './ChatbotModal.jsx';
 import SubscriptionStatusBanner from './SubscriptionStatusBanner.jsx';
 
@@ -19,6 +19,7 @@ function Layout() {
     // Se usa 'useLocation' para detectar la ruta activa. Es la forma correcta en React Router.
     const location = useLocation();
     const currentPath = location.pathname;
+    const [isChatButtonHovered, setIsChatButtonHovered] = useState(false)
 
     // Se definen las pestañas base que todos los usuarios ven
 const tabsData = [
@@ -94,16 +95,38 @@ const onLogoClick = () => {
             <Footer />
             {/* --- INICIO DEL CÓDIGO AÑADIDO --- */}
 
-{/* Botón flotante para el chatbot */}
-<motion.button
-    onClick={() => setIsChatOpen(true)}
-    className="fixed bottom-6 right-6 bg-blue-600 text-white p-4 rounded-full shadow-lg z-40"
-    whileHover={{ scale: 1.1 }}
-    whileTap={{ scale: 0.9 }}
-    aria-label="Abrir asistente de chat"
+// Nuevo código del botón con animación
+<motion.div
+    className="fixed bottom-6 right-6 z-40"
+    onHoverStart={() => setIsChatButtonHovered(true)}
+    onHoverEnd={() => setIsChatButtonHovered(false)}
 >
-    <MessageSquare size={24} />
-</motion.button>
+    <button
+        onClick={() => setIsChatOpen(true)}
+        className={`flex items-center justify-center gap-2 rounded-full shadow-lg transition-all duration-300 ease-in-out
+                    ${isChatButtonHovered ? 'w-36 bg-blue-600' : 'w-14 bg-blue-700'} 
+                    h-14 text-white focus:outline-none`}
+        aria-label="Abrir asistente de chat"
+    >
+        {/* El ícono siempre es visible */}
+        <Bot size={24} className="flex-shrink-0" />
+
+        {/* El texto solo aparece si el mouse está encima y se anima con Framer Motion */}
+        <AnimatePresence>
+            {isChatButtonHovered && (
+                <motion.span
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -10 }}
+                    transition={{ duration: 0.2 }}
+                    className="font-semibold whitespace-nowrap"
+                >
+                    Asistente
+                </motion.span>
+            )}
+        </AnimatePresence>
+    </button>
+</motion.div>
 
 {/* El componente del modal del chatbot */}
 {/* Se muestra solo si isChatOpen es true */}

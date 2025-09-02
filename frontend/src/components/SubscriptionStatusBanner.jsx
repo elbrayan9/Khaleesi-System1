@@ -4,9 +4,11 @@ import React from 'react';
 import { useAppContext } from '../context/AppContext';
 import { motion } from 'framer-motion';
 import { Info, AlertTriangle, CreditCard } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const SubscriptionStatusBanner = () => {
-  const { datosNegocio, handleCreatePayment } = useAppContext();
+  const { datosNegocio,  } = useAppContext();
+  const navigate = useNavigate();
 
   if (!datosNegocio || datosNegocio.subscriptionStatus === 'active') {
     return null; // No mostrar nada si los datos no han cargado o la suscripción está activa
@@ -57,7 +59,7 @@ const SubscriptionStatusBanner = () => {
         className="flex items-center gap-2 px-4 py-2 font-semibold rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors text-xs w-full sm:w-auto justify-center"
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        onClick={handleCreatePayment}
+        onClick={() => navigate('/payment-instructions')}
       >
         <CreditCard size={14} />
         {bannerContent.buttonText}
