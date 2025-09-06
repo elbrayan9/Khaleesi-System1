@@ -95,7 +95,7 @@ const onLogoClick = () => {
             <Footer />
             {/* --- INICIO DEL CÓDIGO AÑADIDO --- */}
 
-// Nuevo código del botón con animación
+{/* Nuevo código del botón con animación */}
 <motion.div
     className="fixed bottom-6 right-6 z-40"
     onHoverStart={() => setIsChatButtonHovered(true)}

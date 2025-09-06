@@ -368,3 +368,58 @@ exports.notifyAdminOfPayment = onCall(async (request) => {
     throw new HttpsError("internal", "No se pudo enviar la notificación.");
   }
 });
+
+// ===============================================
+// BACKUP MANUAL DE DATOS
+// ===============================================
+/**
+ * Recopila todos los datos de un usuario desde varias colecciones y los devuelve.
+ */
+exports.backupUserData = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Debes estar autenticado para generar un backup.");
+  }
+
+  const userId = request.auth.uid;
+  console.log(`Iniciando proceso de backup para el usuario: ${userId}`);
+
+  // Lista de todas las colecciones que queremos incluir en el backup.
+  const collectionsToBackup = [
+    "productos",
+    "clientes",
+    "vendedores",
+    "ventas",
+    "egresos",
+    "ingresos_manuales",
+    "notas_cd",
+  ];
+
+  try {
+    const backupData = {};
+
+    // Usamos Promise.all para hacer todas las consultas a la base de datos en paralelo,
+    // lo cual es mucho más rápido.
+    await Promise.all(
+      collectionsToBackup.map(async (collectionName) => {
+        const snapshot = await db.collection(collectionName).where("userId", "==", userId).get();
+        // Guardamos los datos de cada colección en nuestro objeto de backup.
+        backupData[collectionName] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log(`- ${snapshot.size} documentos recuperados de la colección '${collectionName}'.`);
+      })
+    );
+
+    // También añadimos los datos del negocio al backup.
+    const negocioDoc = await db.collection("datosNegocio").doc(userId).get();
+    if (negocioDoc.exists) {
+        backupData["datosNegocio"] = negocioDoc.data();
+    }
+
+    console.log(`Backup completado para el usuario: ${userId}`);
+    // Devolvemos el objeto completo con todos los datos.
+    return backupData;
+
+  } catch (error) {
+    console.error(`Error al generar el backup para el usuario ${userId}:`, error);
+    throw new HttpsError("internal", "No se pudo completar el backup de los datos.");
+  }
+});

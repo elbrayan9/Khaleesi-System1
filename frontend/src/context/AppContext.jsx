@@ -112,6 +112,40 @@ const unsubDatosNegocio = onSnapshot(doc(db, 'datosNegocio', currentUserId), (sn
 
   // ---- Handlers ----
   // frontend/src/context/AppContext.jsx
+const handleBackupData = async () => {
+    setIsLoading(true); // Usaremos el estado de carga que ya tienes
+    mostrarMensaje("Generando backup... Esto puede tardar unos segundos.", "info");
+    try {
+        const functions = getFunctions();
+        const backupUserData = httpsCallable(functions, 'backupUserData');
+        const result = await backupUserData();
+
+        // Convertimos el objeto de datos a un string en formato JSON
+        const jsonString = JSON.stringify(result.data, null, 2);
+        // Creamos un archivo "blob" en la memoria del navegador
+        const blob = new Blob([jsonString], { type: "application/json" });
+        // Creamos una URL temporal para ese archivo
+        const url = URL.createObjectURL(blob);
+
+        // Creamos un enlace invisible, le hacemos clic para iniciar la descarga y luego lo eliminamos
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `backup-khaleesi-system-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url); // Liberamos la memoria
+
+        mostrarMensaje("Backup descargado exitosamente.", "success");
+
+    } catch (error) {
+        console.error("Error al generar el backup:", error);
+        mostrarMensaje("No se pudo generar el backup. Intenta de nuevo.", "error");
+    } finally {
+        setIsLoading(false);
+    }
+};
+
 const handleNotifyPayment = async () => {
   setIsLoading(true);
   try {
@@ -435,7 +469,7 @@ const handleNotifyPayment = async () => {
     handleRegistrarEgreso, handleEliminarEgreso,
     handleGenerarNotaManual, handleEliminarNotaCD, handleAnularVenta,
     handleGuardarDatosNegocio,
-    handleAddManualItemToCart, handleNotifyPayment,
+    handleAddManualItemToCart, handleNotifyPayment,handleBackupData,
     // utilidades
     mostrarMensaje,
     confirmarAccion,
