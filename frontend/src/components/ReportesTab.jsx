@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useAppContext } from '../context/AppContext.jsx'; // Importar hook
 import { formatCurrency, obtenerNombreMes } from '../utils/helpers.js'; // Importar helpers directamente
 import * as XLSX from 'xlsx';
+import SalesHeatmap from './SalesHeatmap.jsx';
 
 const ITEMS_PER_PAGE_REPORTE = 10;
 
@@ -199,6 +200,57 @@ const productosMasVendidosMes = useMemo(() => {
         .sort((a, b) => b.cantidad - a.cantidad)
         .slice(0, 5);
 }, [ventasMes]); // Esta lógica se recalcula solo si las ventas del mes cambian
+
+// frontend/src/components/ReportesTab.jsx
+
+const rankingVendedoresMes = useMemo(() => {
+    // 1. Usamos reduce para agrupar las ventas por el nombre del vendedor
+    const statsPorVendedor = ventasMes.reduce((acc, venta) => {
+        const vendedor = venta.vendedorNombre || 'N/A'; // Usamos 'N/A' si no hay vendedor
+
+        if (!acc[vendedor]) {
+            acc[vendedor] = { nombre: vendedor, totalVendido: 0, cantidadVentas: 0 };
+        }
+
+        // 2. Acumulamos el total vendido y la cantidad de ventas
+        acc[vendedor].totalVendido += venta.total;
+        acc[vendedor].cantidadVentas += 1;
+
+        return acc;
+    }, {});
+
+    // 3. Convertimos el objeto a un array y lo ordenamos por el total vendido
+    return Object.values(statsPorVendedor)
+        .sort((a, b) => b.totalVendido - a.totalVendido);
+
+}, [ventasMes]); // Esta lógica se recalcula solo si las ventas del mes cambian
+
+// frontend/src/components/ReportesTab.jsx
+
+const datosMapaDeCalor = useMemo(() => {
+    // Creamos una estructura para contar las ventas: un objeto para cada día de la semana.
+    const dias = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+    const ventasPorHoraYDia = {}; // Ej: { Lunes: { '09': 5, '10': 12 }, Martes: { ... } }
+
+    ventasMes.forEach(venta => {
+        const fechaVenta = venta.createdAt?.toDate() || new Date(venta.timestamp);
+        if (!fechaVenta) return;
+
+        const diaSemana = dias[fechaVenta.getDay()];
+        const hora = fechaVenta.getHours().toString().padStart(2, '0'); // Formato "09", "10", etc.
+
+        if (!ventasPorHoraYDia[diaSemana]) {
+            ventasPorHoraYDia[diaSemana] = {};
+        }
+        if (!ventasPorHoraYDia[diaSemana][hora]) {
+            ventasPorHoraYDia[diaSemana][hora] = 0;
+        }
+
+        ventasPorHoraYDia[diaSemana][hora] += 1; // Contamos una venta más
+    });
+
+    return ventasPorHoraYDia;
+}, [ventasMes]);
 
     const sortItems = (items, config) => {
         if (!config.key) return items;
@@ -452,36 +504,6 @@ const handleDateChange = (e) => {
                 </div>
                 <div className="lg:col-span-2 space-y-5">
                     <div className="bg-zinc-800 p-4 sm:p-5 rounded-lg shadow-md"><h3 className="text-lg sm:text-xl font-medium mb-3 text-white border-b border-zinc-700 pb-2">Ventas Diarias del Mes ({nombreMesSeleccionado})</h3><SalesChart data={salesDataForChart} /></div>
-                    {/* NUEVA SECCIÓN: PRODUCTOS MÁS VENDIDOS */}
-<div className="bg-zinc-800 p-4 sm:p-5 rounded-lg shadow-md">
-    <h3 className="text-lg sm:text-xl font-medium mb-3 text-white border-b border-zinc-700 pb-2">
-        Top 5 Productos Más Vendidos ({nombreMesSeleccionado})
-    </h3>
-    {productosMasVendidosMes.length > 0 ? (
-        <div className="overflow-x-auto">
-            <Table>
-                <TableHeader>
-                    <TableRow className="border-b-zinc-700">
-                        <TableHead className="text-zinc-300">Producto</TableHead>
-                        <TableHead className="text-zinc-300 text-right">Unidades Vendidas</TableHead>
-                        <TableHead className="text-zinc-300 text-right">Monto Total</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {productosMasVendidosMes.map((producto, index) => (
-                        <TableRow key={index} className="border-b-zinc-700/50">
-                            <TableCell className="font-medium text-white">{producto.nombre}</TableCell>
-                            <TableCell className="text-right text-blue-400 font-semibold">{producto.cantidad}</TableCell>
-                            <TableCell className="text-right text-green-400 font-semibold">${formatCurrency(producto.totalVendido)}</TableCell>
-                        </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
-        </div>
-    ) : (
-        <p className="text-sm text-zinc-400 italic">No hay datos de ventas para generar un ranking este mes.</p>
-    )}
-</div>
                     <div className="bg-zinc-800 p-4 sm:p-5 rounded-lg shadow-md overflow-hidden">
                         <div className="flex flex-col sm:flex-row justify-between items-center mb-3 border-b border-zinc-700 pb-2 gap-2"><h3 className="text-lg sm:text-xl font-medium text-white whitespace-nowrap">Movimientos Caja del Día ({diaSeleccionadoStr})</h3><div className="relative w-full sm:w-auto"><span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400"><Search className="h-4 w-4" /></span><input type="text" placeholder="Buscar..." value={searchTermDia} onChange={(e) => {setSearchTermDia(e.target.value); setCurrentPageDia(1);}} className="w-full sm:w-64 pl-10 pr-4 py-2 border border-zinc-600 rounded-md bg-zinc-700 text-zinc-100 placeholder-zinc-400 text-sm" /></div></div>
                         <div className="overflow-x-auto">
@@ -535,6 +557,77 @@ const handleDateChange = (e) => {
                         <PaginationControls currentPage={currentPageMes} totalPages={totalPagesMes} onPageChange={page => setCurrentPageMes(page)} itemsPerPage={ITEMS_PER_PAGE_REPORTE} totalItems={filteredSortedMovimientosMes.length} />
                         <div className="mt-3 text-right text-sm text-zinc-400">Total Ventas del Mes: ${formatCurrency(totalVentasMes)}</div>
                     </div>
+                                        {/* NUEVA SECCIÓN: PRODUCTOS MÁS VENDIDOS */}
+<div className="bg-zinc-800 p-4 sm:p-5 rounded-lg shadow-md">
+    <h3 className="text-lg sm:text-xl font-medium mb-3 text-white border-b border-zinc-700 pb-2">
+        Top 5 Productos Más Vendidos ({nombreMesSeleccionado})
+    </h3>
+    {productosMasVendidosMes.length > 0 ? (
+        <div className="overflow-x-auto">
+            <Table>
+                <TableHeader>
+                    <TableRow className="border-b-zinc-700">
+                        <TableHead className="text-zinc-300">Producto</TableHead>
+                        <TableHead className="text-zinc-300 text-right">Unidades Vendidas</TableHead>
+                        <TableHead className="text-zinc-300 text-right">Monto Total</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {productosMasVendidosMes.map((producto, index) => (
+                        <TableRow key={index} className="border-b-zinc-700/50">
+                            <TableCell className="font-medium text-white">{producto.nombre}</TableCell>
+                            <TableCell className="text-right text-blue-400 font-semibold">{producto.cantidad}</TableCell>
+                            <TableCell className="text-right text-green-400 font-semibold">${formatCurrency(producto.totalVendido)}</TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        </div>
+    ) : (
+        <p className="text-sm text-zinc-400 italic">No hay datos de ventas para generar un ranking este mes.</p>
+    )}
+</div>
+{/* NUEVA SECCIÓN: RANKING DE VENDEDORES */}
+<div className="bg-zinc-800 p-4 sm:p-5 rounded-lg shadow-md">
+    <h3 className="text-lg sm:text-xl font-medium mb-3 text-white border-b border-zinc-700 pb-2">
+        Ranking de Vendedores ({nombreMesSeleccionado})
+    </h3>
+    {rankingVendedoresMes.length > 0 ? (
+        <div className="overflow-x-auto">
+            <Table>
+                <TableHeader>
+                    <TableRow className="border-b-zinc-700">
+                        <TableHead className="text-zinc-300">Vendedor</TableHead>
+                        <TableHead className="text-zinc-300 text-right">Ventas Realizadas</TableHead>
+                        <TableHead className="text-zinc-300 text-right">Monto Total</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {rankingVendedoresMes.map((vendedor, index) => (
+                        <TableRow key={index} className="border-b-zinc-700/50">
+                            <TableCell className="font-medium text-white">{vendedor.nombre}</TableCell>
+                            <TableCell className="text-right text-blue-400 font-semibold">{vendedor.cantidadVentas}</TableCell>
+                            <TableCell className="text-right text-green-400 font-semibold">${formatCurrency(vendedor.totalVendido)}</TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        </div>
+    ) : (
+        <p className="text-sm text-zinc-400 italic">No hay datos de ventas para generar un ranking de vendedores este mes.</p>
+    )}
+</div>
+{/* NUEVA SECCIÓN: MAPA DE CALOR DE VENTAS */}
+<div className="bg-zinc-800 p-4 sm:p-5 rounded-lg shadow-md">
+    <h3 className="text-lg sm-text-xl font-medium mb-4 text-white border-b border-zinc-700 pb-2">
+        Días y Horarios Pico ({nombreMesSeleccionado})
+    </h3>
+    {ventasMes.length > 0 ? (
+       <SalesHeatmap data={datosMapaDeCalor} />
+    ) : (
+        <p className="text-sm text-zinc-400 italic">No hay datos de ventas para generar el mapa de calor este mes.</p>
+    )}
+</div>
                 </div>
             </div>
         </div>
