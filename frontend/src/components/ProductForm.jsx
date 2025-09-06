@@ -11,6 +11,7 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) { // mostrarMensaj
     const [precio, setPrecio] = useState('');
     const [stock, setStock] = useState('');
     const barcodeInputRef = useRef(null);
+    const [categoria, setCategoria] = useState('');
 
     useEffect(() => {
         if (productToEdit) {
@@ -18,11 +19,13 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) { // mostrarMensaj
             setCodigoBarras(productToEdit.codigoBarras || '');
             setPrecio(productToEdit.precio.toString());
             setStock(productToEdit.stock.toString());
+            setCategoria(productToEdit.categoria || '');
         } else {
             setNombre('');
             setCodigoBarras('');
             setPrecio('');
             setStock('');
+            setCategoria('');
         }
         if (!productToEdit && barcodeInputRef.current) {
             barcodeInputRef.current.focus();
@@ -38,7 +41,7 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) { // mostrarMensaj
             return;
         }
         // onSave se llama igual, pero ProductosTab le pasará el handler del contexto
-        onSave({ id: productToEdit ? productToEdit.id : null, nombre: nombre.trim(), codigoBarras: codigoBarras.trim() || null, precio: parsedPrecio, stock: parsedStock });
+        onSave({ id: productToEdit ? productToEdit.id : null, nombre: nombre.trim(), codigoBarras: codigoBarras.trim() || null, precio: parsedPrecio, stock: parsedStock, categoria: categoria.trim() || null }); 
         // El reseteo del formulario y de `editingProduct` lo maneja el contexto/ProductosTab tras una operación exitosa.
     };
 
@@ -77,6 +80,18 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) { // mostrarMensaj
                     <label htmlFor="prod-precio-form" className="block text-sm font-medium text-zinc-300 mb-1">Precio ($):</label>
                     <input type="number" id="prod-precio-form" value={precio} onChange={(e) => setPrecio(e.target.value)} step="0.01" min="0" className={inputClasses} required />
                 </div>
+                {/* Campo de Categoría */}
+<div>
+    <label htmlFor="prod-categoria-form" className="block text-sm font-medium text-zinc-300 mb-1">Categoría:</label>
+    <input
+        type="text"
+        id="prod-categoria-form"
+        value={categoria}
+        onChange={(e) => setCategoria(e.target.value)}
+        placeholder="Ej: Ropa, Bebidas, etc."
+        className="w-full p-2 border border-zinc-600 rounded-md bg-zinc-700 text-zinc-100"
+    />
+</div>
                 <div>
                     <label htmlFor="prod-stock-form" className="block text-sm font-medium text-zinc-300 mb-1">Stock:</label>
                     <input type="number" id="prod-stock-form" value={stock} onChange={(e) => setStock(e.target.value)} min="0" className={inputClasses} required />

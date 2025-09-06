@@ -41,6 +41,7 @@ function ProductosTab() {
     // --- FIN DE LA NUEVA LÓGICA DE ALERTAS ---
 
     const [searchTerm, setSearchTerm] = useState('');
+    const [categoryFilter, setCategoryFilter] = useState('');
     const [sortConfig, setSortConfig] = useState({ key: 'id', direction: 'ascending' });
     const [currentPage, setCurrentPage] = useState(1);
     // --- AÑADIDO ---
@@ -142,26 +143,42 @@ function ProductosTab() {
 
     reader.readAsArrayBuffer(file);
 };
-    const filteredSortedProductos = useMemo(() => {
-        // ... (código existente sin cambios)
-        let items = [...productos];
-        if (searchTerm) {
-            const lower = searchTerm.toLowerCase();
-            items = items.filter(p => p.nombre.toLowerCase().includes(lower) || (p.codigoBarras && p.codigoBarras.toLowerCase().includes(lower)) || (p.id && p.id.toString().toLowerCase().includes(lower)));
-        }
-        if (sortConfig.key) {
-            items.sort((a, b) => {
-                let valA = a[sortConfig.key]; let valB = b[sortConfig.key];
-                if (typeof valA === 'string') valA = valA.toLowerCase();
-                if (typeof valB === 'string') valB = valB.toLowerCase();
-                if (typeof valA === 'number' && typeof valB === 'number') {} else { valA = String(valA); valB = String(valB); }
-                if (valA < valB) return sortConfig.direction === 'ascending' ? -1 : 1;
-                if (valA > valB) return sortConfig.direction === 'ascending' ? 1 : -1;
-                return 0;
-            });
-        }
-        return items;
-    }, [productos, searchTerm, sortConfig]);
+// frontend/src/components/ProductosTab.jsx
+
+const filteredSortedProductos = useMemo(() => {
+    let items = [...productos];
+
+    // Aplicar filtros
+    items = items.filter(p => {
+        // Filtro por texto de búsqueda (nombre o código)
+        const lower = searchTerm.toLowerCase();
+        const matchesSearch = p.nombre.toLowerCase().includes(lower) || 
+                              (p.codigoBarras && p.codigoBarras.toLowerCase().includes(lower));
+
+        // Filtro por categoría (esta es la lógica que faltaba)
+        const matchesCategory = categoryFilter ? p.categoria === categoryFilter : true;
+
+        return matchesSearch && matchesCategory;
+    });
+
+    // Aplicar ordenamiento (esta parte no cambia)
+    if (sortConfig.key) {
+        items.sort((a, b) => {
+            let valA = a[sortConfig.key]; let valB = b[sortConfig.key];
+            if (typeof valA === 'string') valA = valA.toLowerCase();
+            if (typeof valB === 'string') valB = valB.toLowerCase();
+            if (valA < valB) return sortConfig.direction === 'ascending' ? -1 : 1;
+            if (valA > valB) return sortConfig.direction === 'ascending' ? 1 : -1;
+            return 0;
+        });
+    }
+    return items;
+}, [productos, searchTerm, categoryFilter, sortConfig]); // <-- MUY IMPORTANTE: Asegúrate de que 'categoryFilter' esté aquí
+
+    const categoriasUnicas = useMemo(() => {
+    const categorias = productos.map(p => p.categoria).filter(Boolean); // Filtra nulos o vacíos
+    return [...new Set(categorias)]; // Obtiene valores únicos
+}, [productos]);
 
     const totalPages = Math.ceil(filteredSortedProductos.length / ITEMS_PER_PAGE_PRODUCTOS);
     const paginatedProductos = useMemo(() => {
@@ -226,10 +243,29 @@ function ProductosTab() {
                             <UploadCloud className="mr-2 h-4 w-4" />
                             Exportar
                         </Button>
-                        <div className="relative w-full sm:w-auto">
-                            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400"><Search className="h-4 w-4" /></span>
-                            <input type="text" placeholder="Buscar por Nombre, Código o ID..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full sm:w-64 pl-10 pr-4 py-2 border border-zinc-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-zinc-700 text-zinc-100 placeholder-zinc-400 text-sm"/>
-                        </div>
+{/* Contenedor de Filtros */}
+<div className="flex flex-col sm:flex-row gap-3 mb-4">
+    <div className="relative flex-grow">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+        <input
+            type="text"
+            placeholder="Buscar por nombre..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-zinc-600 rounded-md bg-zinc-700 text-zinc-100"
+        />
+    </div>
+    <select
+        value={categoryFilter}
+        onChange={(e) => setCategoryFilter(e.target.value)}
+        className="w-full sm:w-48 py-2 px-3 border border-zinc-600 rounded-md bg-zinc-700 text-zinc-100"
+    >
+        <option value="">Todas las categorías</option>
+        {categoriasUnicas.map(cat => (
+            <option key={cat} value={cat}>{cat}</option>
+        ))}
+    </select>
+</div>
                     </div>
                 </div>
                  <div className="overflow-x-auto tabla-scrollable">

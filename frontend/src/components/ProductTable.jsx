@@ -45,6 +45,7 @@ function ProductTable({
                     <TableHead>Cód. Barras</TableHead>
                     <TableHead className="text-right"><button onClick={() => requestSort('precio')} className={`${headerButtonClasses} justify-end w-full`}>Precio {getSortIcon('precio')}</button></TableHead>
                     <TableHead className="text-center"><button onClick={() => requestSort('stock')} className={`${headerButtonClasses} justify-center w-full`}>Stock {getSortIcon('stock')}</button></TableHead>
+                    <TableHead>Categoría</TableHead>
                     <TableHead className="text-center">Acciones</TableHead>
                 </TableRow>
             </TableHeader>
@@ -61,6 +62,7 @@ function ProductTable({
                             <TableCell className="font-mono text-zinc-400">{p.codigoBarras || 'N/A'}</TableCell>
                             <TableCell className="text-right text-zinc-200 whitespace-nowrap">${formatCurrency(p.precio)}</TableCell>
                             <TableCell className="text-center text-zinc-200 whitespace-nowrap">{p.stock}</TableCell>
+                            <TableCell className="text-zinc-400">{p.categoria || 'N/A'}</TableCell>
                             <TableCell className="text-center whitespace-nowrap">
                                 <motion.button
                                     onClick={() => handleEditClick(p)}
