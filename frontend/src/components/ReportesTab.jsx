@@ -171,6 +171,34 @@ const todosMovimientosDia = useMemo(() => {
         }, {});
         return Object.entries(salesByDay).map(([dia, total]) => ({ dia, total })).sort((a, b) => parseInt(a.dia, 10) - parseInt(b.dia, 10));
     }, [ventasMes]);
+    // frontend/src/components/ReportesTab.jsx
+
+const productosMasVendidosMes = useMemo(() => {
+    // 1. Creamos un objeto para contar los productos
+    const productCounts = ventasMes.reduce((acc, venta) => {
+        // 2. Recorremos los items de cada venta
+        venta.items.forEach(item => {
+            // 3. Acumulamos la cantidad y el total vendido por cada producto
+            if (acc[item.id]) {
+                acc[item.id].cantidad += item.cantidad;
+                acc[item.id].totalVendido += item.cantidad * item.precioFinal;
+            } else {
+                acc[item.id] = {
+                    nombre: item.nombre,
+                    cantidad: item.cantidad,
+                    totalVendido: item.cantidad * item.precioFinal
+                };
+            }
+        });
+        return acc;
+    }, {});
+
+    // 4. Convertimos el objeto a un array, lo ordenamos de mayor a menor
+    //    y nos quedamos con los 5 primeros (el Top 5).
+    return Object.values(productCounts)
+        .sort((a, b) => b.cantidad - a.cantidad)
+        .slice(0, 5);
+}, [ventasMes]); // Esta lógica se recalcula solo si las ventas del mes cambian
 
     const sortItems = (items, config) => {
         if (!config.key) return items;
@@ -424,6 +452,36 @@ const handleDateChange = (e) => {
                 </div>
                 <div className="lg:col-span-2 space-y-5">
                     <div className="bg-zinc-800 p-4 sm:p-5 rounded-lg shadow-md"><h3 className="text-lg sm:text-xl font-medium mb-3 text-white border-b border-zinc-700 pb-2">Ventas Diarias del Mes ({nombreMesSeleccionado})</h3><SalesChart data={salesDataForChart} /></div>
+                    {/* NUEVA SECCIÓN: PRODUCTOS MÁS VENDIDOS */}
+<div className="bg-zinc-800 p-4 sm:p-5 rounded-lg shadow-md">
+    <h3 className="text-lg sm:text-xl font-medium mb-3 text-white border-b border-zinc-700 pb-2">
+        Top 5 Productos Más Vendidos ({nombreMesSeleccionado})
+    </h3>
+    {productosMasVendidosMes.length > 0 ? (
+        <div className="overflow-x-auto">
+            <Table>
+                <TableHeader>
+                    <TableRow className="border-b-zinc-700">
+                        <TableHead className="text-zinc-300">Producto</TableHead>
+                        <TableHead className="text-zinc-300 text-right">Unidades Vendidas</TableHead>
+                        <TableHead className="text-zinc-300 text-right">Monto Total</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {productosMasVendidosMes.map((producto, index) => (
+                        <TableRow key={index} className="border-b-zinc-700/50">
+                            <TableCell className="font-medium text-white">{producto.nombre}</TableCell>
+                            <TableCell className="text-right text-blue-400 font-semibold">{producto.cantidad}</TableCell>
+                            <TableCell className="text-right text-green-400 font-semibold">${formatCurrency(producto.totalVendido)}</TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        </div>
+    ) : (
+        <p className="text-sm text-zinc-400 italic">No hay datos de ventas para generar un ranking este mes.</p>
+    )}
+</div>
                     <div className="bg-zinc-800 p-4 sm:p-5 rounded-lg shadow-md overflow-hidden">
                         <div className="flex flex-col sm:flex-row justify-between items-center mb-3 border-b border-zinc-700 pb-2 gap-2"><h3 className="text-lg sm:text-xl font-medium text-white whitespace-nowrap">Movimientos Caja del Día ({diaSeleccionadoStr})</h3><div className="relative w-full sm:w-auto"><span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400"><Search className="h-4 w-4" /></span><input type="text" placeholder="Buscar..." value={searchTermDia} onChange={(e) => {setSearchTermDia(e.target.value); setCurrentPageDia(1);}} className="w-full sm:w-64 pl-10 pr-4 py-2 border border-zinc-600 rounded-md bg-zinc-700 text-zinc-100 placeholder-zinc-400 text-sm" /></div></div>
                         <div className="overflow-x-auto">
