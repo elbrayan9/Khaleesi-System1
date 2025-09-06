@@ -4,9 +4,11 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import ProductForm from './ProductForm.jsx';
 import ProductTable from './ProductTable.jsx';
 import PaginationControls from './PaginationControls.jsx';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { motion } from 'framer-motion';
 // --- AÑADIDO ---
 // Se añaden íconos para los nuevos botones
-import { Search, UploadCloud, Download } from 'lucide-react';
+import { Search, UploadCloud, Download, AlertTriangle  } from 'lucide-react';
 import { useAppContext } from '../context/AppContext.jsx';
 import { formatCurrency } from '../utils/helpers.js';
 // --- AÑADIDO ---
@@ -22,6 +24,7 @@ const ITEMS_PER_PAGE_PRODUCTOS = 10;
 function ProductosTab() {
     const {
         productos,
+        datosNegocio,
         handleSaveProduct,
         handleDeleteProduct,
         handleEditProduct,
@@ -29,6 +32,13 @@ function ProductosTab() {
         editingProduct,
         mostrarMensaje,
     } = useAppContext();
+
+        // --- INICIO DE LA NUEVA LÓGICA DE ALERTAS ---
+    const umbralStockBajo = datosNegocio?.umbralStockBajo || 10; // Usa el umbral configurado o 10 por defecto
+    const productosConStockBajo = useMemo(() => {
+        return productos.filter(p => p.stock <= umbralStockBajo);
+    }, [productos, umbralStockBajo]);
+    // --- FIN DE LA NUEVA LÓGICA DE ALERTAS ---
 
     const [searchTerm, setSearchTerm] = useState('');
     const [sortConfig, setSortConfig] = useState({ key: 'id', direction: 'ascending' });
@@ -168,6 +178,40 @@ function ProductosTab() {
     return (
         <div id="productos">
             <h2 className="text-xl sm:text-2xl font-semibold mb-4 text-white">Gestión de Productos</h2>
+                {/* --- INICIO DEL NUEVO PANEL DE ALERTAS --- */}
+    {productosConStockBajo.length > 0 && (
+        <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-yellow-900/50 border border-yellow-500/30 rounded-lg p-4 mb-6"
+        >
+            <div className="flex items-center gap-3 mb-3">
+                <AlertTriangle className="h-6 w-6 text-yellow-400" />
+                <h3 className="text-lg font-semibold text-yellow-300">Alertas de Stock Bajo</h3>
+            </div>
+            <div className="overflow-x-auto">
+                <Table className="min-w-full">
+                    <TableHeader>
+                        <TableRow className="border-b-yellow-500/30">
+                            <TableHead className="text-yellow-200">Producto</TableHead>
+                            <TableHead className="text-yellow-200 text-center">Stock Actual</TableHead>
+                            <TableHead className="text-yellow-200 text-center">Umbral</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {productosConStockBajo.map(producto => (
+                            <TableRow key={producto.id} className="border-b-yellow-500/20">
+                                <TableCell className="font-medium text-zinc-200">{producto.nombre}</TableCell>
+                                <TableCell className="text-center text-red-400 font-bold">{producto.stock}</TableCell>
+                                <TableCell className="text-center text-zinc-400">{umbralStockBajo}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </div>
+        </motion.div>
+    )}
+    {/* --- FIN DEL NUEVO PANEL DE ALERTAS --- */}
             <ProductForm onSave={handleSave} productToEdit={editingProduct} onCancelEdit={handleCancelEdit} mostrarMensaje={mostrarMensaje} />
             <div className="bg-zinc-800 p-4 sm:p-5 rounded-lg shadow-md overflow-hidden">
                 <div className="flex flex-col sm:flex-row justify-between items-center mb-3 border-b border-zinc-700 pb-2 gap-2">
