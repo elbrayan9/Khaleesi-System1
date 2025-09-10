@@ -81,3 +81,29 @@ export const obtenerNombreMes = (numeroMes) => {
     // Devuelve el mes correcto o "Enero" si el número es inválido
     return meses[numeroMes >= 0 && numeroMes < 12 ? numeroMes : 0];
 };
+/**
+ * Formatea una fecha (string 'YYYY-MM-DD' o un objeto Date) a un formato legible 'DD/MM/YYYY'.
+ * @param {string | Date} dateInput - La fecha a formatear.
+ * @returns {string} - La fecha formateada.
+ */
+export const formatDate = (dateInput) => {
+  if (!dateInput) return 'N/A';
+  try {
+    // Esto funciona tanto para strings 'YYYY-MM-DD' como para objetos Date de Firestore
+    const date = new Date(dateInput);
+    
+    // Nos aseguramos de que la fecha se muestre en la zona horaria local y no en UTC
+    // lo que a veces puede causar que se muestre el día anterior.
+    const userTimezoneOffset = date.getTimezoneOffset() * 60000;
+    const adjustedDate = new Date(date.getTime() + userTimezoneOffset);
+
+    return adjustedDate.toLocaleDateString('es-AR', { // 'es-AR' para formato de Argentina
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+  } catch (error) {
+    console.error("Error al formatear la fecha:", dateInput, error);
+    return String(dateInput); // Si falla, devuelve el valor original
+  }
+};

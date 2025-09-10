@@ -81,6 +81,78 @@ export const addVendedor = (userId, vendedorData) => addDocument(userId, 'vended
 export const updateVendedor = (docId, vendedorData) => updateDocument('vendedores', docId, vendedorData);
 export const deleteVendedor = (docId) => deleteDocument('vendedores', docId);
 
+/**
+ * =================================================================
+ * PROVEEDORES
+ * =================================================================
+ */
+
+// NOTA: No necesitamos una función "get" aquí porque AppContext ya los carga en tiempo real.
+
+// Agregar un nuevo proveedor
+export const addProveedor = (userId, proveedorData) => {
+  const proveedoresCollection = collection(db, 'proveedores');
+  // Asegurarnos de que el userId esté en los datos a guardar
+  const dataConUserId = { ...proveedorData, userId: userId };
+  return addDoc(proveedoresCollection, dataConUserId).then(docRef => docRef.id);
+};
+
+// Actualizar un proveedor existente
+export const updateProveedor = (proveedorId, proveedorData) => {
+  const proveedorDoc = doc(db, 'proveedores', proveedorId);
+  return updateDoc(proveedorDoc, proveedorData).then(() => true).catch(() => false);
+};
+
+/**
+ * =================================================================
+ * PEDIDOS A PROVEEDORES
+ * =================================================================
+ */
+
+// Agregar un nuevo pedido
+export const addPedido = (userId, pedidoData) => {
+  const pedidosCollection = collection(db, 'pedidos');
+  const dataConUserId = { ...pedidoData, userId: userId };
+  return addDoc(pedidosCollection, dataConUserId).then(docRef => docRef.id);
+};
+
+// Actualizar un pedido (por ejemplo, para cambiar su estado)
+export const updatePedido = (pedidoId, pedidoData) => {
+  const pedidoDoc = doc(db, 'pedidos', pedidoId);
+  return updateDoc(pedidoDoc, pedidoData).then(() => true).catch(() => false);
+};
+
+// Cuando se recibe un pedido, esta función actualizará el stock de los productos.
+// Esta es una transacción para asegurar que todas las actualizaciones se hagan o ninguna.
+export const recibirPedidoYActualizarStock = async (pedido) => {
+  const batch = writeBatch(db);
+
+  // 1. Actualizar el estado del pedido
+  const pedidoRef = doc(db, 'pedidos', pedido.id);
+  batch.update(pedidoRef, { 
+    estado: 'recibido',
+    fechaRecepcion: new Date().toISOString().split('T')[0] // Fecha actual
+  });
+
+  // 2. Actualizar el stock de cada producto en el pedido
+  for (const item of pedido.items) {
+    if (item.productoId) {
+      const productoRef = doc(db, 'productos', item.productoId);
+      // Usamos increment para sumar la cantidad recibida al stock actual de forma segura
+      batch.update(productoRef, {
+        stock: increment(item.cantidad)
+      });
+    }
+  }
+
+  try {
+    await batch.commit();
+    return true;
+  } catch (error) {
+    console.error("Error al recibir el pedido y actualizar el stock: ", error);
+    return false;
+  }
+};
 // --- VENTAS ---
 export const getVentas = (userId) => getAllDataForUser(userId, 'ventas');
 // --- MODIFICADO ---: Lógica para manejar items sin stock (Venta Rápida)

@@ -1,7 +1,7 @@
 // src/context/AppContext.jsx
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { db, auth } from '../firebaseConfig';
-import { collection, onSnapshot, query, where, doc } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, doc, increment } from 'firebase/firestore';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import * as fsService from '../services/firestoreService';
 import { obtenerFechaHoraActual } from '../utils/helpers';
@@ -29,6 +29,8 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
   const [productos, setProductos] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [vendedores, setVendedores] = useState([]);
+  const [proveedores, setProveedores] = useState([]);
+  const [pedidos, setPedidos] = useState([]);
   const [cartItems, setCartItems] = useState([]);
   const [ventas, setVentas] = useState([]);
   const [egresos, setEgresos] = useState([]);
@@ -71,6 +73,8 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       { name: 'productos', setter: setProductos },
       { name: 'clientes', setter: setClientes },
       { name: 'vendedores', setter: setVendedores },
+      { name: 'proveedores', setter: setProveedores },
+      { name: 'pedidos', setter: setPedidos },
       { name: 'ventas', setter: setVentas },
       { name: 'egresos', setter: setEgresos },
       { name: 'ingresos_manuales', setter: setIngresosManuales },
@@ -291,6 +295,103 @@ const handleNotifyPayment = async () => {
     }
   };
 
+// Proveedores
+const handleSaveProveedor = async (proveedorData, proveedorId = null) => {
+    setIsLoadingData(true);
+    // Ya no pasamos el userId como primer argumento, ya viene en proveedorData desde el form
+    // y la función de servicio se encarga de agregarlo.
+    if (isValidFirestoreId(proveedorId)) {
+        // Al actualizar, no necesitamos enviar el userId de nuevo si no cambia
+        const { userId, ...dataToUpdate } = proveedorData; 
+        const ok = await fsService.updateProveedor(proveedorId, dataToUpdate);
+        mostrarMensaje?.(ok ? 'Proveedor actualizado.' : 'Error al actualizar proveedor.', ok ? 'success' : 'error');
+    } else {
+        const newId = await fsService.addProveedor(currentUserId, proveedorData);
+        mostrarMensaje?.(isValidFirestoreId(newId) ? 'Proveedor agregado.' : 'Error al agregar proveedor.', isValidFirestoreId(newId) ? 'success' : 'error');
+    }
+    setIsLoadingData(false);
+};
+
+const handleDeleteProveedor = async (proveedorId, proveedorName) => {
+    if (!isValidFirestoreId(proveedorId)) return;
+    if (await confirmarAccion?.('¿Eliminar Proveedor?', `¿Seguro de eliminar a "${proveedorName}"?`, 'warning', 'Sí, eliminar')) {
+        setIsLoadingData(true);
+        // Usamos la función genérica 'deleteDocument' que apunta a la colección correcta
+        const ok = await fsService.deleteDocument('proveedores', proveedorId);
+        mostrarMensaje?.(ok ? `Proveedor "${proveedorName}" eliminado.` : 'Error al eliminar proveedor.', ok ? 'success' : 'error');
+        setIsLoadingData(false);
+    }
+};
+
+// Pedidos a Proveedores
+const handleSavePedido = async (pedidoData) => {
+    setIsLoadingData(true);
+    const newId = await fsService.addPedido(currentUserId, pedidoData);
+    const success = isValidFirestoreId(newId);
+    mostrarMensaje?.(success ? 'Pedido creado con éxito.' : 'Error al crear el pedido.', success ? 'success' : 'error');
+    setIsLoadingData(false);
+    return success; // Devolvemos true o false para que el formulario sepa si debe cerrarse
+};
+
+const handleUpdatePedidoEstado = async (pedidoId, nuevoEstado) => {
+    setIsLoadingData(true);
+    const ok = await fsService.updatePedido(pedidoId, { estado: nuevoEstado });
+    mostrarMensaje?.(ok ? 'Estado del pedido actualizado.' : 'Error al actualizar estado.', ok ? 'success' : 'error');
+    setIsLoadingData(false);
+};
+
+const handleRecibirPedido = async (pedido) => {
+    const confirm = await confirmarAccion?.(
+        '¿Recibir Pedido?',
+        'Esto marcará el pedido como "recibido" y sumará las cantidades al stock de tus productos. ¿Estás seguro?',
+        'info',
+        'Sí, recibir'
+    );
+
+    if (confirm) {
+        setIsLoadingData(true);
+        const ok = await fsService.recibirPedidoYActualizarStock(pedido);
+        mostrarMensaje?.(ok ? 'Pedido recibido y stock actualizado.' : 'Error en la operación.', ok ? 'success' : 'error');
+        setIsLoadingData(false);
+    }
+};
+
+const handleCancelarPedido = async (pedido) => {
+    const confirm = await confirmarAccion?.(
+        '¿Cancelar Pedido?',
+        `¿Estás seguro de que quieres cancelar el pedido a "${pedido.proveedorNombre}"? Esta acción no se puede deshacer.`,
+        'warning',
+        'Sí, cancelar'
+    );
+
+    if (confirm) {
+        setIsLoadingData(true);
+        const ok = await fsService.updatePedido(pedido.id, { estado: 'cancelado' });
+        mostrarMensaje?.(ok ? 'Pedido cancelado.' : 'Error al cancelar el pedido.', ok ? 'success' : 'error');
+        setIsLoadingData(false);
+    }
+};
+
+const handleDeletePedido = async (pedido) => {
+    let confirmMessage = `¿Estás seguro de que quieres eliminar el pedido a "${pedido.proveedorNombre}"? Esta acción es permanente.`;
+
+    // ADVERTENCIA ESPECIAL: Si el pedido ya fue recibido, el stock no se revertirá.
+    if (pedido.estado === 'recibido') {
+        confirmMessage = `ADVERTENCIA: Este pedido ya fue RECIBIDO y el stock de los productos fue actualizado. Eliminar el registro del pedido NO revertirá los cambios en el stock. ¿Aún así deseas eliminarlo?`;
+    }
+
+    const confirm = await confirmarAccion?.('¿Eliminar Pedido?', confirmMessage, 'error', 'Sí, eliminar permanentemente');
+
+    if (confirm) {
+        setIsLoadingData(true);
+        const ok = await fsService.deleteDocument('pedidos', pedido.id);
+        mostrarMensaje?.(ok ? 'Pedido eliminado con éxito.' : 'Error al eliminar el pedido.', ok ? 'success' : 'error');
+        setIsLoadingData(false);
+        return ok; // Devolvemos true si se eliminó para que el modal se pueda cerrar
+    }
+    return false;
+};
+
   // Venta confirmada
   const handleSaleConfirmed = async (itemsInCart, total, cliente, pagos, tipoFactura) => {
     if (!vendedorActivoId) { mostrarMensaje?.('Debe seleccionar un vendedor para registrar la venta.', 'warning'); return; }
@@ -449,7 +550,7 @@ const handleNotifyPayment = async () => {
   const contextValue = {
     // estado
     isLoggedIn, isLoadingData, currentUserId, isAdmin,
-    productos, clientes, cartItems, ventas, egresos, ingresosManuales, notasCD, datosNegocio, vendedores, vendedorActivoId,
+    productos, clientes, cartItems, ventas, egresos, ingresosManuales, notasCD, datosNegocio, vendedores, vendedorActivoId, proveedores, pedidos,
     editingProduct, editingClient,
     // setters
     setVendedorActivoId, setCartItems,
@@ -457,7 +558,7 @@ const handleNotifyPayment = async () => {
     handleLogout,
     handleSaveProduct, handleEditProduct, handleCancelEditProduct, handleDeleteProduct,
     handleSaveClient, handleEditClient, handleCancelEditClient, handleDeleteClient,
-    handleSaveVendedor, handleDeleteVendedor,
+    handleSaveVendedor, handleDeleteVendedor,  handleSaveProveedor, handleDeleteProveedor,  handleSavePedido, handleUpdatePedidoEstado, handleRecibirPedido, handleCancelarPedido, handleDeletePedido,
     handleSaleConfirmed, handleAddToCart, handleEliminarVenta: async (ventaId) => {
       if (!isValidFirestoreId(ventaId)) { mostrarMensaje?.('ID de venta inválido.', 'error'); return; }
       if (await confirmarAccion?.('¿Eliminar Venta?', 'Esto restaurará el stock. ¿Continuar?', 'warning', 'Sí, eliminar')) {
