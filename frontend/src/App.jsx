@@ -8,6 +8,9 @@ import LoginScreen from './components/LoginScreen.jsx';
 import SignUpScreen from './components/SignUpScreen.jsx';
 import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
 import Layout from './components/Layout.jsx';
+import PublicProductView from './screens/PublicProductView'; 
+import BulkPrintView from './screens/BulkPrintView';
+import PriceCheckerView from './screens/PriceCheckerView.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import VentaTab from './components/VentaTab.jsx';
 import ProductosTab from './components/ProductosTab.jsx';
@@ -133,6 +136,9 @@ const handlePrintRequest = (ventaObjeto) => {
 <Routes>
     {/* Rutas Públicas */}
     <Route path="/" element={isLoggedIn ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
+    <Route path="/product/:productId" element={<PublicProductView />} /> 
+    <Route path="/print-labels" element={<BulkPrintView />} />
+    <Route path="/verificador" element={<PriceCheckerView />} /> 
     <Route path="/login" element={isLoggedIn ? <Navigate to="/dashboard" replace /> : <LoginScreen />} />
     <Route path="/signup" element={isLoggedIn ? <Navigate to="/dashboard" replace /> : <SignUpScreen />} />
     <Route path="/forgot-password" element={<ForgotPasswordScreen />} />

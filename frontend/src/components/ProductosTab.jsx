@@ -6,9 +6,10 @@ import ProductTable from './ProductTable.jsx';
 import PaginationControls from './PaginationControls.jsx';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { motion } from 'framer-motion';
+import QRCodeModal from './QRCodeModal';
 // --- AÑADIDO ---
 // Se añaden íconos para los nuevos botones
-import { Search, UploadCloud, Download, AlertTriangle  } from 'lucide-react';
+import { Search, UploadCloud, Download, AlertTriangle, Printer  } from 'lucide-react';
 import { useAppContext } from '../context/AppContext.jsx';
 import { formatCurrency } from '../utils/helpers.js';
 // --- AÑADIDO ---
@@ -47,6 +48,12 @@ function ProductosTab() {
     // --- AÑADIDO ---
     // Un estado para saber si estamos procesando un archivo
     const [isImporting, setIsImporting] = useState(false); 
+    const [qrModalProduct, setQrModalProduct] = useState(null);
+    const [selectedProductIds, setSelectedProductIds] = useState(new Set()); 
+    const [printOptions, setPrintOptions] = useState({ // <--- AÑADE ESTE ESTADO
+  includeQR: true,
+  includeBarcode: true,
+});
     // Referencia al input de archivo invisible
     const fileInputRef = useRef(null);
 
@@ -143,6 +150,27 @@ function ProductosTab() {
 
     reader.readAsArrayBuffer(file);
 };
+
+const handleProductSelect = (productId) => {
+  setSelectedProductIds(prevSelectedIds => {
+    const newSelectedIds = new Set(prevSelectedIds);
+    if (newSelectedIds.has(productId)) {
+      newSelectedIds.delete(productId);
+    } else {
+      newSelectedIds.add(productId);
+    }
+    return newSelectedIds;
+  });
+};
+
+const handleSelectAll = (isAllSelected) => {
+  if (isAllSelected) {
+    setSelectedProductIds(new Set());
+  } else {
+    const allProductIds = new Set(paginatedProductos.map(p => p.id));
+    setSelectedProductIds(allProductIds);
+  }
+};
 // frontend/src/components/ProductosTab.jsx
 
 const filteredSortedProductos = useMemo(() => {
@@ -191,6 +219,18 @@ const filteredSortedProductos = useMemo(() => {
         else if (currentPage <= 0 && totalPages > 0) setCurrentPage(1);
         else if (filteredSortedProductos.length === 0) setCurrentPage(1);
     }, [searchTerm, sortConfig, totalPages, currentPage, filteredSortedProductos.length]);
+
+    const handlePrintSelected = () => {
+  const selectedProductsData = productos.filter(p => selectedProductIds.has(p.id));
+  if (selectedProductsData.length === 0) {
+    mostrarMensaje("No hay productos seleccionados.", "warning");
+    return;
+  }
+  // Guardamos los datos en sessionStorage para pasarlos a la nueva pestaña
+  sessionStorage.setItem('productsToPrint', JSON.stringify(selectedProductsData));
+  sessionStorage.setItem('printOptions', JSON.stringify(printOptions));
+  window.open('/print-labels', '_blank');
+};
 
     return (
         <div id="productos">
@@ -243,6 +283,37 @@ const filteredSortedProductos = useMemo(() => {
                             <UploadCloud className="mr-2 h-4 w-4" />
                             Exportar
                         </Button>
+                              <Button
+        onClick={handlePrintSelected}
+        disabled={selectedProductIds.size === 0}
+        className="... (usa las clases de tus otros botones)"
+      >
+        <Printer className="h-4 w-4 mr-2" />
+        Imprimir Selección ({selectedProductIds.size})
+      </Button>
+        {/* --- AÑADE ESTA SECCIÓN DE CHECKBOXES --- */}
+  <div className="flex items-center gap-4 text-sm text-zinc-300">
+    <span>Incluir en la impresión:</span>
+    <label className="flex items-center gap-2 cursor-pointer">
+      <input
+        type="checkbox"
+        checked={printOptions.includeBarcode}
+        onChange={(e) => setPrintOptions(prev => ({ ...prev, includeBarcode: e.target.checked }))}
+        className="cursor-pointer"
+      />
+      Código de Barras
+    </label>
+    <label className="flex items-center gap-2 cursor-pointer">
+      <input
+        type="checkbox"
+        checked={printOptions.includeQR}
+        onChange={(e) => setPrintOptions(prev => ({ ...prev, includeQR: e.target.checked }))}
+        className="cursor-pointer"
+      />
+      Código QR
+    </label>
+  </div>
+  {/* ------------------------------------------- */}
 {/* Contenedor de Filtros */}
 <div className="flex flex-col sm:flex-row gap-3 mb-4">
     <div className="relative flex-grow">
@@ -269,11 +340,11 @@ const filteredSortedProductos = useMemo(() => {
                     </div>
                 </div>
                  <div className="overflow-x-auto tabla-scrollable">
-                     <ProductTable products={paginatedProductos} onEdit={handleEdit} onDelete={handleDelete} formatCurrency={formatCurrency} requestSort={requestSort} sortConfig={sortConfig} />
+                     <ProductTable products={paginatedProductos} onEdit={handleEdit} onDelete={handleDelete} formatCurrency={formatCurrency} requestSort={requestSort} sortConfig={sortConfig} onGenerateQR={setQrModalProduct} selectedProductIds={selectedProductIds} onProductSelect={handleProductSelect} onSelectAll={handleSelectAll} />
                  </div>
-                <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} itemsPerPage={ITEMS_PER_PAGE_PRODUCTOS} totalItems={filteredSortedProductos.length}/>
+                <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} itemsPerPage={ITEMS_PER_PAGE_PRODUCTOS} totalItems={filteredSortedProductos.length} />
             </div>
-            {/* --- AÑADIDO: El input de tipo "file" que permanece oculto --- */}
+            {qrModalProduct && <QRCodeModal product={qrModalProduct} onClose={() => setQrModalProduct(null)} />}
             <input
                 type="file"
                 ref={fileInputRef}

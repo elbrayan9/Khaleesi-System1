@@ -1,7 +1,7 @@
 // src/components/ProductTable.jsx
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Edit, Trash2, ArrowUp, ArrowDown, Minus } from 'lucide-react';
+import { Edit, Trash2, ArrowUp, ArrowDown, Minus, QrCode } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency } from '@/utils/helpers'; // CORREGIDO: Usando el alias @
 
@@ -11,6 +11,10 @@ function ProductTable({
     onDelete,
     requestSort,
     sortConfig,
+    onGenerateQR,
+    selectedProductIds,
+    onProductSelect,
+    onSelectAll,
 }) {
 
     const getSortIcon = (key) => {
@@ -40,6 +44,14 @@ function ProductTable({
         <Table>
             <TableHeader>
                 <TableRow className="hover:bg-transparent border-b-zinc-700">
+                    <TableHead className="w-[40px]">
+  <input
+    type="checkbox"
+    className="cursor-pointer"
+    checked={products.length > 0 && selectedProductIds.size === products.length}
+    onChange={() => onSelectAll(selectedProductIds.size === products.length)}
+  />
+</TableHead>
                     <TableHead><button onClick={() => requestSort('id')} className={headerButtonClasses}>ID {getSortIcon('id')}</button></TableHead>
                     <TableHead><button onClick={() => requestSort('nombre')} className={headerButtonClasses}>Nombre {getSortIcon('nombre')}</button></TableHead>
                     <TableHead>Cód. Barras</TableHead>
@@ -56,34 +68,62 @@ function ProductTable({
                     </TableRow>
                 ) : (
                     products.map((p) => (
-                        <TableRow key={p.id || `product-fallback-${Math.random()}`} className="hover:bg-zinc-700/50 border-b-zinc-700">
-                            <TableCell className="font-medium text-zinc-200 whitespace-nowrap">{p.id ? (p.id.startsWith("prod_flt_") || p.id.startsWith("local_") || p.id.includes("_inv_") || p.id.includes("_init_") ? `${p.id.substring(0,10)}... (Local)` : p.id.substring(0,8)+"...") : 'SIN ID'}{p._id_original_invalid ? " (!)" : ""}</TableCell>
-                            <TableCell className="text-zinc-200">{p.nombre}</TableCell>
-                            <TableCell className="font-mono text-zinc-400">{p.codigoBarras || 'N/A'}</TableCell>
-                            <TableCell className="text-right text-zinc-200 whitespace-nowrap">${formatCurrency(p.precio)}</TableCell>
-                            <TableCell className="text-center text-zinc-200 whitespace-nowrap">{p.stock}</TableCell>
-                            <TableCell className="text-zinc-400">{p.categoria || 'N/A'}</TableCell>
-                            <TableCell className="text-center whitespace-nowrap">
-                                <motion.button
-                                    onClick={() => handleEditClick(p)}
-                                    className="text-blue-400 hover:text-blue-300 mr-3 p-1 rounded"
-                                    title="Editar"
-                                    whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
-                                    disabled={isActionDisabled(p)}
-                                >
-                                    <Edit className="h-4 w-4 inline-block" />
-                                </motion.button>
-                                <motion.button
-                                    onClick={() => handleDeleteClick(p.id, p.nombre)}
-                                    className="text-red-500 hover:text-red-400 p-1 rounded"
-                                    title="Eliminar"
-                                    whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
-                                    disabled={isActionDisabled(p)}
-                                >
-                                    <Trash2 className="h-4 w-4 inline-block" />
-                                </motion.button>
-                            </TableCell>
-                        </TableRow>
+        <TableRow key={p.id || `product-fallback-${Math.random()}`} className="hover:bg-zinc-700/50 border-b-zinc-700">
+            
+            {/* Celda 1: Checkbox */}
+            <TableCell>
+                <input
+                    type="checkbox"
+                    className="cursor-pointer h-4 w-4 rounded bg-zinc-700 border-zinc-600 text-blue-500 focus:ring-blue-600"
+                    checked={selectedProductIds.has(p.id)}
+                    onChange={() => onProductSelect(p.id)}
+                />
+            </TableCell>
+
+            {/* Celda 2: ID */}
+            <TableCell className="font-medium text-zinc-200 whitespace-nowrap">
+                {p.id ? (p.id.startsWith("prod_flt_") || p.id.startsWith("local_") || p.id.includes("_inv_") || p.id.includes("_init_") ? `${p.id.substring(0,10)}... (Local)` : p.id.substring(0,8)+"...") : 'SIN ID'}
+                {p._id_original_invalid ? " (!)" : ""}
+            </TableCell>
+            
+            {/* El resto de las celdas siguen igual */}
+            <TableCell className="text-zinc-200">{p.nombre}</TableCell>
+            <TableCell className="font-mono text-zinc-400">{p.codigoBarras || 'N/A'}</TableCell>
+            <TableCell className="text-right text-zinc-200 whitespace-nowrap">${formatCurrency(p.precio)}</TableCell>
+            <TableCell className="text-center text-zinc-200 whitespace-nowrap">{p.stock}</TableCell>
+            <TableCell className="text-zinc-400">{p.categoria || 'N/A'}</TableCell>
+            
+            {/* Celda final: Acciones */}
+            <TableCell className="text-center whitespace-nowrap">
+                <motion.button
+                    onClick={() => onGenerateQR(p)}
+                    className="text-gray-400 hover:text-white mr-3 p-1 rounded"
+                    title="Generar QR"
+                    whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
+                    disabled={isActionDisabled(p)}
+                >
+                    <QrCode className="h-4 w-4 inline-block" />
+                </motion.button>
+                <motion.button
+                    onClick={() => handleEditClick(p)}
+                    className="text-blue-400 hover:text-blue-300 mr-3 p-1 rounded"
+                    title="Editar"
+                    whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
+                    disabled={isActionDisabled(p)}
+                >
+                    <Edit className="h-4 w-4 inline-block" />
+                </motion.button>
+                <motion.button
+                    onClick={() => handleDeleteClick(p.id, p.nombre)}
+                    className="text-red-500 hover:text-red-400 p-1 rounded"
+                    title="Eliminar"
+                    whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
+                    disabled={isActionDisabled(p)}
+                >
+                    <Trash2 className="h-4 w-4 inline-block" />
+                </motion.button>
+            </TableCell>
+        </TableRow>
                     ))
                 )}
             </TableBody>
