@@ -243,6 +243,39 @@ const handleNotifyPayment = async () => {
     }
   };
 
+  const handleBulkPriceUpdate = async (percentage) => {
+    const percentageNum = parseFloat(percentage);
+    if (isNaN(percentageNum) || percentageNum <= 0) {
+        mostrarMensaje("Por favor, ingresa un porcentaje válido y mayor a cero.", "warning");
+        return;
+    }
+
+    const confirm = await confirmarAccion?.(
+        '¿Actualizar Precios?',
+        `Estás a punto de aumentar el precio de TODOS tus ${productos.length} productos en un ${percentageNum}%. Esta acción no se puede deshacer. ¿Continuar?`,
+        'warning',
+        'Sí, actualizar todos'
+    );
+
+    if (confirm) {
+        setIsLoadingData(true);
+
+        const productsToUpdate = productos.map(p => {
+            const currentPrice = p.precio || 0;
+            const newPrice = currentPrice * (1 + percentageNum / 100);
+            return {
+                id: p.id,
+                newPrice: parseFloat(newPrice.toFixed(2)) // Redondeamos a 2 decimales
+            };
+        });
+
+        const ok = await fsService.bulkUpdatePrices(productsToUpdate);
+
+        mostrarMensaje?.(ok ? 'Precios actualizados con éxito.' : 'Error al actualizar los precios.', ok ? 'success' : 'error');
+        setIsLoadingData(false);
+    }
+};
+
   // Clientes
   const handleSaveClient = async (clientDataFromForm) => {
     const clientDataFirebase = { ...clientDataFromForm, userId: currentUserId };
@@ -374,70 +407,92 @@ const handleCancelarPedido = async (pedido) => {
 
 const handleDeletePedido = async (pedido) => {
     let confirmMessage = `¿Estás seguro de que quieres eliminar el pedido a "${pedido.proveedorNombre}"? Esta acción es permanente.`;
+    let title = '¿Eliminar Pedido?';
 
-    // ADVERTENCIA ESPECIAL: Si el pedido ya fue recibido, el stock no se revertirá.
+    // NUEVA LÓGICA: Mensaje y título personalizados si el pedido fue recibido
     if (pedido.estado === 'recibido') {
-        confirmMessage = `ADVERTENCIA: Este pedido ya fue RECIBIDO y el stock de los productos fue actualizado. Eliminar el registro del pedido NO revertirá los cambios en el stock. ¿Aún así deseas eliminarlo?`;
+        title = '¿Eliminar y Revertir Stock?';
+        confirmMessage = `Este pedido ya fue RECIBIDO. Al eliminarlo, se RESTARÁN las cantidades del stock de los productos correspondientes. ¿Continuar?`;
     }
 
-    const confirm = await confirmarAccion?.('¿Eliminar Pedido?', confirmMessage, 'error', 'Sí, eliminar permanentemente');
+    const confirm = await confirmarAccion?.(title, confirmMessage, 'warning', 'Sí, eliminar');
 
     if (confirm) {
         setIsLoadingData(true);
-        const ok = await fsService.deleteDocument('pedidos', pedido.id);
-        mostrarMensaje?.(ok ? 'Pedido eliminado con éxito.' : 'Error al eliminar el pedido.', ok ? 'success' : 'error');
+        // Llamamos a la nueva función que maneja la reversión del stock
+        const ok = await fsService.deletePedidoAndRevertStock(pedido);
+        
+        mostrarMensaje?.(ok ? 'Pedido eliminado y stock actualizado.' : 'Error al eliminar el pedido.', ok ? 'success' : 'error');
         setIsLoadingData(false);
-        return ok; // Devolvemos true si se eliminó para que el modal se pueda cerrar
+        return ok; // Para que el modal se pueda cerrar
     }
     return false;
 };
 
   // Venta confirmada
-  const handleSaleConfirmed = async (itemsInCart, total, cliente, pagos, tipoFactura) => {
-    if (!vendedorActivoId) { mostrarMensaje?.('Debe seleccionar un vendedor para registrar la venta.', 'warning'); return; }
+  
+const handleSaleConfirmed = async (itemsInCart, total, cliente, pagos, tipoFactura) => {
+    if (!vendedorActivoId) { 
+        mostrarMensaje?.('Debe seleccionar un vendedor para registrar la venta.', 'warning'); 
+        return; 
+    }
     const vendedorSeleccionado = vendedores.find((v) => v.id === vendedorActivoId);
-    if (!vendedorSeleccionado) { mostrarMensaje?.('El vendedor seleccionado no es válido.', 'error'); return; }
+    if (!vendedorSeleccionado) { 
+        mostrarMensaje?.('El vendedor seleccionado no es válido.', 'error'); 
+        return; 
+    }
 
     setIsLoadingData(true);
-    const { fecha, hora } = obtenerFechaHoraActual(); // timestamp lo pone Firestore
+    const { fecha, hora } = obtenerFechaHoraActual();
     const clienteIdFinal = cliente && isValidFirestoreId(cliente.id) ? cliente.id : 'consumidor_final';
 
     const totalPagado = ensureArray(pagos).reduce((sum, p) => sum + (Number(p?.monto) || 0), 0);
     const vueltoFinal = totalPagado > total ? totalPagado - total : 0;
 
+    // --- LÓGICA MODIFICADA PARA AÑADIR EL COSTO ---
+    const itemsWithCost = ensureArray(itemsInCart).map((item) => {
+        // Buscamos el producto original en nuestra lista de productos para obtener su costo actual
+        const originalProduct = productos.find(p => p.id === item.id);
+        return {
+            id: item.id,
+            nombre: item.nombre,
+            cantidad: item.cantidad,
+            precioOriginal: item.precioOriginal || item.precio,
+            descuentoPorcentaje: item.descuentoPorcentaje || 0,
+            precioFinal: item.precioFinal || item.precio,
+            // Añadimos el costo. Si el producto no se encuentra o no tiene costo, guardamos 0.
+            costo: originalProduct ? (originalProduct.costo || 0) : 0, 
+        };
+    });
+    // ---------------------------------------------
+
     const newSaleData = {
-      fecha,
-      hora,
-      clienteId: clienteIdFinal,
-      clienteNombre: cliente?.nombre || 'Consumidor Final',
-      items: ensureArray(itemsInCart).map((item) => ({
-        id: item.id,
-        nombre: item.nombre,
-        cantidad: item.cantidad,
-        precioOriginal: item.precioOriginal || item.precio,
-        descuentoPorcentaje: item.descuentoPorcentaje || 0,
-        precioFinal: item.precioFinal || item.precio,
-      })),
-      total,
-      pagos: ensureArray(pagos),
-      vuelto: vueltoFinal,
-      tipoFactura,
-      userId: currentUserId,
-      vendedorId: vendedorSeleccionado.id,
-      vendedorNombre: vendedorSeleccionado.nombre,
+        fecha,
+        hora,
+        clienteId: clienteIdFinal,
+        clienteNombre: cliente?.nombre || 'Consumidor Final',
+        items: itemsWithCost, // <--- Usamos el nuevo array de items que incluye el costo
+        total,
+        pagos: ensureArray(pagos),
+        vuelto: vueltoFinal,
+        tipoFactura,
+        userId: currentUserId,
+        vendedorId: vendedorSeleccionado.id,
+        vendedorNombre: vendedorSeleccionado.nombre,
     };
 
     try {
-      const ventaId = await fsService.addVenta(currentUserId, newSaleData);
-      if (isValidFirestoreId(ventaId)) {
-        setCartItems([]);
-        mostrarMensaje?.('Venta registrada con éxito.', 'success');
-      }
+        const ventaId = await fsService.addVenta(currentUserId, newSaleData);
+        if (isValidFirestoreId(ventaId)) {
+            setCartItems([]);
+            mostrarMensaje?.('Venta registrada con éxito.', 'success');
+        }
     } catch (error) {
-      mostrarMensaje?.(error.message || 'Error al procesar la venta.', 'error');
-    } finally { setIsLoadingData(false); }
-  };
-
+        mostrarMensaje?.(error.message || 'Error al procesar la venta.', 'error');
+    } finally { 
+        setIsLoadingData(false); 
+    }
+};
   // Ingresos / Egresos manuales
   const handleRegistrarIngresoManual = async (descripcion, monto) => {
     const { fecha, hora } = obtenerFechaHoraActual();
@@ -558,7 +613,7 @@ const handleDeletePedido = async (pedido) => {
     handleLogout,
     handleSaveProduct, handleEditProduct, handleCancelEditProduct, handleDeleteProduct,
     handleSaveClient, handleEditClient, handleCancelEditClient, handleDeleteClient,
-    handleSaveVendedor, handleDeleteVendedor,  handleSaveProveedor, handleDeleteProveedor,  handleSavePedido, handleUpdatePedidoEstado, handleRecibirPedido, handleCancelarPedido, handleDeletePedido,
+    handleSaveVendedor, handleDeleteVendedor,  handleSaveProveedor, handleDeleteProveedor,  handleSavePedido, handleUpdatePedidoEstado, handleRecibirPedido, handleCancelarPedido, handleDeletePedido, handleBulkPriceUpdate,
     handleSaleConfirmed, handleAddToCart, handleEliminarVenta: async (ventaId) => {
       if (!isValidFirestoreId(ventaId)) { mostrarMensaje?.('ID de venta inválido.', 'error'); return; }
       if (await confirmarAccion?.('¿Eliminar Venta?', 'Esto restaurará el stock. ¿Continuar?', 'warning', 'Sí, eliminar')) {

@@ -18,6 +18,7 @@ import ClientesTab from './components/ClientesTab.jsx';
 import VendedoresTab from './components/VendedoresTab.jsx';
 import ProveedoresTab from './components/ProveedoresTab.jsx';
 import PedidosTab from './components/PedidosTab.jsx';
+import EstadisticasTab from '@/components/EstadisticasTab.jsx'; 
 import ReportesTab from './components/ReportesTab.jsx';
 import NotasCDTab from './components/NotasCDTab.jsx';
 import ConfiguracionTab from './components/ConfiguracionTab.jsx';
@@ -152,6 +153,7 @@ const handlePrintRequest = (ventaObjeto) => {
             <Route path="vendedores" element={<VendedoresTab />} />
             <Route path="proveedores" element={<ProveedoresTab />} />
             <Route path="pedidos" element={<PedidosTab />} /> 
+            <Route path="estadisticas" element={<EstadisticasTab />} /> 
             <Route 
                 path="reportes" 
                 element={<ReportesTab onPrintRequest={handlePrintRequest} onViewDetailsRequest={openSaleDetailModal} />} 

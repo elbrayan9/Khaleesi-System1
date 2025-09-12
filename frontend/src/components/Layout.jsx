@@ -4,7 +4,7 @@ import { useAppContext } from '../context/AppContext';
 import AppLogo from './AppLogo.jsx';
 import Footer from './Footer.jsx';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bot, ShoppingCart, Package, Users, LineChart, FileText, Settings, LogOut, Shield, UserPlus, Truck } from 'lucide-react';
+import { Bot, ShoppingCart, Package, Users, LineChart, FileText, Settings, LogOut, Shield, UserPlus, Truck,  BarChart3 } from 'lucide-react';
 import ChatbotModal from './ChatbotModal.jsx';
 import SubscriptionStatusBanner from './SubscriptionStatusBanner.jsx';
 
@@ -29,6 +29,7 @@ const tabsData = [
     { id: 'vendedores', label: 'Vendedores', Icon: UserPlus, shortLabel: 'Vendedores', path: '/dashboard/vendedores' },
     { id: 'proveedores', label: 'Proveedores', Icon: /* Puedes usar un ícono que te guste, ej: Truck */ Package, shortLabel: 'Provs', path: '/dashboard/proveedores' },
     { id: 'pedidos', label: 'Pedidos', Icon: /*ClipboardList*/ Truck, shortLabel: 'Pedidos', path: '/dashboard/pedidos' },
+    { id: 'estadisticas', label: 'Estadísticas', Icon: BarChart3, shortLabel: 'Stats', path: '/dashboard/estadisticas' },
     { id: 'reportes', label: 'Caja y Reportes', Icon: LineChart, shortLabel: 'Caja', path: '/dashboard/reportes' },
     { id: 'notas_cd', label: 'Notas C/D', Icon: FileText, shortLabel: 'Notas', path: '/dashboard/notas' },
     { id: 'configuracion', label: 'Configuración', Icon: Settings, shortLabel: 'Config', path: '/dashboard/configuracion' }

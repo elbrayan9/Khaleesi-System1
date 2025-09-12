@@ -3,42 +3,61 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ShoppingCart, Package, LineChart, Bot, Users, FileText, CheckCircle } from 'lucide-react';
+import { 
+    ShoppingCart, 
+    Package, 
+    LineChart, 
+    Users, 
+    Truck, 
+    DollarSign, 
+    QrCode, 
+    TrendingUp,
+    CheckCircle
+} from 'lucide-react';
 import AppLogo from '../components/AppLogo';
 import Footer from '../components/Footer';
 import ParticleBackground from '../components/ParticleBackground';
 
-// Datos de las características, extraídos de tu README.md
 const features = [
   {
     icon: <ShoppingCart className="h-8 w-8 text-blue-400" />,
     title: "Punto de Venta Dinámico",
-    description: "Agrega productos por código de barras o búsqueda manual, aplica descuentos y gestiona tu carrito con facilidad."
+    description: "Agrega productos por código de barras o búsqueda, aplica descuentos por ítem y gestiona tu carrito con facilidad."
   },
   {
     icon: <Package className="h-8 w-8 text-blue-400" />,
     title: "Gestión de Inventario",
-    description: "Control total sobre tus productos, clientes y vendedores con operaciones CRUD completas y actualización de stock en tiempo real."
+    description: "Control total de productos con stock, precio y costo. Define categorías y recibe alertas de stock bajo."
   },
   {
     icon: <LineChart className="h-8 w-8 text-blue-400" />,
     title: "Caja y Reportes",
-    description: "Visualiza ventas diarias y mensuales, registra ingresos/egresos y realiza cierres de caja detallados por vendedor."
-  },
-  {
-    icon: <Bot className="h-8 w-8 text-blue-400" />,
-    title: "Asistente con IA",
-    description: "Resuelve tus dudas rápidamente con nuestro chatbot integrado con la tecnología de Google Gemini."
-  },
-  {
-    icon: <FileText className="h-8 w-8 text-blue-400" />,
-    title: "Importa y Exporta",
-    description: "Actualiza precios y stock de forma masiva utilizando archivos de Excel y exporta reportes mensuales completos."
+    description: "Visualiza ventas diarias y mensuales, registra ingresos/egresos y realiza cierres de caja detallados."
   },
   {
     icon: <Users className="h-8 w-8 text-blue-400" />,
-    title: "Manejo de Clientes",
-    description: "Mantén una base de datos de tus clientes para agilizar tus ventas y generar notas de crédito o débito."
+    title: "Manejo de Clientes y Vendedores",
+    description: "Mantén una base de datos de tus clientes y gestiona a tu personal para asociar ventas a cada vendedor."
+  },
+  {
+    icon: <Truck className="h-8 w-8 text-blue-400" />,
+    title: "Proveedores y Pedidos",
+    description: "Gestiona proveedores, registra pedidos y actualiza tu stock y costos automáticamente al recibir la mercancía."
+  },
+  {
+    icon: <DollarSign className="h-8 w-8 text-blue-400" />,
+    title: "Estadísticas Financieras",
+    description: "Analiza tus ingresos brutos, costos, ganancias y el valor total de tu inventario en tiempo real."
+  },
+  {
+    icon: <QrCode className="h-8 w-8 text-blue-400" />,
+    title: "Etiquetas QR y Verificador",
+    description: "Imprime etiquetas con códigos QR para precios dinámicos y ofrece a tus clientes un verificador de precios en tienda."
+  },
+  {
+    icon: <TrendingUp className="h-8 w-8 text-blue-400" />,
+    title: "Herramientas de Automatización",
+    description: "Actualiza precios y stock masivamente con Excel y aplica aumentos por inflación a todos tus productos."
   }
 ];
 
@@ -78,10 +97,10 @@ const LandingPage = () => {
         <section className="text-center py-20 sm:py-32 px-4">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
             <h2 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-white leading-tight">
-              El Punto de Venta Inteligente <br /> que tu Negocio Necesita
+              La Gestión Completa <br /> que tu Negocio Necesita
             </h2>
             <p className="mt-6 max-w-2xl mx-auto text-lg text-zinc-400">
-              Gestiona tus ventas, inventario y reportes en un solo lugar. Rápido, seguro y fácil de usar, con el poder de la inteligencia artificial para asistirte.
+              Desde el punto de venta y control de stock, hasta el análisis de ganancias y la automatización de precios. Todo en un solo lugar.
             </p>
             <Link to="/signup">
               <motion.button 
@@ -100,30 +119,28 @@ const LandingPage = () => {
           <div className="max-w-6xl mx-auto">
             <div className="text-center">
               <h3 className="text-3xl font-bold text-white">Todo lo que necesitas para crecer</h3>
-              <p className="mt-4 text-zinc-400">Desde la venta hasta el análisis. Khaleesi System te cubre.</p>
+              <p className="mt-4 text-zinc-400">Funcionalidades diseñadas para potenciar y automatizar tu negocio.</p>
             </div>
-            <div className="mt-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="mt-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
               {features.map((feature, index) => (
                 <motion.div 
                   key={index}
-                  className="bg-zinc-800/50 p-6 rounded-lg border border-zinc-700"
+                  className="bg-zinc-800/50 p-6 rounded-lg border border-zinc-700 flex flex-col items-center"
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.5, delay: index * 0.1 }}
                 >
-                  <div className="flex items-center gap-4">
-                    {feature.icon}
-                    <h4 className="text-lg font-semibold text-white">{feature.title}</h4>
-                  </div>
-                  <p className="mt-3 text-zinc-400 text-sm">{feature.description}</p>
+                  {feature.icon}
+                  <h4 className="text-lg font-semibold text-white mt-4">{feature.title}</h4>
+                  <p className="mt-2 text-zinc-400 text-sm text-center">{feature.description}</p>
                 </motion.div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* Pricing Section */}
+        {/* Pricing Section (Sin cambios) */}
         <section id="pricing" className="py-20 sm:py-24 px-4">
             <div className="max-w-md mx-auto text-center">
                  <h3 className="text-3xl font-bold text-white">Un plan simple y transparente</h3>
@@ -138,11 +155,11 @@ const LandingPage = () => {
             >
                 <h4 className="text-lg font-semibold text-white">Plan Completo</h4>
                 <p className="mt-2 text-zinc-400">Acceso a todas las funcionalidades actuales y futuras.</p>
-                <div className="mt-6 flex items-baseline gap-2">
+                <div className="mt-6 flex items-baseline gap-2 justify-center">
                     <span className="text-4xl font-extrabold text-white">$15.000</span>
                     <span className="text-zinc-400">ARS / por mes</span>
                 </div>
-                <ul className="mt-6 space-y-3 text-sm">
+                <ul className="mt-6 space-y-3 text-sm text-left">
                     {['15 días de prueba gratis', 'Todas las funcionalidades incluidas', 'Soporte por Chatbot IA', 'Actualizaciones continuas'].map(item => (
                         <li key={item} className="flex items-center gap-2 text-zinc-300">
                             <CheckCircle className="h-5 w-5 text-green-500" />

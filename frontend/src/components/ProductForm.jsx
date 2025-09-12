@@ -9,6 +9,7 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) { // mostrarMensaj
     const [nombre, setNombre] = useState('');
     const [codigoBarras, setCodigoBarras] = useState('');
     const [precio, setPrecio] = useState('');
+    const [costo, setCosto] = useState('');
     const [stock, setStock] = useState('');
     const barcodeInputRef = useRef(null);
     const [categoria, setCategoria] = useState('');
@@ -18,12 +19,14 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) { // mostrarMensaj
             setNombre(productToEdit.nombre);
             setCodigoBarras(productToEdit.codigoBarras || '');
             setPrecio(productToEdit.precio.toString());
+            setCosto(productToEdit.costo?.toString() || '');
             setStock(productToEdit.stock.toString());
             setCategoria(productToEdit.categoria || '');
         } else {
             setNombre('');
             setCodigoBarras('');
             setPrecio('');
+            setCosto('');
             setStock('');
             setCategoria('');
         }
@@ -35,13 +38,14 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) { // mostrarMensaj
     const handleSubmit = (e) => {
         e.preventDefault();
         const parsedPrecio = parseFloat(precio);
+        const parsedCosto = parseFloat(costo) || 0;
         const parsedStock = parseInt(stock, 10);
         if (!nombre.trim() || isNaN(parsedPrecio) || parsedPrecio < 0 || isNaN(parsedStock) || parsedStock < 0) {
             mostrarMensaje("Complete Nombre, Precio válido y Stock válido.", 'warning');
             return;
         }
         // onSave se llama igual, pero ProductosTab le pasará el handler del contexto
-        onSave({ id: productToEdit ? productToEdit.id : null, nombre: nombre.trim(), codigoBarras: codigoBarras.trim() || null, precio: parsedPrecio, stock: parsedStock, categoria: categoria.trim() || null }); 
+        onSave({ id: productToEdit ? productToEdit.id : null, nombre: nombre.trim(), codigoBarras: codigoBarras.trim() || null, precio: parsedPrecio, costo: parsedCosto, stock: parsedStock, categoria: categoria.trim() || null }); 
         // El reseteo del formulario y de `editingProduct` lo maneja el contexto/ProductosTab tras una operación exitosa.
     };
 
@@ -80,6 +84,10 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) { // mostrarMensaj
                     <label htmlFor="prod-precio-form" className="block text-sm font-medium text-zinc-300 mb-1">Precio ($):</label>
                     <input type="number" id="prod-precio-form" value={precio} onChange={(e) => setPrecio(e.target.value)} step="0.01" min="0" className={inputClasses} required />
                 </div>
+            <div>
+                <label htmlFor="prod-costo-form" className="block text-sm font-medium text-zinc-300 mb-1">Costo ($):</label>
+                <input type="number" id="prod-costo-form" value={costo} onChange={(e) => setCosto(e.target.value)} step="0.01" min="0" placeholder="Opcional" className={inputClasses} />
+            </div>                
                 {/* Campo de Categoría */}
 <div>
     <label htmlFor="prod-categoria-form" className="block text-sm font-medium text-zinc-300 mb-1">Categoría:</label>

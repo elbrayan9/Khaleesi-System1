@@ -122,25 +122,25 @@ export const updatePedido = (pedidoId, pedidoData) => {
   return updateDoc(pedidoDoc, pedidoData).then(() => true).catch(() => false);
 };
 
-// Cuando se recibe un pedido, esta función actualizará el stock de los productos.
-// Esta es una transacción para asegurar que todas las actualizaciones se hagan o ninguna.
+// Cuando se recibe un pedido, esta función actualizará el stock Y el costo de los productos.
 export const recibirPedidoYActualizarStock = async (pedido) => {
   const batch = writeBatch(db);
 
-  // 1. Actualizar el estado del pedido
+  // 1. Actualizar el estado del pedido (sin cambios)
   const pedidoRef = doc(db, 'pedidos', pedido.id);
   batch.update(pedidoRef, { 
     estado: 'recibido',
-    fechaRecepcion: new Date().toISOString().split('T')[0] // Fecha actual
+    fechaRecepcion: new Date().toISOString().split('T')[0]
   });
 
-  // 2. Actualizar el stock de cada producto en el pedido
+  // 2. Actualizar el stock Y el costo de cada producto en el pedido
   for (const item of pedido.items) {
-    if (item.productoId) {
+    if (item.productoId && item.costoUnitario > 0) { // Solo actualizamos si hay un productoId y un costo válido
       const productoRef = doc(db, 'productos', item.productoId);
-      // Usamos increment para sumar la cantidad recibida al stock actual de forma segura
+      
       batch.update(productoRef, {
-        stock: increment(item.cantidad)
+        stock: increment(item.cantidad),
+        costo: item.costoUnitario // <--- ¡AQUÍ ESTÁ LA MAGIA! Se actualiza el costo.
       });
     }
   }
@@ -149,7 +149,47 @@ export const recibirPedidoYActualizarStock = async (pedido) => {
     await batch.commit();
     return true;
   } catch (error) {
-    console.error("Error al recibir el pedido y actualizar el stock: ", error);
+    console.error("Error al recibir el pedido y actualizar stock/costo: ", error);
+    return false;
+  }
+};
+
+/**
+ * Elimina un pedido y revierte el stock de los productos si el pedido ya había sido recibido.
+ * Utiliza una transacción por lotes para garantizar la consistencia de los datos.
+ */
+export const deletePedidoAndRevertStock = async (pedido) => {
+  // Verificamos si realmente es un pedido recibido para revertir el stock.
+  if (!pedido || !pedido.id || !pedido.items) {
+    console.error("Datos del pedido inválidos para revertir stock.");
+    return false;
+  }
+
+  const batch = writeBatch(db);
+
+  // 1. Marcar el pedido para ser eliminado
+  const pedidoRef = doc(db, 'pedidos', pedido.id);
+  batch.delete(pedidoRef);
+
+  // 2. Revertir el stock de cada producto del pedido
+  // Solo si el pedido estaba en estado 'recibido'
+  if (pedido.estado === 'recibido') {
+    for (const item of pedido.items) {
+      if (item.productoId) {
+        const productoRef = doc(db, 'productos', item.productoId);
+        // Usamos increment con un número negativo para restar del stock actual
+        batch.update(productoRef, {
+          stock: increment(-item.cantidad)
+        });
+      }
+    }
+  }
+
+  try {
+    await batch.commit();
+    return true;
+  } catch (error) {
+    console.error("Error al eliminar pedido y revertir stock: ", error);
     return false;
   }
 };
@@ -346,4 +386,29 @@ export const addNotaManual = async (userId, notaData) => {
         console.error("Error al crear nota manual:", error);
         return null;
     }
+};
+/**
+ * Actualiza los precios de una lista de productos en un lote.
+ * @param {Array} productsToUpdate - Un array de objetos, cada uno con 'id' y 'newPrice'.
+ * @returns {Promise<boolean>} - True si la operación fue exitosa, false si falló.
+ */
+export const bulkUpdatePrices = async (productsToUpdate) => {
+  if (!productsToUpdate || productsToUpdate.length === 0) {
+    return true; // No hay nada que actualizar
+  }
+
+  const batch = writeBatch(db);
+
+  productsToUpdate.forEach(product => {
+    const productRef = doc(db, 'productos', product.id);
+    batch.update(productRef, { precio: product.newPrice });
+  });
+
+  try {
+    await batch.commit();
+    return true;
+  } catch (error) {
+    console.error("Error al actualizar precios masivamente: ", error);
+    return false;
+  }
 };
