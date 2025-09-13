@@ -1,6 +1,7 @@
 const admin = require("firebase-admin");
 const { onCall, HttpsError, } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
+const functions = require("firebase-functions"); 
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { defineSecret } = require("firebase-functions/params"); // <-- necesario para secrets
 
@@ -422,4 +423,81 @@ exports.backupUserData = onCall(async (request) => {
     console.error(`Error al generar el backup para el usuario ${userId}:`, error);
     throw new HttpsError("internal", "No se pudo completar el backup de los datos.");
   }
+});
+
+const nodemailer = require("nodemailer");
+
+// --- CÓDIGO NUEVO Y CORREGIDO CON SINTAXIS v2 ---
+exports.enviarReporteDiario = onSchedule({
+    schedule: "0 21 * * *", // Se ejecuta todos los días a las 9 PM
+    timeZone: "America/Argentina/Buenos_Aires",
+}, async (event) => {
+    console.log("Ejecutando la función de reporte diario.");
+
+    // 1. Obtener todos los negocios que tienen activado el reporte
+    const negociosSnapshot = await db.collection("datosNegocio")
+        .where("recibirReporteDiario", "==", true).get();
+
+    if (negociosSnapshot.empty) {
+        console.log("No hay usuarios para enviar reporte.");
+        return null;
+    }
+
+    const reportPromises = negociosSnapshot.docs.map(async (doc) => {
+        const negocio = doc.data();
+        const userId = doc.id;
+        const userEmail = negocio.email;
+
+        if (!userEmail) {
+            console.log(`Usuario ${userId} no tiene email, omitiendo.`);
+            return;
+        }
+
+        // 2. Calcular fechas para "ayer"
+        const ahora = new Date();
+        ahora.setDate(ahora.getDate() - 1);
+        const fechaAyer = ahora.toISOString().split("T")[0]; // Formato YYYY-MM-DD
+
+        // 3. Obtener ventas de ayer
+        const ventasSnapshot = await db.collection("ventas")
+            .where("userId", "==", userId)
+            .where("fecha", "==", fechaAyer).get();
+
+        let totalVentas = 0;
+        let gananciaBruta = 0;
+        let numeroDeVentas = ventasSnapshot.size;
+
+        ventasSnapshot.forEach((ventaDoc) => {
+            const venta = ventaDoc.data();
+            totalVentas += venta.total;
+            (venta.items || []).forEach((item) => {
+                gananciaBruta += (item.precioFinal - (item.costo || 0)) * item.cantidad;
+            });
+        });
+
+        // 4. Formatear y enviar el email
+        const mailOptions = {
+            from: `Khaleesi System <${functions.config().email.user}>`,
+            to: userEmail,
+            subject: `📈 Reporte de Ventas del ${fechaAyer}`,
+            html: `
+              <h1>Resumen del ${fechaAyer}</h1>
+              <p>Hola ${negocio.nombre || "Usuario"}, aquí está el resumen de tu negocio:</p>
+              <ul>
+                  <li><strong>Ingresos Brutos:</strong> $${totalVentas.toFixed(2)}</li>
+                  <li><strong>Ganancia Bruta Estimada:</strong> $${gananciaBruta.toFixed(2)}</li>
+                  <li><strong>Número de Ventas:</strong> ${numeroDeVentas}</li>
+              </ul>
+              <p>¡Sigue así!</p>
+              <p><em>- El equipo de Khaleesi System</em></p>
+            `,
+        };
+
+        await transporter.sendMail(mailOptions);
+        console.log(`Reporte enviado a ${userEmail}`);
+    });
+
+    await Promise.all(reportPromises);
+    console.log("Proceso de reportes diarios finalizado.");
+    return null;
 });

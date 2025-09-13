@@ -12,6 +12,7 @@ function ConfiguracionTab() {
     const [cuit, setCuit] = useState('');
     const [ventaRapidaHabilitada, setVentaRapidaHabilitada] = useState(false);
     const [umbralStockBajo, setUmbralStockBajo] = useState(10);
+    const [recibirReporteDiario, setRecibirReporteDiario] = useState(false);
 
     useEffect(() => {
         if (datosNegocio) {
@@ -20,6 +21,7 @@ function ConfiguracionTab() {
             setCuit(datosNegocio.cuit || '');
             setVentaRapidaHabilitada(datosNegocio.habilitarVentaRapida || false);
             setUmbralStockBajo(datosNegocio.umbralStockBajo || 10);
+            setRecibirReporteDiario(datosNegocio.recibirReporteDiario || false);
         }
     }, [datosNegocio]);
 
@@ -29,7 +31,8 @@ function ConfiguracionTab() {
             direccion: direccion.trim(),
             cuit: cuit.trim(),
             habilitarVentaRapida: ventaRapidaHabilitada,
-            umbralStockBajo: Number(umbralStockBajo) || 0
+            umbralStockBajo: Number(umbralStockBajo) || 0,
+            recibirReporteDiario: recibirReporteDiario
         };
         handleGuardarDatosNegocio(updatedData);
     };
@@ -93,8 +96,24 @@ function ConfiguracionTab() {
         </motion.button>
     </div>
 </div>
+<div className="flex items-center justify-between p-4 bg-zinc-700/50 rounded-lg mt-4">
+    <div>
+        <label htmlFor="reporte-diario" className="text-base font-medium text-zinc-100">Reporte Diario por Email</label>
+        <p className="text-sm text-zinc-400">Recibe un resumen de tus ventas todas las noches.</p>
+    </div>
+    <label className="relative inline-flex items-center cursor-pointer">
+        <input 
+            type="checkbox" 
+            id="reporte-diario" 
+            checked={recibirReporteDiario} 
+            onChange={(e) => setRecibirReporteDiario(e.target.checked)} 
+            className="sr-only peer" 
+        />
+        <div className="w-11 h-6 bg-zinc-600 rounded-full peer peer-focus:ring-2 peer-focus:ring-blue-500 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+    </label>
+</div>
                 
-                <h3 className="text-lg sm:text-xl font-medium mb-4 text-white">Funcionalidades</h3>
+                <h3 className="text-lg sm:text-xl font-medium mb-4 text-white mt-6">Funcionalidades</h3>
                 <div className="flex items-center justify-between bg-zinc-700/50 p-3 rounded-md">
                     <div>
                         <label htmlFor="toggle-venta-rapida" className="font-medium text-zinc-100">Habilitar Venta Rápida</label>
