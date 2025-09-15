@@ -5,6 +5,7 @@ import PaymentModal from './PaymentModal.jsx';
 import SearchBar from './SearchBar.jsx';
 import { useAppContext } from '../context/AppContext.jsx';
 import SelectorVendedor from './SelectorVendedor';
+import ShiftManager from './ShiftManager';
 import { formatCurrency } from '../utils/helpers.js';
 
 function VentaTab() {
@@ -111,11 +112,11 @@ const handleAgregarManual = () => {
             <h2 className="text-xl sm:text-2xl font-semibold mb-4 text-white">Nueva Venta</h2>
                     <div className="mb-4 p-4 bg-zinc-800 rounded-lg border border-zinc-700 max-w-md">
             <label className="block text-md font-medium text-zinc-200 mb-2">Vendedor Activo</label>
-            <SelectorVendedor
-                vendedores={vendedores}
-                vendedorActivoId={vendedorActivoId}
-                onSelectVendedor={setVendedorActivoId}
-            />
+{/* --- CONTENEDOR PARA SELECTOR Y TURNO --- */}
+<div className="grid grid-cols-1 sm:grid-cols-1 gap-4">
+    <SelectorVendedor vendedores={vendedores} vendedorActivoId={vendedorActivoId} onSelectVendedor={setVendedorActivoId} />
+    <ShiftManager />
+</div>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
                 <div className="lg:col-span-2 bg-zinc-800 p-4 sm:p-5 rounded-lg shadow-md space-y-4">

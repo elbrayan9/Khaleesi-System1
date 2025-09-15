@@ -37,6 +37,8 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
   const [ingresosManuales, setIngresosManuales] = useState([]);
   const [notasCD, setNotasCD] = useState([]);
   const [datosNegocio, setDatosNegocio] = useState(null);
+  const [turnos, setTurnos] = useState([]);
+  const [turnoActivo, setTurnoActivo] = useState(null);
 
   // --- UI edición ---
   const [editingProduct, setEditingProduct] = useState(null);
@@ -79,6 +81,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       { name: 'egresos', setter: setEgresos },
       { name: 'ingresos_manuales', setter: setIngresosManuales },
       { name: 'notas_cd', setter: setNotasCD },
+      { name: 'turnos', setter: setTurnos },
     ];
 
     const unsubscribes = collectionsToListen.map(({ name, setter }) => {
@@ -482,8 +485,17 @@ const handleSaleConfirmed = async (itemsInCart, total, cliente, pagos, tipoFactu
     };
 
     try {
+        // 1. Primero, creamos la venta como siempre
         const ventaId = await fsService.addVenta(currentUserId, newSaleData);
+
         if (isValidFirestoreId(ventaId)) {
+            // 2. Si la venta se guardó bien Y HAY UN TURNO ACTIVO...
+            if (turnoActivo) {
+                // ...asociamos el ID de esta venta a ese turno.
+                await fsService.addSaleToShift(turnoActivo.id, ventaId);
+            }
+            
+            // 3. Limpiamos el carrito y mostramos el mensaje de éxito
             setCartItems([]);
             mostrarMensaje?.('Venta registrada con éxito.', 'success');
         }
@@ -491,6 +503,50 @@ const handleSaleConfirmed = async (itemsInCart, total, cliente, pagos, tipoFactu
         mostrarMensaje?.(error.message || 'Error al procesar la venta.', 'error');
     } finally { 
         setIsLoadingData(false); 
+    }
+};
+
+const handleAbrirTurno = async (vendedorId, montoInicial) => {
+    const vendedor = vendedores.find(v => v.id === vendedorId);
+    if (!vendedor) return;
+
+    const { fecha, hora } = obtenerFechaHoraActual();
+    const turnoData = {
+        userId: currentUserId,
+        vendedorId: vendedor.id,
+        vendedorNombre: vendedor.nombre,
+        montoInicial: Number(montoInicial) || 0,
+        fechaApertura: fecha,
+        horaApertura: hora,
+        estado: 'abierto',
+        ventasIds: []
+    };
+
+    const newDocRef = await fsService.startShift(turnoData);
+    const newTurno = { id: newDocRef.id, ...turnoData };
+    setTurnoActivo(newTurno);
+    mostrarMensaje('Turno iniciado con éxito.', 'success');
+};
+
+const handleCerrarTurno = async (datosCierre) => {
+    if (!turnoActivo) return;
+
+    const { fecha, hora } = obtenerFechaHoraActual();
+    const turnoFinalizadoData = {
+        ...datosCierre,
+        fechaCierre: fecha,
+        horaCierre: hora,
+        estado: 'cerrado',
+    };
+
+    // Esta variable 'success' ahora recibirá 'true' o 'false' correctamente
+    const success = await fsService.endShift(turnoActivo.id, turnoFinalizadoData);
+    
+    if (success) {
+        setTurnoActivo(null);
+        mostrarMensaje('Turno cerrado exitosamente.', 'success');
+    } else {
+        mostrarMensaje('Error al cerrar el turno.', 'error');
     }
 };
   // Ingresos / Egresos manuales
@@ -606,14 +662,14 @@ const handleSaleConfirmed = async (itemsInCart, total, cliente, pagos, tipoFactu
     // estado
     isLoggedIn, isLoadingData, currentUserId, isAdmin,
     productos, clientes, cartItems, ventas, egresos, ingresosManuales, notasCD, datosNegocio, vendedores, vendedorActivoId, proveedores, pedidos,
-    editingProduct, editingClient,
+    editingProduct, editingClient, turnos, turnoActivo, 
     // setters
-    setVendedorActivoId, setCartItems,
+    setVendedorActivoId, setCartItems, setTurnoActivo,
     // acciones
     handleLogout,
     handleSaveProduct, handleEditProduct, handleCancelEditProduct, handleDeleteProduct,
     handleSaveClient, handleEditClient, handleCancelEditClient, handleDeleteClient,
-    handleSaveVendedor, handleDeleteVendedor,  handleSaveProveedor, handleDeleteProveedor,  handleSavePedido, handleUpdatePedidoEstado, handleRecibirPedido, handleCancelarPedido, handleDeletePedido, handleBulkPriceUpdate,
+    handleSaveVendedor, handleDeleteVendedor,  handleSaveProveedor, handleDeleteProveedor,  handleSavePedido, handleUpdatePedidoEstado, handleRecibirPedido, handleCancelarPedido, handleDeletePedido, handleBulkPriceUpdate, handleAbrirTurno, handleCerrarTurno, 
     handleSaleConfirmed, handleAddToCart, handleEliminarVenta: async (ventaId) => {
       if (!isValidFirestoreId(ventaId)) { mostrarMensaje?.('ID de venta inválido.', 'error'); return; }
       if (await confirmarAccion?.('¿Eliminar Venta?', 'Esto restaurará el stock. ¿Continuar?', 'warning', 'Sí, eliminar')) {

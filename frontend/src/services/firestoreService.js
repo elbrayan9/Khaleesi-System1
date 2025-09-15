@@ -2,7 +2,7 @@
 import { db } from '../firebaseConfig'; // Asegúrate que esta ruta sea correcta
 import {
   collection, doc, addDoc, getDocs, getDoc,
-  updateDoc, deleteDoc, query, where, writeBatch,
+  updateDoc, deleteDoc, query, where, limit, arrayUnion, writeBatch,
   serverTimestamp, setDoc, increment
 } from "firebase/firestore";
 
@@ -411,4 +411,45 @@ export const bulkUpdatePrices = async (productsToUpdate) => {
     console.error("Error al actualizar precios masivamente: ", error);
     return false;
   }
+};
+/**
+ * =================================================================
+ * CIERRE DE CAJA / TURNOS
+ * =================================================================
+ */
+
+// Iniciar un nuevo turno en la base de datos
+export const startShift = (shiftData) => {
+  return addDoc(collection(db, 'turnos'), shiftData);
+};
+
+// Finalizar un turno existente
+export const endShift = (shiftId, shiftData) => {
+  const shiftDoc = doc(db, 'turnos', shiftId);
+  return updateDoc(shiftDoc, shiftData)
+    .then(() => true)
+    .catch((error) => {
+      console.error("Error al finalizar el turno:", error);
+      return false;
+    });
+};
+
+// Buscar si un vendedor ya tiene un turno abierto
+export const getOpenShift = (userId, vendedorId) => {
+  const q = query(
+    collection(db, 'turnos'),
+    where('userId', '==', userId),
+    where('vendedorId', '==', vendedorId),
+    where('estado', '==', 'abierto'),
+    limit(1)
+  );
+  return getDocs(q);
+};
+
+// Añadir una venta a un turno abierto
+export const addSaleToShift = (shiftId, ventaId) => {
+    const shiftDoc = doc(db, 'turnos', shiftId);
+    return updateDoc(shiftDoc, {
+        ventasIds: arrayUnion(ventaId)
+    });
 };

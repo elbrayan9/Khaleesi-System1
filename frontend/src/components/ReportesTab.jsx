@@ -9,6 +9,8 @@ import { useAppContext } from '../context/AppContext.jsx'; // Importar hook
 import { formatCurrency, obtenerNombreMes } from '../utils/helpers.js'; // Importar helpers directamente
 import * as XLSX from 'xlsx';
 import SalesHeatmap from './SalesHeatmap.jsx';
+import HistorialTurnos from './HistorialTurnos.jsx';
+import CajaGeneral from './CajaGeneral.jsx';
 
 const ITEMS_PER_PAGE_REPORTE = 10;
 
@@ -428,7 +430,7 @@ const handleDateChange = (e) => {
     };
 
     return (
-        <div id="reportes">
+        <div id="reportes">         
                 {/* --- FASE 1: Controles de Fecha --- */}
     <div className="flex flex-wrap items-center gap-2 mb-4 p-3 bg-zinc-800 rounded-lg border border-zinc-700">
         <h2 className="text-xl font-semibold text-white mr-4">Caja y Reportes</h2>
@@ -449,10 +451,11 @@ const handleDateChange = (e) => {
 {/* --- FASE 3: Botón de Exportar --- */}
                 <motion.button onClick={handleExportarMes} className="text-sm py-1.5 px-3 bg-green-600 hover:bg-green-700 rounded-md flex items-center gap-1.5 ml-auto" whileTap={{ scale: 0.95 }}>
                     <Download className="h-4 w-4" /> Exportar Mes
-                </motion.button>
+                </motion.button>            
     </div>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">              
                 <div className="lg:col-span-1 space-y-5">
+                    <CajaGeneral />
                     <div className="bg-zinc-800 p-4 sm:p-5 rounded-lg shadow-md">
                         <h3 className="text-lg sm:text-xl font-medium mb-3 text-white border-b border-zinc-700 pb-2">Registrar Ingreso Manual</h3>
                         <div className="space-y-3">
@@ -630,6 +633,7 @@ const handleDateChange = (e) => {
 </div>
                 </div>
             </div>
+            <HistorialTurnos />
         </div>
     );
 }

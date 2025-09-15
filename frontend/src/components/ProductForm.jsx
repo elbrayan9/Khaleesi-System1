@@ -11,8 +11,23 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) { // mostrarMensaj
     const [precio, setPrecio] = useState('');
     const [costo, setCosto] = useState('');
     const [stock, setStock] = useState('');
+    const [increasePercentage, setIncreasePercentage] = useState('');
     const barcodeInputRef = useRef(null);
     const [categoria, setCategoria] = useState('');
+
+    const handleApplyPercentage = () => {
+    const percentage = parseFloat(increasePercentage);
+    const currentPrice = parseFloat(precio);
+
+    if (isNaN(percentage) || isNaN(currentPrice) || percentage <= 0) {
+        mostrarMensaje("Ingrese un precio y un porcentaje válidos.", "warning");
+        return;
+    }
+
+    const newPrice = currentPrice * (1 + percentage / 100);
+    setPrecio(newPrice.toFixed(2).toString()); // Actualiza el estado del precio
+    setIncreasePercentage(''); // Limpia el campo de porcentaje
+};
 
     useEffect(() => {
         if (productToEdit) {
@@ -80,14 +95,41 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) { // mostrarMensaj
                     <label htmlFor="prod-nombre-form" className="block text-sm font-medium text-zinc-300 mb-1">Nombre:</label>
                     <input type="text" id="prod-nombre-form" value={nombre} onChange={(e) => setNombre(e.target.value)} className={inputClasses} required />
                 </div>
-                <div>
-                    <label htmlFor="prod-precio-form" className="block text-sm font-medium text-zinc-300 mb-1">Precio ($):</label>
-                    <input type="number" id="prod-precio-form" value={precio} onChange={(e) => setPrecio(e.target.value)} step="0.01" min="0" className={inputClasses} required />
-                </div>
-            <div>
-                <label htmlFor="prod-costo-form" className="block text-sm font-medium text-zinc-300 mb-1">Costo ($):</label>
-                <input type="number" id="prod-costo-form" value={costo} onChange={(e) => setCosto(e.target.value)} step="0.01" min="0" placeholder="Opcional" className={inputClasses} />
-            </div>                
+<div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
+    {/* Precio */}
+    <div>
+        <label htmlFor="prod-precio-form" className="block text-sm font-medium text-zinc-300 mb-1">Precio ($):</label>
+        <input type="number" id="prod-precio-form" value={precio} onChange={(e) => setPrecio(e.target.value)} step="0.01" min="0" className={inputClasses} required />
+    </div>
+    {/* Aumento */}
+    <div className="flex items-end gap-2">
+        <div className="flex-grow">
+            <label htmlFor="prod-increase-form" className="block text-sm font-medium text-zinc-300 mb-1">Aumento (%):</label>
+            <input 
+                type="number" 
+                id="prod-increase-form" 
+                value={increasePercentage} 
+                onChange={(e) => setIncreasePercentage(e.target.value)} 
+                placeholder="Ej: 15" 
+                className={inputClasses}
+            />
+        </div>
+        <motion.button 
+            type="button" 
+            onClick={handleApplyPercentage}
+            className="bg-green-600 hover:bg-green-700 text-white font-bold px-3 rounded-md h-9"
+            whileTap={{ scale: 0.95 }}
+            title="Aplicar Aumento"
+        >
+            Aplicar
+        </motion.button>
+    </div>
+    {/* Costo */}
+    <div>
+        <label htmlFor="prod-costo-form" className="block text-sm font-medium text-zinc-300 mb-1">Costo ($):</label>
+        <input type="number" id="prod-costo-form" value={costo} onChange={(e) => setCosto(e.target.value)} step="0.01" min="0" placeholder="Opcional" className={inputClasses} />
+    </div>
+</div>              
                 {/* Campo de Categoría */}
 <div>
     <label htmlFor="prod-categoria-form" className="block text-sm font-medium text-zinc-300 mb-1">Categoría:</label>
