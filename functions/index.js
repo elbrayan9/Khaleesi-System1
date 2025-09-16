@@ -429,7 +429,7 @@ const nodemailer = require("nodemailer");
 
 // --- CÓDIGO NUEVO Y CORREGIDO CON SINTAXIS v2 ---
 exports.enviarReporteDiario = onSchedule({
-    schedule: "0 21 * * *", // Se ejecuta todos los días a las 9 PM
+    schedule: "0 2 * * *", // Se ejecuta todos los días a las 9 PM
     timeZone: "America/Argentina/Buenos_Aires",
 }, async (event) => {
     console.log("Ejecutando la función de reporte diario.");

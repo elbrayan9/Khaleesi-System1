@@ -5,7 +5,7 @@ import { useAppContext } from '../context/AppContext.jsx';
 import { Save, Download  } from 'lucide-react';
 
 function ConfiguracionTab() {
-    const { datosNegocio, handleGuardarDatosNegocio, handleBackupData, isLoading } = useAppContext();
+    const { datosNegocio, handleGuardarDatosNegocio, handleBackupData, isLoading, currentUser } = useAppContext();
     
     const [nombre, setNombre] = useState('');
     const [direccion, setDireccion] = useState('');
@@ -32,7 +32,8 @@ function ConfiguracionTab() {
             cuit: cuit.trim(),
             habilitarVentaRapida: ventaRapidaHabilitada,
             umbralStockBajo: Number(umbralStockBajo) || 0,
-            recibirReporteDiario: recibirReporteDiario
+            recibirReporteDiario: recibirReporteDiario,
+            email: currentUser?.email || datosNegocio?.email || ''
         };
         handleGuardarDatosNegocio(updatedData);
     };
