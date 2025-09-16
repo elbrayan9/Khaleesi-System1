@@ -172,25 +172,57 @@ const handleNotifyPayment = async () => {
   const handleLogout = async () => { await signOut(auth); };
 
   // Carrito (agregar desde producto con descuento por línea)
-  const handleAddToCart = (producto, cantidad, descuento = 0) => {
+ const handleAddToCart = (producto, cantidad, descuento = 0) => {
     if (!producto || cantidad <= 0) return;
     const descuentoNum = Number(descuento) || 0;
     if (descuentoNum < 0 || descuentoNum > 100) {
       mostrarMensaje?.('El descuento debe estar entre 0 y 100.', 'warning');
       return;
     }
-    const precioOriginal = producto.precio;
-    const precioFinal = precioOriginal - (precioOriginal * descuentoNum / 100);
-    const itemExistente = cartItems.find((i) => i.id === producto.id && i.descuentoPorcentaje === descuentoNum);
+
+    const isByWeight = producto.vendidoPor === 'peso';
+    const isScaleTicket = producto.vendidoPor === 'ticketBalanza';
+
+    let precioFinalConDescuento;
+    let newItem;
+
+    // SI ES UN TICKET DE BALANZA, EL PRECIO YA VIENE FIJADO
+    if (isScaleTicket) {
+        precioFinalConDescuento = producto.precioFinal;
+        newItem = {
+            ...producto,
+            cartId: generateLocalId('ticket_'), // ID único siempre
+            cantidad: 1,
+            precioOriginal: producto.precioFinal, // El precio original es el del ticket
+            descuentoPorcentaje: 0, // No se aplican descuentos a tickets
+            precioFinal: precioFinalConDescuento,
+        };
+    } else {
+        // LÓGICA NORMAL PARA PRODUCTOS POR PESO O UNIDAD
+        const precioBase = producto.precio;
+        const precioTotalItem = precioBase * cantidad;
+        precioFinalConDescuento = precioTotalItem - (precioTotalItem * descuentoNum / 100);
+        
+        newItem = {
+            ...producto,
+            cartId: isByWeight ? generateLocalId('cart_') : producto.id,
+            cantidad: cantidad,
+            precioOriginal: precioBase,
+            descuentoPorcentaje: descuentoNum,
+            precioFinal: precioFinalConDescuento,
+        };
+    }
+
+    const itemExistente = !isByWeight && !isScaleTicket ? cartItems.find((i) => i.id === producto.id && i.descuentoPorcentaje === descuentoNum) : null;
+
     if (itemExistente) {
-      setCartItems((prev) => prev.map((i) => (i.id === producto.id && i.descuentoPorcentaje === descuentoNum)
-        ? { ...i, cantidad: i.cantidad + cantidad }
+      setCartItems((prev) => prev.map((i) => (i.cartId === producto.id && i.descuentoPorcentaje === descuentoNum)
+        ? { ...i, cantidad: i.cantidad + cantidad, precioFinal: i.precioFinal + precioFinalConDescuento }
         : i));
     } else {
-      const newItem = { ...producto, cantidad, precioOriginal, descuentoPorcentaje: descuentoNum, precioFinal };
       setCartItems((prev) => [...prev, newItem]);
     }
-  };
+};
 
   // Ítem manual a carrito
   const handleAddManualItemToCart = (descripcion, monto) => {

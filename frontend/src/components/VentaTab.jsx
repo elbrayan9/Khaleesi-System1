@@ -49,12 +49,42 @@ function VentaTab() {
     // --- LÓGICA PARA AGREGAR ITEMS AL CARRITO ---
 const handleAgregarPorCodigo = (codigo) => {
     if (!codigo || !codigo.trim()) return;
-    const product = productos.find(p => p.codigoBarras === codigo.trim());
+    const barcode = codigo.trim();
+
+    // --- LÓGICA INTELIGENTE PARA CÓDIGOS DE BALANZA ---
+    // Asumimos un formato estándar: 13 dígitos que empieza con '20'
+    if (barcode.length === 13 && barcode.startsWith('20')) {
+        const productCode = barcode.substring(2, 7); // Los 5 dígitos del producto
+        const priceInCents = parseInt(barcode.substring(7, 12), 10); // Los 5 dígitos del precio
+        
+        if (!isNaN(priceInCents)) {
+            const product = productos.find(p => p.codigoBarras === productCode);
+            
+            if (product) {
+                const price = priceInCents / 100.0;
+                // Creamos un item especial con el precio del ticket
+                const itemFromScale = {
+                    ...product,
+                    precioFinal: price,
+                    cantidad: 1, // Es 1 ticket
+                    vendidoPor: 'ticketBalanza' // Un identificador especial
+                };
+                handleAddToCart(itemFromScale, 1, 0); // Lo añadimos al carrito
+                if (barcodeInputRef.current) barcodeInputRef.current.value = '';
+                barcodeInputRef.current?.focus();
+                return; // Terminamos la ejecución aquí
+            }
+        }
+    }
+    
+    // Si no es un código de balanza, busca un producto normal
+    const product = productos.find(p => p.codigoBarras === barcode);
     if (product) {
-        handleAddToCart(product, 1, 0); // Llama a la nueva función con 0% de descuento
-        barcodeInputRef.current.value = '';
+        handleAddToCart(product, 1, 0);
+        if (barcodeInputRef.current) barcodeInputRef.current.value = ''; 
+        barcodeInputRef.current?.focus(); 
     } else {
-        mostrarMensaje(`Código "${codigo}" no encontrado.`, 'warning');
+        mostrarMensaje(`Código "${barcode}" no encontrado.`, 'warning');
         barcodeInputRef.current?.select();
     }
 };

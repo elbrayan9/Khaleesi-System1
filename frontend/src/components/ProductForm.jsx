@@ -14,6 +14,7 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) { // mostrarMensaj
     const [increasePercentage, setIncreasePercentage] = useState('');
     const barcodeInputRef = useRef(null);
     const [categoria, setCategoria] = useState('');
+    const [vendidoPor, setVendidoPor] = useState('unidad');
 
     const handleApplyPercentage = () => {
     const percentage = parseFloat(increasePercentage);
@@ -37,6 +38,7 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) { // mostrarMensaj
             setCosto(productToEdit.costo?.toString() || '');
             setStock(productToEdit.stock.toString());
             setCategoria(productToEdit.categoria || '');
+            setVendidoPor(productToEdit.vendidoPor || 'unidad');
         } else {
             setNombre('');
             setCodigoBarras('');
@@ -44,6 +46,7 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) { // mostrarMensaj
             setCosto('');
             setStock('');
             setCategoria('');
+            setVendidoPor('unidad');
         }
         if (!productToEdit && barcodeInputRef.current) {
             barcodeInputRef.current.focus();
@@ -54,13 +57,13 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) { // mostrarMensaj
         e.preventDefault();
         const parsedPrecio = parseFloat(precio);
         const parsedCosto = parseFloat(costo) || 0;
-        const parsedStock = parseInt(stock, 10);
+        const parsedStock = parseFloat(stock) || 0;
         if (!nombre.trim() || isNaN(parsedPrecio) || parsedPrecio < 0 || isNaN(parsedStock) || parsedStock < 0) {
             mostrarMensaje("Complete Nombre, Precio válido y Stock válido.", 'warning');
             return;
         }
         // onSave se llama igual, pero ProductosTab le pasará el handler del contexto
-        onSave({ id: productToEdit ? productToEdit.id : null, nombre: nombre.trim(), codigoBarras: codigoBarras.trim() || null, precio: parsedPrecio, costo: parsedCosto, stock: parsedStock, categoria: categoria.trim() || null }); 
+        onSave({ id: productToEdit ? productToEdit.id : null, nombre: nombre.trim(), codigoBarras: codigoBarras.trim() || null, precio: parsedPrecio, costo: parsedCosto, stock: parsedStock, categoria: categoria.trim() || null, vendidoPor: vendidoPor }); 
         // El reseteo del formulario y de `editingProduct` lo maneja el contexto/ProductosTab tras una operación exitosa.
     };
 
@@ -142,9 +145,22 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) { // mostrarMensaj
         className="w-full p-2 border border-zinc-600 rounded-md bg-zinc-700 text-zinc-100"
     />
 </div>
+    {/* Vendido Por (NUEVO) */}
+    <div>
+        <label htmlFor="prod-vendido-por-form" className="block text-sm font-medium text-zinc-300 mb-1">Vendido Por:</label>
+        <select 
+            id="prod-vendido-por-form" 
+            value={vendidoPor} 
+            onChange={(e) => setVendidoPor(e.target.value)} 
+            className={inputClasses}
+        >
+            <option value="unidad">Unidad</option>
+            <option value="peso">Peso (Kg)</option>
+        </select>
+    </div>
                 <div>
                     <label htmlFor="prod-stock-form" className="block text-sm font-medium text-zinc-300 mb-1">Stock:</label>
-                    <input type="number" id="prod-stock-form" value={stock} onChange={(e) => setStock(e.target.value)} min="0" className={inputClasses} required />
+                    <input type="number" id="prod-stock-form" value={stock} onChange={(e) => setStock(e.target.value)} min="0" step="any" className={inputClasses} required />
                 </div>
                 <div className="sm:col-span-2 lg:col-span-5 lg:self-end lg:text-right flex flex-col sm:flex-row sm:justify-end sm:space-x-2 space-y-2 sm:space-y-0 mt-3 lg:mt-0">
                     <motion.button type="submit" className={`w-full lg:w-auto text-white font-bold py-2 px-3 rounded-md transition duration-150 ease-in-out order-1 ${productToEdit ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-blue-600 hover:bg-blue-700'}`} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
