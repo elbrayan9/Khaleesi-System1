@@ -172,7 +172,7 @@ const handleNotifyPayment = async () => {
   const handleLogout = async () => { await signOut(auth); };
 
   // Carrito (agregar desde producto con descuento por línea)
- const handleAddToCart = (producto, cantidad, descuento = 0) => {
+const handleAddToCart = (producto, cantidad, descuento = 0) => {
     if (!producto || cantidad <= 0) return;
     const descuentoNum = Number(descuento) || 0;
     if (descuentoNum < 0 || descuentoNum > 100) {
@@ -213,6 +213,7 @@ const handleNotifyPayment = async () => {
         };
     }
 
+    // La lógica para agrupar items solo se aplica si NO es por peso y NO es un ticket
     const itemExistente = !isByWeight && !isScaleTicket ? cartItems.find((i) => i.id === producto.id && i.descuentoPorcentaje === descuentoNum) : null;
 
     if (itemExistente) {

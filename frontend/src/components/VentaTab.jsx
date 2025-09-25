@@ -128,11 +128,12 @@ const handleAgregarManual = () => {
         barcodeInputRef.current?.focus();
     };
     
-    const calculateTotal = () => {
+const calculateTotal = () => {
     return cartItems.reduce((total, item) => {
-        // Usa el precioFinal si tiene descuento, si no, el precio normal
-        const precioACalcular = item.precioFinal ?? item.precio;
-        return total + (precioACalcular * item.cantidad);
+        // Cada 'item' en el carrito ya tiene su 'precioFinal' calculado
+        // (sea por peso o por unidad con descuento).
+        // Simplemente lo sumamos.
+        return total + item.precioFinal;
     }, 0);
 };
     const productosConStock = productos.filter(p => p.stock > 0);

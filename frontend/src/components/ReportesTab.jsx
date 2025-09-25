@@ -177,24 +177,27 @@ const todosMovimientosDia = useMemo(() => {
     // frontend/src/components/ReportesTab.jsx
 
 const productosMasVendidosMes = useMemo(() => {
-    // 1. Creamos un objeto para contar los productos
     const productCounts = ventasMes.reduce((acc, venta) => {
-        // 2. Recorremos los items de cada venta
         venta.items.forEach(item => {
-            // 3. Acumulamos la cantidad y el total vendido por cada producto
-            if (acc[item.id]) {
-                acc[item.id].cantidad += item.cantidad;
-                acc[item.id].totalVendido += item.cantidad * item.precioFinal;
+            // Usamos el ID del producto como clave única
+            const key = item.id || item.nombre; 
+
+            if (acc[key]) {
+                // Si ya existe, simplemente sumamos la cantidad y el precio final
+                acc[key].cantidad += item.cantidad;
+                acc[key].totalVendido += item.precioFinal; // <-- CORREGIDO
             } else {
-                acc[item.id] = {
+                // Si es nuevo, lo creamos con el precio final ya calculado
+                acc[key] = {
                     nombre: item.nombre,
                     cantidad: item.cantidad,
-                    totalVendido: item.cantidad * item.precioFinal
+                    totalVendido: item.precioFinal // <-- CORREGIDO
                 };
             }
         });
         return acc;
     }, {});
+
 
     // 4. Convertimos el objeto a un array, lo ordenamos de mayor a menor
     //    y nos quedamos con los 5 primeros (el Top 5).

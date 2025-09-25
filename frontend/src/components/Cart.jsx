@@ -1,50 +1,46 @@
+// frontend/src/components/Cart.jsx
 import React from 'react';
 import { motion } from 'framer-motion';
 import SearchBar from './SearchBar.jsx';
-import { useAppContext } from '../context/AppContext.jsx'; // Importamos el contexto
+import { useAppContext } from '../context/AppContext.jsx';
 import { formatCurrency } from '../utils/helpers.js';
-import { Trash2, PlusCircle, MinusCircle } from 'lucide-react'; // Importamos íconos
+import { Trash2, PlusCircle, MinusCircle } from 'lucide-react';
 
-function Cart({
-    onCheckout, // Renombrado de onConfirmSale a onCheckout para claridad
-    clients,
-    selectedClientId,
-    onClientSelect
-}) {
-    // --- MODIFICADO: Obtenemos cartItems y setCartItems del contexto ---
-    const { cartItems, setCartItems, productos } = useAppContext();
+function Cart({ onCheckout, clients, selectedClientId, onClientSelect }) {
+    const { cartItems, setCartItems, productos, mostrarMensaje } = useAppContext();
 
-    // --- MODIFICADO: El total se calcula aquí con el precio final ---
-    const total = cartItems.reduce((acc, item) => acc + (item.precioFinal * item.cantidad), 0);
+    // --- CÁLCULO CORREGIDO ---
+    // Ahora simplemente sumamos el precioFinal de cada item, que ya es el total de la línea.
+    const total = cartItems.reduce((acc, item) => acc + item.precioFinal, 0);
 
-    // --- MODIFICADO: Lógica para actualizar y eliminar items ---
-    const handleRemoveItem = (itemId) => {
-        setCartItems(prevItems => prevItems.filter(item => item.id !== itemId));
+    const handleRemoveItem = (cartId) => {
+        setCartItems(prevItems => prevItems.filter(item => item.cartId !== cartId));
     };
 
-    const handleUpdateQuantity = (itemId, change) => {
-        const itemToUpdate = cartItems.find(item => item.id === itemId);
-        if (!itemToUpdate) return;
+    // La función de actualizar cantidad ahora debe recalcular el precio de la línea
+    const handleUpdateQuantity = (cartId, change) => {
+        setCartItems(prev =>
+            prev.map(item => {
+                if (item.cartId !== cartId || item.vendidoPor === 'ticketBalanza') return item;
 
-        const productoInfo = productos.find(p => p.id === itemId);
-        const newQuantity = itemToUpdate.cantidad + change;
+                const newQuantity = item.cantidad + change;
+                if (newQuantity <= 0) {
+                    return null; // Marcar para eliminar
+                }
 
-        if (newQuantity > productoInfo?.stock && itemToUpdate.isTracked) {
-            // No usamos mostrarMensaje aquí para no ser muy invasivos
-            console.warn(`Stock insuficiente para ${itemToUpdate.nombre}.`);
-            return;
-        }
+                const productoInfo = productos.find(p => p.id === item.id);
+                if (newQuantity > productoInfo?.stock && productoInfo?.vendidoPor === 'unidad') {
+                    mostrarMensaje(`Stock insuficiente para ${item.nombre}.`, "warning");
+                    return item; // No hacer cambios si no hay stock
+                }
+                
+                // Recalcular precio final de la línea
+                const newPrecioTotal = item.precioOriginal * newQuantity;
+                const newPrecioFinal = newPrecioTotal - (newPrecioTotal * item.descuentoPorcentaje / 100);
 
-        if (newQuantity <= 0) {
-            // Si la cantidad es 0 o menos, eliminamos el item
-            setCartItems(prev => prev.filter(item => item.id !== itemId));
-        } else {
-            setCartItems(prev =>
-                prev.map(item =>
-                    item.id === itemId ? { ...item, cantidad: newQuantity } : item
-                )
-            );
-        }
+                return { ...item, cantidad: newQuantity, precioFinal: newPrecioFinal };
+            }).filter(Boolean) // Eliminar los items marcados como null
+        );
     };
 
     const clientObject = selectedClientId ? clients.find(c => c.id === selectedClientId) : null;
@@ -58,23 +54,25 @@ function Cart({
                     <p className="text-zinc-400 italic text-sm text-center py-10">El carrito está vacío.</p>
                 ) : (
                     cartItems.map((item) => (
-                        // --- MODIFICADO: La visualización de cada item ---
-                        <div key={item.id} className="flex justify-between items-start mb-2 text-sm border-b border-zinc-700 pb-2 last:border-b-0">
+                        <div key={item.cartId} className="flex justify-between items-center mb-2 text-sm border-b border-zinc-700 pb-2 last:border-b-0">
+                            {/* --- VISUALIZACIÓN CORREGIDA --- */}
                             <div className="flex-grow pr-2">
                                 <p className="font-medium text-zinc-100">{item.nombre}</p>
-                                {item.descuentoPorcentaje > 0 && (
-                                    <div className="text-xs">
-                                        <span className="text-zinc-500 line-through mr-2">${formatCurrency(item.precioOriginal)}</span>
-                                        <span className="text-green-400 font-semibold">(-{item.descuentoPorcentaje}%)</span>
-                                    </div>
-                                )}
-                                <p className="text-zinc-300 text-xs">{item.cantidad} x ${formatCurrency(item.precioFinal)}</p>
+                                <p className="text-zinc-300 text-xs">
+                                    {item.vendidoPor === 'peso' ? `${item.cantidad.toFixed(3)} Kg` : `${item.cantidad} u.`}
+                                    {item.descuentoPorcentaje > 0 && <span className="text-green-400 font-semibold"> (-{item.descuentoPorcentaje}%)</span>}
+                                </p>
                             </div>
-                            <div className="col-span-2 flex items-center justify-end gap-1">
-                                <motion.button onClick={() => handleUpdateQuantity(item.id, -1)} className="p-1 text-zinc-400 hover:text-white" whileTap={{ scale: 0.9 }}><MinusCircle size={18}/></motion.button>
-                                <span className="font-bold text-lg text-white w-8 text-center">{item.cantidad}</span>
-                                <motion.button onClick={() => handleUpdateQuantity(item.id, 1)} className="p-1 text-zinc-400 hover:text-white" whileTap={{ scale: 0.9 }}><PlusCircle size={18}/></motion.button>
-                                <motion.button onClick={() => handleRemoveItem(item.id)} className="p-1 text-red-500 hover:text-red-400 ml-2" title="Quitar" whileTap={{ scale: 0.9 }}><Trash2 size={18}/></motion.button>
+                            <div className="flex items-center gap-2">
+                                <div className="text-right">
+                                    <p className="font-bold text-zinc-100">{formatCurrency(item.precioFinal)}</p>
+                                    {item.cantidad > 1 && item.vendidoPor !== 'peso' && (
+                                        <p className="text-xs text-zinc-400">({formatCurrency(item.precioOriginal)} c/u)</p>
+                                    )}
+                                </div>
+                                <motion.button onClick={() => handleRemoveItem(item.cartId)} className="p-1 text-red-500 hover:text-red-400 ml-2" title="Quitar" whileTap={{ scale: 0.9 }}>
+                                    <Trash2 size={18}/>
+                                </motion.button>
                             </div>
                         </div>
                     ))
