@@ -10,8 +10,8 @@ const ProveedorForm = ({ onSave, editingProveedor, onCancelEdit }) => {
     direccion: '',
     cuit: '',
     notas: '',
-    zona: '',    
-    rubro: '',   
+    zona: '',
+    rubro: '',
     marcas: '',
   });
 
@@ -20,7 +20,17 @@ const ProveedorForm = ({ onSave, editingProveedor, onCancelEdit }) => {
       setProveedor(editingProveedor);
     } else {
       // Reset form
-      setProveedor({ nombre: '', telefono: '', email: '', direccion: '', cuit: '', notas: '', zona: '', rubro: '', marcas: '' });
+      setProveedor({
+        nombre: '',
+        telefono: '',
+        email: '',
+        direccion: '',
+        cuit: '',
+        notas: '',
+        zona: '',
+        rubro: '',
+        marcas: '',
+      });
     }
   }, [editingProveedor]);
 
@@ -37,26 +47,36 @@ const ProveedorForm = ({ onSave, editingProveedor, onCancelEdit }) => {
       return;
     }
     onSave(proveedor, editingProveedor?.id || null);
-    setProveedor({ nombre: '', telefono: '', email: '', direccion: '', cuit: '', notas: '' }); // Limpiar formulario
+    setProveedor({
+      nombre: '',
+      telefono: '',
+      email: '',
+      direccion: '',
+      cuit: '',
+      notas: '',
+    }); // Limpiar formulario
   };
 
   return (
     <motion.div
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-zinc-800 p-4 rounded-lg shadow-md mb-6 border border-zinc-700"
+      className="mb-6 rounded-lg border border-zinc-700 bg-zinc-800 p-4 shadow-md"
     >
-      <h3 className="text-lg font-bold text-white mb-4">
+      <h3 className="mb-4 text-lg font-bold text-white">
         {editingProveedor ? 'Editando Proveedor' : 'Nuevo Proveedor'}
       </h3>
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <form
+        onSubmit={handleSubmit}
+        className="grid grid-cols-1 gap-4 md:grid-cols-2"
+      >
         <input
           type="text"
           name="nombre"
           value={proveedor.nombre}
           onChange={handleChange}
           placeholder="Nombre o Razón Social"
-          className="bg-zinc-700 text-white p-2 rounded-md border border-zinc-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+          className="rounded-md border border-zinc-600 bg-zinc-700 p-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
           required
         />
         <input
@@ -65,33 +85,32 @@ const ProveedorForm = ({ onSave, editingProveedor, onCancelEdit }) => {
           value={proveedor.cuit}
           onChange={handleChange}
           placeholder="CUIT / CUIL"
-          className="bg-zinc-700 text-white p-2 rounded-md border border-zinc-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+          className="rounded-md border border-zinc-600 bg-zinc-700 p-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
         />
         <input
-  type="text"
-  name="zona"
-  value={proveedor.zona || ''}
-  onChange={handleChange}
-  placeholder="Zona (ej: Capital, Zona Norte)"
-  className="bg-zinc-700 text-white p-2 rounded-md border border-zinc-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-/>
-<input
-  type="text"
-  name="rubro"
-  value={proveedor.rubro || ''}
-  onChange={handleChange}
-  placeholder="Rubro (ej: Ferretería, Limpieza)"
-  className="bg-zinc-700 text-white p-2 rounded-md border border-zinc-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-/>
-<input
-  type="text"
-  name="marcas"
-  value={proveedor.marcas || ''}
-  onChange={handleChange}
-  placeholder="Marcas (separadas por coma)"
-  className="bg-zinc-700 text-white p-2 rounded-md border border-zinc-600 md:col-span-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-/>
-
+          type="text"
+          name="zona"
+          value={proveedor.zona || ''}
+          onChange={handleChange}
+          placeholder="Zona (ej: Capital, Zona Norte)"
+          className="rounded-md border border-zinc-600 bg-zinc-700 p-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+        />
+        <input
+          type="text"
+          name="rubro"
+          value={proveedor.rubro || ''}
+          onChange={handleChange}
+          placeholder="Rubro (ej: Ferretería, Limpieza)"
+          className="rounded-md border border-zinc-600 bg-zinc-700 p-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+        />
+        <input
+          type="text"
+          name="marcas"
+          value={proveedor.marcas || ''}
+          onChange={handleChange}
+          placeholder="Marcas (separadas por coma)"
+          className="rounded-md border border-zinc-600 bg-zinc-700 p-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 md:col-span-2"
+        />
 
         <input
           type="tel"
@@ -99,7 +118,7 @@ const ProveedorForm = ({ onSave, editingProveedor, onCancelEdit }) => {
           value={proveedor.telefono}
           onChange={handleChange}
           placeholder="Teléfono"
-          className="bg-zinc-700 text-white p-2 rounded-md border border-zinc-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+          className="rounded-md border border-zinc-600 bg-zinc-700 p-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
         />
         <input
           type="email"
@@ -107,14 +126,14 @@ const ProveedorForm = ({ onSave, editingProveedor, onCancelEdit }) => {
           value={proveedor.email}
           onChange={handleChange}
           placeholder="Email"
-          className="bg-zinc-700 text-white p-2 rounded-md border border-zinc-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+          className="rounded-md border border-zinc-600 bg-zinc-700 p-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
         />
         <textarea
           name="direccion"
           value={proveedor.direccion}
           onChange={handleChange}
           placeholder="Dirección"
-          className="bg-zinc-700 text-white p-2 rounded-md border border-zinc-600 md:col-span-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+          className="rounded-md border border-zinc-600 bg-zinc-700 p-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 md:col-span-2"
           rows="2"
         />
         <textarea
@@ -122,22 +141,22 @@ const ProveedorForm = ({ onSave, editingProveedor, onCancelEdit }) => {
           value={proveedor.notas}
           onChange={handleChange}
           placeholder="Notas Adicionales"
-          className="bg-zinc-700 text-white p-2 rounded-md border border-zinc-600 md:col-span-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+          className="rounded-md border border-zinc-600 bg-zinc-700 p-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 md:col-span-2"
           rows="3"
         />
-        <div className="md:col-span-2 flex justify-end gap-3">
+        <div className="flex justify-end gap-3 md:col-span-2">
           {editingProveedor && (
             <button
               type="button"
               onClick={onCancelEdit}
-              className="bg-zinc-600 hover:bg-zinc-500 text-white font-bold py-2 px-4 rounded-md transition-colors"
+              className="rounded-md bg-zinc-600 px-4 py-2 font-bold text-white transition-colors hover:bg-zinc-500"
             >
               Cancelar Edición
             </button>
           )}
           <button
             type="submit"
-            className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded-md transition-colors"
+            className="rounded-md bg-cyan-600 px-4 py-2 font-bold text-white transition-colors hover:bg-cyan-500"
           >
             {editingProveedor ? 'Actualizar Proveedor' : 'Guardar Proveedor'}
           </button>

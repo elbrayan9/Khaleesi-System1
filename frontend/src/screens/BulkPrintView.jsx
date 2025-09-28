@@ -5,7 +5,10 @@ import Barcode from 'react-barcode';
 
 const BulkPrintView = () => {
   const [products, setProducts] = useState([]);
-  const [options, setOptions] = useState({ includeQR: true, includeBarcode: true });
+  const [options, setOptions] = useState({
+    includeQR: true,
+    includeBarcode: true,
+  });
 
   useEffect(() => {
     const productsData = sessionStorage.getItem('productsToPrint');
@@ -17,7 +20,7 @@ const BulkPrintView = () => {
     if (optionsData) {
       setOptions(JSON.parse(optionsData));
     }
-    
+
     // La impresión se activa solo si hay datos
     if (productsData) {
       setTimeout(() => {
@@ -27,7 +30,11 @@ const BulkPrintView = () => {
   }, []);
 
   if (products.length === 0) {
-    return <div>Cargando productos para imprimir o no se seleccionaron productos.</div>;
+    return (
+      <div>
+        Cargando productos para imprimir o no se seleccionaron productos.
+      </div>
+    );
   }
 
   return (
@@ -46,27 +53,29 @@ const BulkPrintView = () => {
           .print-button { display: none; }
         `}
       </style>
-      <button onClick={() => window.print()} className="print-button fixed top-4 right-4 bg-cyan-600 text-white p-2 rounded">
+      <button
+        onClick={() => window.print()}
+        className="print-button fixed right-4 top-4 rounded bg-cyan-600 p-2 text-white"
+      >
         Imprimir
       </button>
-      {products.map(p => {
+      {products.map((p) => {
         const productUrl = `${window.location.origin}/product/${p.id}`;
         return (
           <div key={p.id} className="label-container">
-            <h3 className="font-bold text-lg">{p.nombre}</h3>
-            
+            <h3 className="text-lg font-bold">{p.nombre}</h3>
+
             {/* --- LÓGICA CONDICIONAL --- */}
             {options.includeBarcode && p.codigoBarras && (
               <Barcode value={p.codigoBarras} height={50} fontSize={12} />
             )}
-            
+
             {options.includeQR && (
               <div className="mt-2">
                 <QRCodeSVG value={productUrl} size={100} />
               </div>
             )}
             {/* ------------------------- */}
-
           </div>
         );
       })}

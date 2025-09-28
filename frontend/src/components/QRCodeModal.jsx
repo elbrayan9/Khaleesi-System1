@@ -37,18 +37,24 @@ const QRCodeModal = ({ product, onClose }) => {
   if (!product) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50">
-      <div className="bg-zinc-800 p-6 rounded-lg text-center border border-zinc-700">
-        <h3 className="text-xl font-bold text-white mb-2">{product.nombre}</h3>
-        <p className="text-zinc-400 mb-4">Código QR para precio dinámico</p>
-        <div ref={qrCodeRef} className="bg-white p-4 rounded-md inline-block">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
+      <div className="rounded-lg border border-zinc-700 bg-zinc-800 p-6 text-center">
+        <h3 className="mb-2 text-xl font-bold text-white">{product.nombre}</h3>
+        <p className="mb-4 text-zinc-400">Código QR para precio dinámico</p>
+        <div ref={qrCodeRef} className="inline-block rounded-md bg-white p-4">
           <QRCodeSVG value={productUrl} size={256} />
         </div>
         <div className="mt-6 flex justify-center gap-4">
-          <button onClick={handlePrint} className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded-md">
+          <button
+            onClick={handlePrint}
+            className="flex items-center gap-2 rounded-md bg-cyan-600 px-4 py-2 font-bold text-white hover:bg-cyan-500"
+          >
             <FiPrinter /> Imprimir
           </button>
-          <button onClick={onClose} className="bg-zinc-600 hover:bg-zinc-500 text-white font-bold py-2 px-4 rounded-md">
+          <button
+            onClick={onClose}
+            className="rounded-md bg-zinc-600 px-4 py-2 font-bold text-white hover:bg-zinc-500"
+          >
             <FiX /> Cerrar
           </button>
         </div>

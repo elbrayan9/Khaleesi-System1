@@ -1,13 +1,16 @@
 // src/firebaseConfig.js
-import { getAuth } from "firebase/auth";
-import { initializeApp } from "firebase/app";
+import { getAuth } from 'firebase/auth';
+import { initializeApp } from 'firebase/app';
 import {
   initializeFirestore,
   persistentLocalCache,
   persistentSingleTabManager,
   setLogLevel,
-} from "firebase/firestore";
-import { getAnalytics, isSupported as analyticsIsSupported } from "firebase/analytics";
+} from 'firebase/firestore';
+import {
+  getAnalytics,
+  isSupported as analyticsIsSupported,
+} from 'firebase/analytics';
 
 // Config desde Vite (.env)
 const firebaseConfig = {
@@ -29,17 +32,19 @@ export const app = initializeApp(firebaseConfig);
  * - useFetchStreams: false para compatibilidad en redes/ISPs exigentes
  */
 export const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({ tabManager: persistentSingleTabManager() }),
+  localCache: persistentLocalCache({
+    tabManager: persistentSingleTabManager(),
+  }),
   experimentalForceLongPolling: true,
   useFetchStreams: false,
 });
 
 // (Opcional) bajar verbosidad del SDK para no ensuciar la consola
-setLogLevel("error");
+setLogLevel('error');
 
 // Analytics (opcional y seguro en SSR)
 export let analytics;
-if (typeof window !== "undefined") {
+if (typeof window !== 'undefined') {
   analyticsIsSupported().then((ok) => {
     if (ok) analytics = getAnalytics(app);
   });

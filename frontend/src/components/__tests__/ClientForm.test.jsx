@@ -26,7 +26,9 @@ describe('ClientForm', () => {
     const handleSave = vi.fn();
     render(<ClientForm onSave={handleSave} />);
 
-    fireEvent.change(screen.getByLabelText(/Nombre\/Razón Social/i), { target: { value: 'Cliente Válido' } });
+    fireEvent.change(screen.getByLabelText(/Nombre\/Razón Social/i), {
+      target: { value: 'Cliente Válido' },
+    });
     fireEvent.click(screen.getByRole('button', { name: /Agregar/i }));
 
     expect(handleSave).toHaveBeenCalledTimes(1);
@@ -37,17 +39,17 @@ describe('ClientForm', () => {
   it('debería mostrar un mensaje de advertencia si el nombre está vacío', () => {
     const handleSave = vi.fn();
     render(<ClientForm onSave={handleSave} />);
-    
+
     const submitButton = screen.getByRole('button', { name: /Agregar/i });
     fireEvent.click(submitButton);
 
     // Verificamos que onSave NO se haya llamado.
     expect(handleSave).not.toHaveBeenCalled();
-    
+
     // Verificamos que nuestra función espía SÍ fue llamada con el mensaje correcto.
     expect(mostrarMensajeMock).toHaveBeenCalledWith(
-      "El nombre del cliente es obligatorio.",
-      'warning'
+      'El nombre del cliente es obligatorio.',
+      'warning',
     );
   });
 });

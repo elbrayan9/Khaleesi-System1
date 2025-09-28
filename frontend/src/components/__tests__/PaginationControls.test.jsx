@@ -7,7 +7,6 @@ import PaginationControls from '../PaginationControls';
 
 // Describimos el conjunto de pruebas para el componente PaginationControls
 describe('PaginationControls', () => {
-
   it('debería renderizar los botones y la información de la página', () => {
     // Renderizamos el componente con props de ejemplo
     render(
@@ -17,15 +16,19 @@ describe('PaginationControls', () => {
         onPageChange={() => {}}
         itemsPerPage={10}
         totalItems={45}
-      />
+      />,
     );
 
     // Verificamos que el texto informativo sea correcto
     expect(screen.getByText('Mostrando 11-20 de 45')).toBeInTheDocument();
-    
+
     // Verificamos que ambos botones estén en el documento
-    expect(screen.getByRole('button', { name: /Anterior/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Siguiente/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /Anterior/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /Siguiente/i }),
+    ).toBeInTheDocument();
   });
 
   it('debería deshabilitar el botón "Anterior" en la primera página', () => {
@@ -36,13 +39,15 @@ describe('PaginationControls', () => {
         onPageChange={() => {}}
         itemsPerPage={10}
         totalItems={45}
-      />
+      />,
     );
 
     // Verificamos que el botón "Anterior" esté deshabilitado
     expect(screen.getByRole('button', { name: /Anterior/i })).toBeDisabled();
     // Verificamos que el botón "Siguiente" NO esté deshabilitado
-    expect(screen.getByRole('button', { name: /Siguiente/i })).not.toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: /Siguiente/i }),
+    ).not.toBeDisabled();
   });
 
   it('debería deshabilitar el botón "Siguiente" en la última página', () => {
@@ -53,10 +58,12 @@ describe('PaginationControls', () => {
         onPageChange={() => {}}
         itemsPerPage={10}
         totalItems={45}
-      />
+      />,
     );
 
-    expect(screen.getByRole('button', { name: /Anterior/i })).not.toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: /Anterior/i }),
+    ).not.toBeDisabled();
     expect(screen.getByRole('button', { name: /Siguiente/i })).toBeDisabled();
   });
 
@@ -71,7 +78,7 @@ describe('PaginationControls', () => {
         onPageChange={handlePageChange}
         itemsPerPage={10}
         totalItems={45}
-      />
+      />,
     );
 
     // Simulamos un clic en el botón "Siguiente"

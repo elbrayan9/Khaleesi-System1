@@ -5,7 +5,6 @@ import { formatCurrency } from '../helpers';
 
 // 'describe' agrupa tests relacionados. Es como un título para una sección de pruebas.
 describe('formatCurrency', () => {
-
   // 'it' o 'test' define una prueba individual. Describe lo que debería hacer.
   it('debería formatear un número entero a dos decimales', () => {
     // expect(valor_real).toBe(valor_esperado);
@@ -17,7 +16,7 @@ describe('formatCurrency', () => {
   });
 
   it('debería manejar números que ya tienen dos decimales', () => {
-    expect(formatCurrency(220.50)).toBe('220.50');
+    expect(formatCurrency(220.5)).toBe('220.50');
   });
 
   it('debería manejar el número 0 correctamente', () => {

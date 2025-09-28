@@ -7,7 +7,7 @@ function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="w-full text-center p-4 mt-auto border-t border-white/10">
+    <footer className="mt-auto w-full border-t border-white/10 p-4 text-center">
       <p className="text-xs text-zinc-400">
         &copy; {currentYear} Khaleesi System. Todos los derechos reservados.
       </p>

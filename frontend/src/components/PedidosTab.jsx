@@ -7,11 +7,16 @@ import { motion } from 'framer-motion';
 import { FiPlus } from 'react-icons/fi';
 import PedidoDetailModal from './PedidoDetailModal';
 // Opcional: Crearemos un modal de detalle simple también.
-// import PedidoDetailModal from './PedidoDetailModal'; 
+// import PedidoDetailModal from './PedidoDetailModal';
 
 const PedidosTab = () => {
-  const { pedidos, handleRecibirPedido, handleUpdatePedidoEstado, handleCancelarPedido } = useAppContext();
-  
+  const {
+    pedidos,
+    handleRecibirPedido,
+    handleUpdatePedidoEstado,
+    handleCancelarPedido,
+  } = useAppContext();
+
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedPedido, setSelectedPedido] = useState(null);
   // Opcional: Estado para un futuro modal de detalle
@@ -24,11 +29,13 @@ const PedidosTab = () => {
       exit={{ opacity: 0 }}
       className="space-y-6"
     >
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-white">Gestión de Pedidos a Proveedores</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-white">
+          Gestión de Pedidos a Proveedores
+        </h2>
         <button
           onClick={() => setIsFormOpen(true)}
-          className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded-md transition-colors"
+          className="flex items-center gap-2 rounded-md bg-cyan-600 px-4 py-2 font-bold text-white transition-colors hover:bg-cyan-500"
         >
           <FiPlus />
           Nuevo Pedido
@@ -43,10 +50,7 @@ const PedidosTab = () => {
         onVerDetalle={setSelectedPedido} // Descomentar si creas el modal de detalle
       />
 
-      <PedidoForm
-        isOpen={isFormOpen}
-        onClose={() => setIsFormOpen(false)}
-      />
+      <PedidoForm isOpen={isFormOpen} onClose={() => setIsFormOpen(false)} />
 
       {/* Opcional: Renderizar el modal de detalle */}
       {selectedPedido && (

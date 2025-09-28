@@ -16,7 +16,7 @@ const PublicProductView = () => {
     const fetchProduct = async () => {
       try {
         if (!productId) {
-          throw new Error("No se especificó un producto.");
+          throw new Error('No se especificó un producto.');
         }
         const productRef = doc(db, 'productos', productId);
         const productSnap = await getDoc(productRef);
@@ -24,7 +24,7 @@ const PublicProductView = () => {
         if (productSnap.exists()) {
           setProduct({ id: productSnap.id, ...productSnap.data() });
         } else {
-          throw new Error("Producto no encontrado.");
+          throw new Error('Producto no encontrado.');
         }
       } catch (err) {
         setError(err.message);
@@ -37,23 +37,33 @@ const PublicProductView = () => {
   }, [productId]);
 
   if (loading) {
-    return <div className="flex justify-center items-center h-screen bg-zinc-900 text-white">Cargando...</div>;
+    return (
+      <div className="flex h-screen items-center justify-center bg-zinc-900 text-white">
+        Cargando...
+      </div>
+    );
   }
 
   if (error) {
-    return <div className="flex justify-center items-center h-screen bg-zinc-900 text-red-500">{error}</div>;
+    return (
+      <div className="flex h-screen items-center justify-center bg-zinc-900 text-red-500">
+        {error}
+      </div>
+    );
   }
 
   return (
-    <div className="bg-zinc-900 min-h-screen flex flex-col items-center justify-center p-4 text-white font-sans">
-      <div className="w-full max-w-sm bg-zinc-800 rounded-2xl shadow-lg p-8 border border-zinc-700 text-center">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-900 p-4 font-sans text-white">
+      <div className="w-full max-w-sm rounded-2xl border border-zinc-700 bg-zinc-800 p-8 text-center shadow-lg">
         <div className="mb-6">
-          <AppLogo className="h-12 w-auto mx-auto" />
+          <AppLogo className="mx-auto h-12 w-auto" />
         </div>
-        <h1 className="text-3xl font-bold text-white mb-2">{product.nombre}</h1>
-        <p className="text-zinc-400 mb-6">{product.descripcion || 'Descripción no disponible'}</p>
-        
-        <div className="bg-cyan-600 text-white rounded-lg p-4">
+        <h1 className="mb-2 text-3xl font-bold text-white">{product.nombre}</h1>
+        <p className="mb-6 text-zinc-400">
+          {product.descripcion || 'Descripción no disponible'}
+        </p>
+
+        <div className="rounded-lg bg-cyan-600 p-4 text-white">
           <span className="text-lg">Precio Actual:</span>
           <h2 className="text-5xl font-extrabold tracking-tight">
             {formatCurrency(product.precio)}
@@ -61,7 +71,9 @@ const PublicProductView = () => {
         </div>
 
         {product.codigoBarras && (
-          <p className="text-zinc-500 mt-6 text-sm">Código: {product.codigoBarras}</p>
+          <p className="mt-6 text-sm text-zinc-500">
+            Código: {product.codigoBarras}
+          </p>
         )}
       </div>
     </div>

@@ -3,11 +3,24 @@
 import React from 'react';
 
 const SalesHeatmap = ({ data }) => {
-  const dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
-  const horas = Array.from({ length: 15 }, (_, i) => (i + 8).toString().padStart(2, '0')); // De 08 a 22 hs
+  const dias = [
+    'Lunes',
+    'Martes',
+    'Miércoles',
+    'Jueves',
+    'Viernes',
+    'Sábado',
+    'Domingo',
+  ];
+  const horas = Array.from({ length: 15 }, (_, i) =>
+    (i + 8).toString().padStart(2, '0'),
+  ); // De 08 a 22 hs
 
   // Encontramos el valor máximo para calcular la intensidad del color
-  const maxVentas = Math.max(0, ...Object.values(data).flatMap(d => Object.values(d)));
+  const maxVentas = Math.max(
+    0,
+    ...Object.values(data).flatMap((d) => Object.values(d)),
+  );
 
   const getColorClass = (count) => {
     if (!count || count === 0) return 'bg-zinc-700/50';
@@ -23,20 +36,23 @@ const SalesHeatmap = ({ data }) => {
     <div className="grid grid-cols-8 gap-1 text-xs">
       {/* Fila de Encabezado de Horas */}
       <div></div> {/* Celda vacía en la esquina */}
-      {dias.map(dia => (
-        <div key={dia} className="text-center font-bold text-zinc-300 pb-2">{dia.substring(0,3)}</div>
+      {dias.map((dia) => (
+        <div key={dia} className="pb-2 text-center font-bold text-zinc-300">
+          {dia.substring(0, 3)}
+        </div>
       ))}
-
       {/* Filas de Datos */}
-      {horas.map(hora => (
+      {horas.map((hora) => (
         <React.Fragment key={hora}>
-          <div className="text-right font-bold text-zinc-300 pr-2">{hora}:00</div>
-          {dias.map(dia => {
+          <div className="pr-2 text-right font-bold text-zinc-300">
+            {hora}:00
+          </div>
+          {dias.map((dia) => {
             const count = data[dia]?.[hora] || 0;
             return (
-              <div 
-                key={`${dia}-${hora}`} 
-                className={`h-8 w-full rounded-md flex items-center justify-center ${getColorClass(count)}`}
+              <div
+                key={`${dia}-${hora}`}
+                className={`flex h-8 w-full items-center justify-center rounded-md ${getColorClass(count)}`}
                 title={`${count} venta${count !== 1 ? 's' : ''} el ${dia} a las ${hora}hs`}
               >
                 {count > 0 ? count : ''}

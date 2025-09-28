@@ -1,13 +1,12 @@
 // src/services/authService.js
-import { 
-    getAuth, 
-    createUserWithEmailAndPassword, 
-    signInWithEmailAndPassword, 
-    signOut, 
-    sendPasswordResetEmail,
-    onAuthStateChanged 
-    
-} from "firebase/auth";
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  sendPasswordResetEmail,
+  onAuthStateChanged,
+} from 'firebase/auth';
 import { db } from '../firebaseConfig';
 import { doc, setDoc } from 'firebase/firestore';
 
@@ -21,16 +20,20 @@ const auth = getAuth();
  * @returns {Promise<UserCredential>}
  */
 export const signUpWithBusiness = async (email, password, nombreNegocio) => {
-  const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+  const userCredential = await createUserWithEmailAndPassword(
+    auth,
+    email,
+    password,
+  );
   const user = userCredential.user;
 
   // Al registrarse, crea el documento del negocio con valores por defecto.
-  const negocioRef = doc(db, "datosNegocio", user.uid);
+  const negocioRef = doc(db, 'datosNegocio', user.uid);
   await setDoc(negocioRef, {
     nombre: nombreNegocio,
-    direccion: "",
-    cuit: "",
-    subscriptionStatus: "trial", // o 'active' si quieres
+    direccion: '',
+    cuit: '',
+    subscriptionStatus: 'trial', // o 'active' si quieres
     subscriptionEndDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000), // Ejemplo: 15 días de prueba
     habilitarVentaRapida: true, // Habilitado por defecto para nuevos negocios
     userId: user.uid,
@@ -64,7 +67,7 @@ export const sendPasswordReset = async (email) => {
     // Firebase se encarga de enviar el email. No necesitamos devolver nada.
   } catch (error) {
     // Si hay un error (ej: el email no existe), lo lanzamos para manejarlo en la pantalla.
-    console.error("Error al enviar email de restablecimiento:", error);
+    console.error('Error al enviar email de restablecimiento:', error);
     throw error;
   }
 };

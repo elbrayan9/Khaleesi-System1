@@ -6,7 +6,8 @@ import ProveedorTable from './ProveedorTable';
 import { motion } from 'framer-motion';
 
 const ProveedoresTab = () => {
-  const { proveedores, handleSaveProveedor, handleDeleteProveedor } = useAppContext();
+  const { proveedores, handleSaveProveedor, handleDeleteProveedor } =
+    useAppContext();
   const [editingProveedor, setEditingProveedor] = useState(null);
 
   const handleEdit = (proveedor) => {

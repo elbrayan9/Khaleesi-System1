@@ -2,7 +2,7 @@
 
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import path from "path";
+import path from 'path';
 import { fileURLToPath } from 'url';
 
 // Importamos la referencia para la configuración de test
@@ -15,7 +15,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      '@': path.resolve(__dirname, './src'),
     },
   },
   // --- AÑADIMOS ESTA SECCIÓN ---

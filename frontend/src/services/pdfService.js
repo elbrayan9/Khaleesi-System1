@@ -12,7 +12,9 @@ import { formatCurrency } from '../utils/helpers';
  */
 export const generarPdfVenta = (venta, datosNegocio, cliente) => {
   if (!venta) {
-    console.error("No se proporcionaron datos de la venta para generar el PDF.");
+    console.error(
+      'No se proporcionaron datos de la venta para generar el PDF.',
+    );
     return;
   }
 
@@ -43,14 +45,17 @@ export const generarPdfVenta = (venta, datosNegocio, cliente) => {
   doc.setFontSize(12);
   doc.setTextColor(primaryColor);
   doc.text('RECIBO DE VENTA', 205, 22, { align: 'right' });
-  
+
   doc.setFont(font, 'normal');
   doc.setFontSize(10);
   doc.setTextColor(textColor);
   doc.text(`N°: ${venta.id}`, 205, 28, { align: 'right' });
-  doc.text(`Fecha: ${venta.fecha} - ${venta.hora}`, 205, 34, { align: 'right' });
-  doc.text(`Vendedor: ${venta.vendedorNombre || 'N/A'}`, 205, 40, { align: 'right' });
-
+  doc.text(`Fecha: ${venta.fecha} - ${venta.hora}`, 205, 34, {
+    align: 'right',
+  });
+  doc.text(`Vendedor: ${venta.vendedorNombre || 'N/A'}`, 205, 40, {
+    align: 'right',
+  });
 
   // 5. Datos del Cliente
   doc.setDrawColor(secondaryColor);
@@ -61,7 +66,8 @@ export const generarPdfVenta = (venta, datosNegocio, cliente) => {
   doc.text('Cliente:', 14, 55);
 
   doc.setFont(font, 'normal');
-  const clienteNombre = cliente?.nombre || venta.clienteNombre || 'Consumidor Final';
+  const clienteNombre =
+    cliente?.nombre || venta.clienteNombre || 'Consumidor Final';
   const clienteCuit = cliente?.cuit || '';
   doc.text(clienteNombre, 28, 55);
   if (clienteCuit) {
@@ -70,10 +76,10 @@ export const generarPdfVenta = (venta, datosNegocio, cliente) => {
   doc.line(14, 68, 196, 68); // Línea separadora
 
   // 6. Tabla de Productos (usando jspdf-autotable)
-  const tableColumn = ["Cant.", "Producto", "P. Unit.", "Desc.", "Subtotal"];
+  const tableColumn = ['Cant.', 'Producto', 'P. Unit.', 'Desc.', 'Subtotal'];
   const tableRows = [];
 
-  venta.items.forEach(item => {
+  venta.items.forEach((item) => {
     const itemData = [
       item.cantidad,
       item.nombre,
@@ -101,10 +107,10 @@ export const generarPdfVenta = (venta, datosNegocio, cliente) => {
     },
     columnStyles: {
       0: { halign: 'center' }, // Cantidad
-      2: { halign: 'right' },  // P. Unit.
+      2: { halign: 'right' }, // P. Unit.
       3: { halign: 'center' }, // Desc.
-      4: { halign: 'right' },  // Subtotal
-    }
+      4: { halign: 'right' }, // Subtotal
+    },
   });
 
   // 7. Totales y Métodos de Pago
@@ -116,21 +122,27 @@ export const generarPdfVenta = (venta, datosNegocio, cliente) => {
   doc.setFont(font, 'normal');
   let pagoY = finalY;
   if (venta.pagos && venta.pagos.length > 0) {
-      venta.pagos.forEach(p => {
-          pagoY += 6;
-          doc.text(`${p.metodo.replace('_', ' ').charAt(0).toUpperCase() + p.metodo.slice(1).replace('_', ' ')}:`, 14, pagoY);
-          doc.text(`$${formatCurrency(p.monto)}`, 50, pagoY, {align: 'right'});
-      });
-  } else {
+    venta.pagos.forEach((p) => {
       pagoY += 6;
-      doc.text(venta.metodoPago || 'N/A', 14, pagoY);
+      doc.text(
+        `${p.metodo.replace('_', ' ').charAt(0).toUpperCase() + p.metodo.slice(1).replace('_', ' ')}:`,
+        14,
+        pagoY,
+      );
+      doc.text(`$${formatCurrency(p.monto)}`, 50, pagoY, { align: 'right' });
+    });
+  } else {
+    pagoY += 6;
+    doc.text(venta.metodoPago || 'N/A', 14, pagoY);
   }
 
   // Total
   doc.setFontSize(14);
   doc.setFont(font, 'bold');
   doc.text('TOTAL:', 150, finalY + 8);
-  doc.text(`$${formatCurrency(venta.total)}`, 205, finalY + 8, { align: 'right' });
+  doc.text(`$${formatCurrency(venta.total)}`, 205, finalY + 8, {
+    align: 'right',
+  });
 
   // 8. Pie de página
   const pageCount = doc.internal.getNumberOfPages();
