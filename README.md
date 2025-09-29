@@ -62,11 +62,13 @@ Sigue estos pasos para levantar el proyecto en tu máquina local.
 
 ### 1. Clona el Repositorio
 
-```bash
+Bash
+
 git clone [https://github.com/elbrayan9/khaleesi-system1.git](https://github.com/elbrayan9/khaleesi-system1.git)
 cd khaleesi-system1
 
-2. Configura el Frontend
+### 2. Configura el Frontend
+
 Bash
 
 cd frontend
@@ -83,7 +85,10 @@ VITE_FIREBASE_STORAGE_BUCKET="tu-proyecto.appspot.com"
 VITE_FIREBASE_MESSAGING_SENDER_ID="..."
 VITE_FIREBASE_APP_ID="1:..."
 
-3. Configura el Backend (Firebase Functions)
+---
+
+### 3. Configura el Backend (Firebase Functions)
+
 Bash
 
 cd ../functions
@@ -92,14 +97,16 @@ Configura las variables de entorno para las Cloud Functions. Necesitarás tu cla
 
 Bash
 
-firebase functions:config:set gemini.key="TU_API_KEY_DE_GEMINI"
+# firebase functions:config:set gemini.key="TU_API_KEY_DE_GEMINI"
 
-4. ¡A Correr!
+### 4. ¡A Correr!
+
 Para iniciar el servidor de desarrollo del frontend:
 
 Bash
 
 # Desde la carpeta /frontend
+
 npm run dev
 Tu aplicación estará disponible en http://localhost:5173.
 
@@ -109,7 +116,6 @@ La aplicación está desplegada en Netlify y se actualiza automáticamente con c
 📄 Licencia
 Este proyecto está bajo la Licencia MIT. Consulta el archivo LICENSE para más detalles.
 
-<div align="center">
-<p>Hecho con ❤️ por Brian</p>
-</div>
-```
+---
+
+<p align="center">Hecho con ❤️ por Brian</p>
