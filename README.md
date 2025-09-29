@@ -1,173 +1,115 @@
-Khaleesi System - Punto de Venta y Gestión
-Khaleesi System es una aplicación web de Punto de Venta (POS) y gestión de negocios, diseñada para ser rápida, segura y fácil de usar. Construida como una aplicación de página única (SPA) con React, utiliza Firebase para un backend robusto que incluye autenticación, base de datos en tiempo real y lógica en la nube con Cloud Functions v2.
+<div align="center">
+  <img src="frontend/public/khaleesi-system.svg" alt="Khaleesi System Logo" width="150"/>
+  <h1>Khaleesi System</h1>
+  <p>
+    <strong>Un sistema de Punto de Venta (POS) y gestión de negocios todo en uno, moderno y potente.</strong>
+  </p>
+  <p>
+    Construido con React, Firebase y TailwindCSS para ofrecer una experiencia de usuario rápida, segura y en tiempo real.
+  </p>
 
-🚀 Tecnologías Utilizadas
-⚛️ React (con Hooks)
+  <p>
+    <a href="https://khaleesisystem.com.ar/">
+      <img src="https://img.shields.io/website?label=Sitio%20Web&style=for-the-badge&url=https%3A%2F%2Fkhaleesisystem.com.ar%2F" alt="Sitio Web"/>
+    </a>
+    <img src="https://img.shields.io/github/last-commit/elbrayan9/khaleesi-system1?style=for-the-badge" alt="Último Commit"/>
+    <img src="https://img.shields.io/github/repo-size/elbrayan9/khaleesi-system1?style=for-the-badge" alt="Tamaño del Repositorio"/>
+  </p>
+</div>
 
-🛣️ React Router DOM: Para un enrutamiento fluido en el lado del cliente.
+---
 
-🔄 React Context API: Para una gestión de estado global centralizada.
+## ✨ Características Principales
 
-⚡ Vite: Como herramienta de construcción y servidor de desarrollo de alta velocidad.
+Khaleesi System no es solo un POS, es una suite completa para administrar tu negocio.
 
-🔥 Firebase (Backend):
+- **📈 Punto de Venta (POS):** Interfaz rápida e intuitiva para procesar ventas, con carrito de compras y gestión de pagos.
+- **📦 Gestión de Inventario:** Control de productos, stock en tiempo real, precios, costos y códigos de barras.
+- **👥 CRM Integrado:** Administra tu base de datos de clientes, proveedores y vendedores.
+- **📊 Reportes y Analíticas:** Visualiza tus ventas diarias, mensuales, productos más vendidos y flujo de caja con gráficos interactivos.
+- **🤖 Asistente con IA:** Chatbot integrado con la **API de Gemini** para resolver dudas y asistir a los usuarios.
+- **⚙️ Funciones Avanzadas:**
+  - Importación y exportación de datos a **Excel**.
+  - Impresión de tickets de venta y notas de crédito.
+  - Generación de **códigos QR** para precios dinámicos.
+  - Panel de administrador para la gestión de usuarios y suscripciones.
 
-Authentication: Gestión completa de usuarios con email/contraseña y roles (Admin/Usuario).
+---
 
-Firestore: Base de datos NoSQL en tiempo real para productos, clientes, vendedores y ventas.
+## 🚀 Tecnologías Utilizadas
 
-Cloud Functions v2: Para lógica de backend segura (asignación de roles, actualizaciones masivas, conexión con APIs externas).
+Este proyecto fue construido utilizando un stack de tecnologías modernas, enfocado en el rendimiento y la escalabilidad.
 
-🧠 Google Gemini API: Integrada a través de una Cloud Function para un chatbot de asistencia inteligente.
+| Área         | Tecnología                                                                                                                                                                                                                                                                                                                 |
+| :----------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Frontend** | ![React](https://img.shields.io/badge/-React-61DAFB?style=for-the-badge&logo=react&logoColor=white) ![Vite](https://img.shields.io/badge/-Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white) ![TailwindCSS](https://img.shields.io/badge/-TailwindCSS-38B2AC?style=for-the-badge&logo=tailwindcss&logoColor=white) |
+| **Backend**  | ![Firebase](https://img.shields.io/badge/-Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=white) (Auth, Firestore, Functions)                                                                                                                                                                                  |
+| **APIs**     | ![Google Gemini](https://img.shields.io/badge/-Google%20Gemini-8E77F0?style=for-the-badge&logo=google&logoColor=white)                                                                                                                                                                                                     |
+| **UI**       | `shadcn/ui`, `Chart.js`, `react-hot-toast`                                                                                                                                                                                                                                                                                 |
+| **Hosting**  | ![Netlify](https://img.shields.io/badge/-Netlify-00C7B7?style=for-the-badge&logo=netlify&logoColor=white)                                                                                                                                                                                                                  |
 
-🎨 Tailwind CSS: Para una estilización moderna y responsiva.
+---
 
-🎬 Framer Motion: Para animaciones fluidas que mejoran la experiencia de usuario.
+## 🛠️ Cómo Empezar (Instalación Local)
 
-🔔 SweetAlert2: Para notificaciones y diálogos de confirmación elegantes.
+Sigue estos pasos para levantar el proyecto en tu máquina local.
 
-✨ Lucide React: Para un set de íconos limpios y consistentes.
+### Prerrequisitos
 
-🛠️ Node.js + npm: Para la gestión de dependencias.
+- Node.js (v18 o superior)
+- `npm` o `yarn`
+- Una cuenta de Firebase
 
-✨ Funcionalidades Implementadas
-Sistema de Autenticación y Diseño:
+### 1. Clona el Repositorio
 
-Registro, Inicio de Sesión y Cierre de Sesión.
+```bash
+git clone [https://github.com/elbrayan9/khaleesi-system1.git](https://github.com/elbrayan9/khaleesi-system1.git)
+cd khaleesi-system1
 
-Función de Recuperación de Contraseña.
-
-Fondo animado e interactivo en todas las pantallas de autenticación.
-
-Roles de Usuario: Distinción entre usuarios comunes y Administradores.
-
-Módulo de Ventas Dinámico (Punto de Venta):
-
-Búsqueda de productos por nombre o código de barras.
-
-Carrito de compras con capacidad para modificar cantidades.
-
-Descuentos por producto aplicados en porcentaje al momento de la venta.
-
-Pagos Divididos: Posibilidad de registrar una venta con múltiples métodos de pago (ej: parte en efectivo, parte con tarjeta).
-
-Calculadora de Vuelto automática para pagos en efectivo.
-
-Actualización de stock en tiempo real tras cada venta.
-
-Gestión (CRUD Completo):
-
-Productos: Gestión completa con control de stock, costo y precio.
-
-Clientes: Base de datos de clientes.
-
-Vendedores: Gestión de la lista de personal del negocio.
-
-Selección de Vendedor Activo por sesión para registrar quién realiza cada operación.
-
-Módulo de Reportes y Caja:
-
-Visualización de ventas diarias y mensuales.
-
-Registro de ingresos y egresos manuales para un control de caja preciso.
-
-Cierre de Caja con desglose de ventas por método de pago y por vendedor.
-
-Notas de Crédito y Débito:
-
-Formulario para crear notas de crédito/débito para clientes registrados o Consumidor Final.
-
-Lógica para devolución de productos y ajuste automático de stock.
-
-Funciones Avanzadas:
-
-Importación/Exportación a Excel: Permite actualizar precios y stock de forma masiva.
-
-Impresión de Tickets: Generación de tickets de venta y notas de crédito con un formato profesional y en una sola página.
-
-Chatbot de Ayuda con Gemini: Un asistente inteligente integrado que responde preguntas sobre el sistema.
-
-Panel de Administrador:
-
-Visualización de todos los usuarios registrados.
-
-Gestión de suscripciones de usuarios.
-
-🛠️ Instalación y Uso
-Prerrequisitos
-Node.js (v18.x o superior)
-
-npm (incluido con Node.js)
-
-Cuenta de Firebase con un proyecto creado y la facturación activada (Plan Blaze) para el uso de Cloud Functions y APIs de Google.
-
-Pasos para el Frontend
-Clonar el repositorio:
-
+2. Configura el Frontend
 Bash
 
-git clone https://github.com/elbrayan9/khaleesi-system1.git
-cd khaleesi-system1/frontend
-Instalar dependencias:
-
-Bash
-
+cd frontend
 npm install
-Configurar variables de entorno:
 
-Crea un archivo .env en la raíz de la carpeta frontend/.
-
-Añade tus credenciales de Firebase (puedes obtenerlas desde la configuración de tu proyecto en la consola de Firebase).
+Crea un archivo .env en la carpeta frontend y añade las credenciales de tu proyecto de Firebase:
 
 Fragmento de código
 
-VITE_API_KEY=TU_API_KEY
-VITE_AUTH_DOMAIN=TU_AUTH_DOMAIN
-VITE_PROJECT_ID=TU_PROJECT_ID
-VITE_STORAGE_BUCKET=TU_STORAGE_BUCKET
-VITE_MESSAGING_SENDER_ID=TU_MESSAGING_SENDER_ID
-VITE_APP_ID=TU_APP_ID
-Ejecutar en modo desarrollo:
+VITE_FIREBASE_API_KEY="AIza..."
+VITE_FIREBASE_AUTH_DOMAIN="tu-proyecto.firebaseapp.com"
+VITE_FIREBASE_PROJECT_ID="tu-proyecto"
+VITE_FIREBASE_STORAGE_BUCKET="tu-proyecto.appspot.com"
+VITE_FIREBASE_MESSAGING_SENDER_ID="..."
+VITE_FIREBASE_APP_ID="1:..."
 
+3. Configura el Backend (Firebase Functions)
 Bash
 
-npm run dev
-Pasos para el Backend (Cloud Functions)
-Navegar a la carpeta de funciones:
-
-Bash
-
-cd ../functions 
-Instalar dependencias:
-
-Bash
-
+cd ../functions
 npm install
-Configurar Clave Secreta de Gemini:
-
-Obtén tu clave de API desde Google AI Studio.
-
-Asegúrate de que las APIs Vertex AI y Generative Language API estén habilitadas en tu proyecto de Google Cloud.
-
-Guarda la clave de forma segura ejecutando:
+Configura las variables de entorno para las Cloud Functions. Necesitarás tu clave de la API de Gemini.
 
 Bash
 
-firebase functions:secrets:set GEMINI_KEY
-(Luego, pega tu clave cuando la terminal te lo pida).
+firebase functions:config:set gemini.key="TU_API_KEY_DE_GEMINI"
 
-Desplegar las funciones:
+4. ¡A Correr!
+Para iniciar el servidor de desarrollo del frontend:
 
 Bash
 
-firebase deploy --only functions
-✅ Mejoras Futuras
-Integración con Pasarelas de Pago: Automatizar cobros con Mercado Pago o Stripe.
+# Desde la carpeta /frontend
+npm run dev
+Tu aplicación estará disponible en http://localhost:5173.
 
-Generación de PDF: Exportar recibos y reportes en formato PDF.
+🌐 Despliegue
+La aplicación está desplegada en Netlify y se actualiza automáticamente con cada push a la rama main. Las funciones del backend se despliegan en Firebase Functions.
 
-Funciones Automáticas (Cron Jobs): Verificar suscripciones vencidas diariamente.
+📄 Licencia
+Este proyecto está bajo la Licencia MIT. Consulta el archivo LICENSE para más detalles.
 
-Tests Unitarios: Añadir pruebas para asegurar la estabilidad del código.
-
-Chatbot más Contextual (RAG): Mejorar el chatbot para que pueda consultar datos en tiempo real (ej: stock de un producto específico).
+<div align="center">
+<p>Hecho con ❤️ por Brian</p>
+</div>
+```
