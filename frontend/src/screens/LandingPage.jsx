@@ -8,74 +8,91 @@ import {
   Package,
   LineChart,
   Users,
-  Truck,
-  DollarSign,
-  QrCode,
-  TrendingUp,
   CheckCircle,
+  Truck,
+  TrendingUp,
+  QrCode,
+  DollarSign,
 } from 'lucide-react';
 import AppLogo from '../components/AppLogo';
 import Footer from '../components/Footer';
 import ParticleBackground from '../components/ParticleBackground';
 
-const features = [
-  {
-    icon: <ShoppingCart className="h-8 w-8 text-blue-400" />,
-    title: 'Punto de Venta Dinámico',
-    description:
-      'Agrega productos por código de barras o búsqueda, aplica descuentos por ítem y gestiona tu carrito con facilidad.',
-  },
-  {
-    icon: <Package className="h-8 w-8 text-blue-400" />,
-    title: 'Gestión de Inventario',
-    description:
-      'Control total de productos con stock, precio y costo. Define categorías y recibe alertas de stock bajo.',
-  },
-  {
-    icon: <LineChart className="h-8 w-8 text-blue-400" />,
-    title: 'Caja y Reportes',
-    description:
-      'Visualiza ventas diarias y mensuales, registra ingresos/egresos y realiza cierres de caja detallados.',
-  },
-  {
-    icon: <Users className="h-8 w-8 text-blue-400" />,
-    title: 'Manejo de Clientes y Vendedores',
-    description:
-      'Mantén una base de datos de tus clientes y gestiona a tu personal para asociar ventas a cada vendedor.',
-  },
-  {
-    icon: <Truck className="h-8 w-8 text-blue-400" />,
-    title: 'Proveedores y Pedidos',
-    description:
-      'Gestiona proveedores, registra pedidos y actualiza tu stock y costos automáticamente al recibir la mercancía.',
-  },
-  {
-    icon: <DollarSign className="h-8 w-8 text-blue-400" />,
-    title: 'Estadísticas Financieras',
-    description:
-      'Analiza tus ingresos brutos, costos, ganancias y el valor total de tu inventario en tiempo real.',
-  },
-  {
-    icon: <QrCode className="h-8 w-8 text-blue-400" />,
-    title: 'Etiquetas QR y Verificador',
-    description:
-      'Imprime etiquetas con códigos QR para precios dinámicos y ofrece a tus clientes un verificador de precios en tienda.',
-  },
-  {
-    icon: <TrendingUp className="h-8 w-8 text-blue-400" />,
-    title: 'Herramientas de Automatización',
-    description:
-      'Actualiza precios y stock masivamente con Excel y aplica aumentos por inflación a todos tus productos.',
-  },
-];
+// Componente para cada tarjeta de característica (CON ALTURA FIJA)
+const FeatureCard = ({ icon, title, description, delay }) => (
+  <motion.div
+    className="flex transform flex-col rounded-lg border border-zinc-700/80 bg-zinc-800/50 p-6 transition-transform duration-300 hover:-translate-y-2"
+    initial={{ opacity: 0, y: 30 }}
+    whileInView={{ opacity: 1, y: 0 }}
+    viewport={{ once: true }}
+    transition={{ duration: 0.5, delay }}
+  >
+    <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-blue-600/20">
+      {icon}
+    </div>
+    <h4 className="text-lg font-semibold text-white">{title}</h4>
+    <p className="mt-2 flex-grow text-sm text-zinc-400">{description}</p>
+  </motion.div>
+);
 
 const LandingPage = () => {
+  // Lista COMPLETA de 8 características con texto ajustado
+  const features = [
+    {
+      icon: <ShoppingCart className="h-6 w-6 text-blue-400" />,
+      title: 'Punto de Venta (POS)',
+      description:
+        'Procesa ventas con búsqueda por código de barras, descuentos y un carrito intuitivo.',
+    },
+    {
+      icon: <Package className="h-6 w-6 text-blue-400" />,
+      title: 'Gestión de Inventario',
+      description:
+        'Control total de stock, costos y precios. Recibe alertas automáticas de stock bajo.',
+    },
+    {
+      icon: <LineChart className="h-6 w-6 text-blue-400" />,
+      title: 'Caja y Reportes',
+      description:
+        'Visualiza movimientos diarios/mensuales, realiza cierres de caja y exporta tus datos fácilmente.',
+    },
+    {
+      icon: <Users className="h-6 w-6 text-blue-400" />,
+      title: 'Clientes y Vendedores',
+      description:
+        'Crea una base de datos de clientes y gestiona a tu personal para un seguimiento preciso.',
+    },
+    {
+      icon: <Truck className="h-6 w-6 text-blue-400" />,
+      title: 'Proveedores y Pedidos',
+      description:
+        'Gestiona proveedores, registra pedidos y actualiza tu stock automáticamente al recibir mercancía.',
+    },
+    {
+      icon: <DollarSign className="h-6 w-6 text-blue-400" />,
+      title: 'Estadísticas Financieras',
+      description:
+        'Analiza ingresos brutos, costos, ganancias y el valor total de tu inventario en tiempo real.',
+    },
+    {
+      icon: <QrCode className="h-6 w-6 text-blue-400" />,
+      title: 'Etiquetas QR y Verificador',
+      description:
+        'Imprime etiquetas con códigos QR para precios dinámicos y ofrece un verificador de precios en tienda.',
+    },
+    {
+      icon: <TrendingUp className="h-6 w-6 text-blue-400" />,
+      title: 'Herramientas de Automatización',
+      description:
+        'Actualiza precios y stock masivamente con Excel y aplica aumentos por inflación con un solo clic.',
+    },
+  ];
+
   return (
     <div className="relative min-h-screen w-full overflow-x-hidden bg-zinc-900 text-zinc-200">
       <ParticleBackground />
 
-      {/* Header */}
-      <header className="relative z-10 flex items-center justify-between p-4 sm:p-6">
+      <header className="relative z-20 flex items-center justify-between p-4 sm:p-6">
         <div className="flex items-center gap-3">
           <AppLogo
             onLogoClick={() => window.scrollTo(0, 0)}
@@ -107,25 +124,29 @@ const LandingPage = () => {
 
       <main className="relative z-10">
         {/* Hero Section */}
-        <section className="px-4 py-20 text-center sm:py-32">
+        <section className="px-4 py-24 text-center sm:py-32">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
           >
-            <h2 className="text-4xl font-extrabold leading-tight text-white sm:text-5xl md:text-6xl">
-              La Gestión Completa <br /> que tu Negocio Necesita
+            <h2 className="text-5xl font-extrabold tracking-tight text-white sm:text-6xl md:text-7xl">
+              <span className="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+                La Gestión Definitiva
+              </span>
+              <br />
+              Para tu Negocio
             </h2>
             <p className="mx-auto mt-6 max-w-2xl text-lg text-zinc-400">
-              Desde el punto de venta y control de stock, hasta el análisis de
-              ganancias y la automatización de precios. Todo en un solo lugar.
+              Desde el punto de venta hasta el análisis de ganancias. Todo lo
+              que necesitas para crecer, en una plataforma simple y potente.
             </p>
             <Link to="/signup">
               <motion.button
-                className="mt-8 rounded-md bg-white px-8 py-3 font-semibold text-zinc-900 transition-transform duration-200 hover:bg-zinc-200"
+                className="mt-10 rounded-full bg-white px-8 py-4 font-semibold text-zinc-900 shadow-lg shadow-white/10 transition-transform duration-300 hover:bg-zinc-200"
                 whileHover={{
                   scale: 1.05,
-                  boxShadow: '0px 0px 15px rgba(255,255,255,0.2)',
+                  boxShadow: '0px 0px 20px rgba(255,255,255,0.3)',
                 }}
                 whileTap={{ scale: 0.95 }}
               >
@@ -140,47 +161,39 @@ const LandingPage = () => {
           id="features"
           className="bg-black/20 px-4 py-20 backdrop-blur-sm sm:py-24"
         >
-          <div className="mx-auto max-w-6xl">
+          <div className="mx-auto max-w-7xl">
             <div className="text-center">
-              <h3 className="text-3xl font-bold text-white">
-                Todo lo que necesitas para crecer
+              <h3 className="text-3xl font-bold text-white sm:text-4xl">
+                Una Herramienta para Cada Necesidad
               </h3>
-              <p className="mt-4 text-zinc-400">
+              <p className="mx-auto mt-4 max-w-2xl text-zinc-400">
                 Funcionalidades diseñadas para potenciar y automatizar tu
-                negocio.
+                negocio desde el día uno.
               </p>
             </div>
             <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
               {features.map((feature, index) => (
-                <motion.div
+                <FeatureCard
                   key={index}
-                  className="flex flex-col items-center rounded-lg border border-zinc-700 bg-zinc-800/50 p-6"
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.5, delay: index * 0.1 }}
-                >
-                  {feature.icon}
-                  <h4 className="mt-4 text-lg font-semibold text-white">
-                    {feature.title}
-                  </h4>
-                  <p className="mt-2 text-center text-sm text-zinc-400">
-                    {feature.description}
-                  </p>
-                </motion.div>
+                  icon={feature.icon}
+                  title={feature.title}
+                  description={feature.description}
+                  delay={index * 0.1}
+                />
               ))}
             </div>
           </div>
         </section>
 
-        {/* Pricing Section (Sin cambios) */}
+        {/* Pricing Section */}
         <section id="pricing" className="px-4 py-20 sm:py-24">
           <div className="mx-auto max-w-md text-center">
-            <h3 className="text-3xl font-bold text-white">
-              Un plan simple y transparente
+            <h3 className="text-3xl font-bold text-white sm:text-4xl">
+              Un Plan Simple y Transparente
             </h3>
             <p className="mt-4 text-zinc-400">
-              Comienza gratis. Sin necesidad de tarjeta de crédito.
+              Comienza gratis. Sin necesidad de tarjeta de crédito. Todas las
+              funciones incluidas.
             </p>
           </div>
           <motion.div
@@ -211,7 +224,7 @@ const LandingPage = () => {
                   key={item}
                   className="flex items-center gap-2 text-zinc-300"
                 >
-                  <CheckCircle className="h-5 w-5 text-green-500" />
+                  <CheckCircle className="h-5 w-5 flex-shrink-0 text-green-500" />
                   {item}
                 </li>
               ))}

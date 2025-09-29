@@ -114,8 +114,8 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) {
           ? `Editando: ${productToEdit.nombre}`
           : 'Agregar Nuevo Producto'}
       </h3>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
+        <div className="lg:col-span-1">
           <label
             htmlFor="prod-barcode-form"
             className="mb-1 block text-sm font-medium text-zinc-300"
@@ -148,7 +148,7 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) {
             required
           />
         </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:col-span-3">
+        <div className="grid grid-cols-1 gap-4 sm:col-span-2 sm:grid-cols-3 lg:col-span-3">
           {/* Precio */}
           <div>
             <label
@@ -169,14 +169,14 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) {
             />
           </div>
           {/* Aumento */}
-          <div className="flex items-end gap-2">
-            <div className="flex-grow">
-              <label
-                htmlFor="prod-increase-form"
-                className="mb-1 block text-sm font-medium text-zinc-300"
-              >
-                Aumento (%):
-              </label>
+          <div>
+            <label
+              htmlFor="prod-increase-form"
+              className="mb-1 block text-sm font-medium text-zinc-300"
+            >
+              Aumento (%):
+            </label>
+            <div className="flex items-center gap-2">
               <input
                 type="number"
                 id="prod-increase-form"
@@ -185,16 +185,16 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) {
                 placeholder="Ej: 15"
                 className={inputClasses}
               />
+              <motion.button
+                type="button"
+                onClick={handleApplyPercentage}
+                className="h-9 flex-shrink-0 rounded-md bg-green-600 px-3 font-bold text-white hover:bg-green-700"
+                whileTap={{ scale: 0.95 }}
+                title="Aplicar Aumento"
+              >
+                Aplicar
+              </motion.button>
             </div>
-            <motion.button
-              type="button"
-              onClick={handleApplyPercentage}
-              className="h-9 rounded-md bg-green-600 px-3 font-bold text-white hover:bg-green-700"
-              whileTap={{ scale: 0.95 }}
-              title="Aplicar Aumento"
-            >
-              Aplicar
-            </motion.button>
           </div>
           {/* Costo */}
           <div>
@@ -269,7 +269,7 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) {
             required
           />
         </div>
-        <div className="mt-3 flex flex-col space-y-2 sm:col-span-2 sm:flex-row sm:justify-end sm:space-x-2 sm:space-y-0 lg:col-span-5 lg:mt-0 lg:self-end lg:text-right">
+        <div className="mt-4 flex flex-col gap-2 border-t border-zinc-700 pt-4 sm:col-span-2 sm:flex-row sm:justify-end lg:col-span-6">
           <motion.button
             type="submit"
             className={`order-1 w-full rounded-md px-3 py-2 font-bold text-white transition duration-150 ease-in-out lg:w-auto ${productToEdit ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-blue-600 hover:bg-blue-700'}`}

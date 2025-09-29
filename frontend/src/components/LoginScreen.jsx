@@ -31,111 +31,123 @@ function LoginScreen() {
     }
   };
 
-  // Reemplaza la sección 'return' completa de tu LoginScreen.jsx con esto:
+  const inputClasses =
+    'w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none transition duration-200';
+  const buttonClasses =
+    'w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition duration-200 disabled:opacity-50';
 
   return (
-    <div
-      id="login-screen"
-      className="relative flex min-h-screen flex-col overflow-hidden bg-black p-4"
-    >
-      {/* --- AÑADIDO: El fondo de partículas animado --- */}
-      {/* Este reemplaza tus dos divs de fondo anteriores */}
+    <div className="relative flex min-h-screen w-full flex-col bg-zinc-900 text-zinc-200">
       <ParticleBackground />
 
-      <main className="z-10 flex w-full flex-1 flex-col items-center justify-center">
-        {/* Mantenemos tu formulario con su buen estilo */}
-        <motion.div
-          initial={{ opacity: 0, y: 50 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="relative my-4 w-full max-w-sm rounded-lg border border-cyan-400/20 bg-black/30 p-8 shadow-xl backdrop-blur-sm"
-        >
-          <div className="mb-6 text-center">
-            <AppLogo
-              onLogoClick={() => {}}
-              className="mx-auto h-12 w-12 text-white"
-            />
-            <h1 className="mt-4 font-mono text-3xl font-bold uppercase tracking-wider text-white">
-              Khaleesi System
-            </h1>
-          </div>
-          <h2 className="mb-6 text-center text-2xl font-bold text-zinc-100">
-            Iniciar Sesión
-          </h2>
-
-          {/* El formulario no cambia su lógica interna */}
-          <form onSubmit={attemptLogin} className="space-y-4">
-            <div>
-              <label
-                htmlFor="login-email"
-                className="mb-1 block text-sm font-medium text-zinc-300"
-              >
-                Email:
-              </label>
-              <input
-                type="email"
-                id="login-email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100"
-                required
-              />
-            </div>
-            <div className="relative">
-              <label
-                htmlFor="login-password"
-                className="mb-1 block text-sm font-medium text-zinc-300"
-              >
-                Contraseña:
-              </label>
-              <input
-                type={showPassword ? 'text' : 'password'}
-                id="login-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100"
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 top-6 flex items-center pr-3 text-zinc-400 hover:text-white"
-                aria-label={
-                  showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'
-                }
-              >
-                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-              </button>
-            </div>
-            <motion.button
-              type="submit"
-              disabled={isLoading}
-              className="w-full rounded-md bg-white/80 px-4 py-2 font-bold text-black transition hover:bg-white"
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.98 }}
+      <main className="relative z-10 flex flex-grow items-center justify-center p-4">
+        <div className="flex w-full max-w-4xl overflow-hidden rounded-lg border border-zinc-700/50 bg-zinc-800/50 shadow-2xl backdrop-blur-sm">
+          <div className="hidden w-1/2 flex-col items-center justify-center bg-zinc-900/80 p-8 text-center md:flex">
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7 }}
             >
-              {isLoading ? 'Ingresando...' : 'Ingresar'}
-            </motion.button>
-            <div className="mt-4 text-center text-xs text-zinc-300">
-              <p className="mb-2">
-                ¿No tienes una cuenta?{' '}
-                <Link
-                  to="/signup"
-                  className="font-medium text-blue-400 hover:underline"
-                >
-                  Regístrate aquí
-                </Link>
+              <AppLogo width="120" height="120" />
+              <h1 className="mt-4 text-3xl font-bold text-white">
+                Khaleesi System
+              </h1>
+              <p className="mt-2 text-zinc-400">
+                Tu negocio, en un solo lugar.
               </p>
-              <p>
+            </motion.div>
+          </div>
+
+          <div className="w-full p-8 sm:p-12 md:w-1/2">
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.7 }}
+            >
+              <h2 className="mb-6 text-center text-2xl font-bold text-white">
+                Iniciar Sesión
+              </h2>
+
+              <form onSubmit={attemptLogin} className="space-y-6">
+                <div>
+                  <label
+                    htmlFor="email"
+                    className="mb-1 block text-sm font-medium text-zinc-400"
+                  >
+                    Email
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className={inputClasses}
+                    required
+                    autoComplete="email"
+                  />
+                </div>
+
+                <div className="relative">
+                  <label
+                    htmlFor="password"
+                    className="mb-1 block text-sm font-medium text-zinc-400"
+                  >
+                    Contraseña
+                  </label>
+                  <input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className={inputClasses}
+                    required
+                    autoComplete="current-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 top-7 flex items-center pr-3 text-zinc-400 hover:text-white"
+                    aria-label={
+                      showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'
+                    }
+                  >
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
+
+                <motion.button
+                  type="submit"
+                  disabled={isLoading}
+                  className={buttonClasses}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  {isLoading ? 'Ingresando...' : 'Ingresar'}
+                </motion.button>
+              </form>
+
+              <div className="mt-6 text-center text-sm">
                 <Link
                   to="/forgot-password"
-                  className="font-medium text-blue-400 hover:underline"
+                  className="text-blue-400 hover:underline"
                 >
                   ¿Olvidaste tu contraseña?
                 </Link>
-              </p>
-            </div>
-          </form>
-        </motion.div>
+              </div>
+              <div className="mt-4 text-center text-sm">
+                <p className="text-zinc-400">
+                  ¿No tienes una cuenta?{' '}
+                  <Link
+                    to="/signup"
+                    className="font-bold text-blue-400 hover:underline"
+                  >
+                    Regístrate
+                  </Link>
+                </p>
+              </div>
+            </motion.div>
+          </div>
+        </div>
       </main>
 
       <div className="relative z-10">
