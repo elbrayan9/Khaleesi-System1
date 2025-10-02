@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppContext } from './context/AppContext.jsx';
+import AppLogo from './components/AppLogo.jsx';
 import LoginScreen from './components/LoginScreen.jsx';
 import SignUpScreen from './components/SignUpScreen.jsx';
 import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
@@ -130,9 +131,50 @@ function App() {
   };
 
   if (isLoadingData) {
+    // ...ahora mostramos tu animación personalizada
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-900">
-        <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-t-2 border-blue-500"></div>
+      <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-900 text-white">
+        <div className="relative flex h-40 w-40 items-center justify-center">
+          <motion.svg
+            className="absolute h-full w-full"
+            viewBox="0 0 100 100"
+            initial="hidden"
+            animate="visible"
+          >
+            <motion.circle
+              cx="50"
+              cy="50"
+              r="45"
+              stroke="#3b82f6"
+              strokeWidth="5"
+              fill="transparent"
+              strokeLinecap="round"
+              variants={{
+                hidden: { pathLength: 0, opacity: 0 },
+                visible: {
+                  pathLength: 1,
+                  opacity: 1,
+                  transition: {
+                    pathLength: {
+                      type: 'spring',
+                      duration: 1.5,
+                      bounce: 0,
+                      repeat: Infinity,
+                    },
+                    opacity: { duration: 0.1 },
+                  },
+                },
+              }}
+            />
+          </motion.svg>
+          <motion.div
+            animate={{ scale: [1, 1.05, 1] }}
+            transition={{ duration: 2.5, ease: 'easeInOut', repeat: Infinity }}
+          >
+            <AppLogo width="90" height="90" />
+          </motion.div>
+        </div>
+        <p className="mt-6 text-lg font-semibold text-zinc-300">Cargando...</p>
       </div>
     );
   }
