@@ -46,7 +46,7 @@ const ParticleBackground = () => {
       },
       links: {
         color: '#ffffff',
-        distance: 150,
+        distance: 120, // Reducido de 150
         enable: true,
         opacity: 0.5,
         width: 1,
@@ -66,7 +66,7 @@ const ParticleBackground = () => {
           enable: true,
           area: 800,
         },
-        value: 80, // Número de partículas
+        value: 40, // Reducido de 80 a 40 para mejor rendimiento
       },
       opacity: {
         value: 0.5,
@@ -78,7 +78,7 @@ const ParticleBackground = () => {
         value: { min: 1, max: 5 },
       },
     },
-    detectRetina: true,
+    detectRetina: false, // Desactivado para mejorar rendimiento en pantallas HD
   };
 
   return (

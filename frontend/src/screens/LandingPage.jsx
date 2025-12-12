@@ -34,10 +34,11 @@ import dashboardMobile from '../assets/dashboard-mobile.png';
 const FeatureCard = ({ icon, title, description, delay }) => (
   <motion.div
     className="flex h-full flex-col items-center rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 text-center transition-colors hover:border-blue-500/30 hover:bg-zinc-800"
-    initial={{ opacity: 0, y: 30 }}
-    whileInView={{ opacity: 1, y: 0 }}
-    viewport={{ once: true }}
-    transition={{ duration: 0.5, delay }}
+    initial={{ opacity: 0 }}
+    whileInView={{ opacity: 1 }}
+    viewport={{ once: true, margin: '-50px' }}
+    transition={{ duration: 0.4, delay }}
+    style={{ willChange: 'opacity' }}
   >
     <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600/10 text-blue-400 transition-colors hover:bg-blue-600 hover:text-white">
       {React.cloneElement(icon, { className: 'h-8 w-8' })}
@@ -224,29 +225,22 @@ const LandingPage = () => {
             transition={{ duration: 0.8 }}
           >
             <h2 className="text-5xl font-extrabold tracking-tight text-white sm:text-6xl md:text-7xl">
-              <span className="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
-                {Array.from('La Gestión Definitiva').map((char, index) => (
-                  <motion.span
-                    key={index}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.05, delay: index * 0.05 }}
-                  >
-                    {char}
-                  </motion.span>
-                ))}
-              </span>
+              <motion.span
+                className="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 0.2 }}
+              >
+                La Gestión Definitiva
+              </motion.span>
               <br />
-              {Array.from('Para tu Negocio').map((char, index) => (
-                <motion.span
-                  key={index}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.05, delay: 1.5 + index * 0.05 }}
-                >
-                  {char}
-                </motion.span>
-              ))}
+              <motion.span
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 0.6 }}
+              >
+                Para tu Negocio
+              </motion.span>
             </h2>
             <motion.p
               className="mx-auto mt-6 max-w-2xl text-lg text-zinc-400"
@@ -273,7 +267,7 @@ const LandingPage = () => {
         </section>
 
         {/* Solutions Section */}
-        <section className="relative border-t border-white/5 bg-zinc-900/50 px-4 py-20 backdrop-blur-sm sm:py-24">
+        <section className="relative border-t border-white/5 bg-zinc-900 px-4 py-20 sm:py-24">
           <div className="mx-auto max-w-7xl">
             <div className="mb-16 text-center">
               <h3 className="text-3xl font-bold text-white sm:text-4xl">
@@ -378,7 +372,7 @@ const LandingPage = () => {
         </section>
 
         {/* Business Types Section */}
-        <section className="bg-black/20 px-4 py-20 backdrop-blur-sm sm:py-24">
+        <section className="bg-zinc-900/80 px-4 py-20 sm:py-24">
           <div className="mx-auto max-w-7xl">
             <div className="mb-16 text-center">
               <h3 className="text-3xl font-bold text-white sm:text-4xl">
@@ -448,42 +442,29 @@ const LandingPage = () => {
         </section>
 
         {/* Features Section */}
-        <section
-          id="features"
-          className="bg-black/20 px-4 py-20 backdrop-blur-sm sm:py-24"
-        >
+        <section id="features" className="bg-zinc-900/80 px-4 py-20 sm:py-24">
           <div className="mx-auto max-w-7xl">
             <div className="text-center">
               <h3 className="text-3xl font-bold text-white sm:text-4xl">
-                {Array.from('Una Herramienta para Cada Necesidad').map(
-                  (char, index) => (
-                    <motion.span
-                      key={index}
-                      initial={{ opacity: 0 }}
-                      whileInView={{ opacity: 1 }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 0.05, delay: index * 0.05 }}
-                    >
-                      {char}
-                    </motion.span>
-                  ),
-                )}
+                <motion.span
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.6 }}
+                >
+                  Una Herramienta para Cada Necesidad
+                </motion.span>
               </h3>
-              <p className="mx-auto mt-4 max-w-2xl text-zinc-400">
-                {Array.from(
-                  'Funcionalidades diseñadas para potenciar y automatizar tu negocio desde el día uno.',
-                ).map((char, index) => (
-                  <motion.span
-                    key={index}
-                    initial={{ opacity: 0 }}
-                    whileInView={{ opacity: 1 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.02, delay: index * 0.02 }}
-                  >
-                    {char}
-                  </motion.span>
-                ))}
-              </p>
+              <motion.p
+                className="mx-auto mt-4 max-w-2xl text-zinc-400"
+                initial={{ opacity: 0 }}
+                whileInView={{ opacity: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+              >
+                Funcionalidades diseñadas para potenciar y automatizar tu
+                negocio desde el día uno.
+              </motion.p>
             </div>
             <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
               {features.map((feature, index) => (
@@ -501,7 +482,7 @@ const LandingPage = () => {
 
         {/* Device Showcase Section */}
         <section className="relative overflow-hidden px-4 py-24 sm:py-32">
-          <div className="absolute inset-0 bg-blue-600/5 blur-[120px]" />
+          <div className="absolute inset-0 bg-blue-600/5 blur-[60px]" />
           <div className="relative mx-auto max-w-7xl">
             <div className="grid items-center gap-12 lg:grid-cols-2">
               <motion.div
@@ -560,11 +541,6 @@ const LandingPage = () => {
                   transition={{
                     duration: 0.8,
                     delay: 0.4,
-                    y: {
-                      repeat: Infinity,
-                      duration: 3,
-                      ease: 'easeInOut',
-                    },
                   }}
                 >
                   {/* Phone Screen */}
