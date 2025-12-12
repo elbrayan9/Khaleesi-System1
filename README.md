@@ -2,120 +2,115 @@
   <img src="frontend/public/khaleesi-system.svg" alt="Khaleesi System Logo" width="150"/>
   <h1>Khaleesi System</h1>
   <p>
-    <strong>Un sistema de Punto de Venta (POS) y gestión de negocios todo en uno, moderno y potente.</strong>
+    <strong>El Sistema de Gestión Integral (ERP/POS) definitivo para tu negocio.</strong>
   </p>
   <p>
-    Construido con React, Firebase y TailwindCSS para ofrecer una experiencia de usuario rápida, segura y en tiempo real.
+    Potencia tu control de stock, ventas y clientes con una plataforma moderna, rápida y segura.
   </p>
 
   <p>
     <a href="https://khaleesisystem.com.ar/">
-      <img src="https://img.shields.io/website?label=Sitio%20Web&style=for-the-badge&url=https%3A%2F%2Fkhaleesisystem.com.ar%2F" alt="Sitio Web"/>
+      <img src="https://img.shields.io/website?label=Sitio%20Web&style=for-the-badge&url=https%3A%2F%2Fkhaleesisystem.com.ar%2F&logo=google-chrome&logoColor=white&color=2563eb" alt="Sitio Web"/>
     </a>
-    <img src="https://img.shields.io/github/last-commit/elbrayan9/khaleesi-system1?style=for-the-badge" alt="Último Commit"/>
-    <img src="https://img.shields.io/github/repo-size/elbrayan9/khaleesi-system1?style=for-the-badge" alt="Tamaño del Repositorio"/>
+    <img src="https://img.shields.io/github/last-commit/elbrayan9/khaleesi-system1?style=for-the-badge&logo=git&logoColor=white&color=f59e0b" alt="Último Commit"/>
+    <img src="https://img.shields.io/github/repo-size/elbrayan9/khaleesi-system1?style=for-the-badge&logo=github&logoColor=white&color=10b981" alt="Tamaño del Repositorio"/>
   </p>
 </div>
 
 ---
 
-## ✨ Características Principales
+## 🌟 Visión General
 
-Khaleesi System no es solo un POS, es una suite completa para administrar tu negocio.
+**Khaleesi System** es una solución tecnológica de vanguardia diseñada para centralizar y optimizar todas las operaciones de tu negocio. Ya sea un pequeño comercio o una red de sucursales, nuestra arquitectura escalable se adapta a tus necesidades.
 
-- **📈 Punto de Venta (POS):** Interfaz rápida e intuitiva para procesar ventas, con carrito de compras y gestión de pagos.
-- **📦 Gestión de Inventario:** Control de productos, stock en tiempo real, precios, costos y códigos de barras.
-- **👥 CRM Integrado:** Administra tu base de datos de clientes, proveedores y vendedores.
-- **📊 Reportes y Analíticas:** Visualiza tus ventas diarias, mensuales, productos más vendidos y flujo de caja con gráficos interactivos.
-- **🤖 Asistente con IA:** Chatbot integrado con la **API de Gemini** para resolver dudas y asistir a los usuarios.
-- **⚙️ Funciones Avanzadas:**
-  - Importación y exportación de datos a **Excel**.
-  - Impresión de tickets de venta y notas de crédito.
-  - Generación de **códigos QR** para precios dinámicos.
-  - Panel de administrador para la gestión de usuarios y suscripciones.
+> "Transformamos datos en decisiones inteligentes."
 
----
+## ✨ Características y Módulos
 
-## 🚀 Tecnologías Utilizadas
+### 🛒 Punto de Venta (POS) Avanzado
 
-Este proyecto fue construido utilizando un stack de tecnologías modernas, enfocado en el rendimiento y la escalabilidad.
+- **Venta Ágil**: Interfaz optimizada para reducir tiempos de espera.
+- **Facturación AFIP**: Emisión directa de Facturas A, B y C (Web Services).
+- **Medios de Pago**: Gestión integrada de efectivo, tarjetas y cuentas corrientes.
 
-| Área         | Tecnología                                                                                                                                                                                                                                                                                                                 |
-| :----------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Frontend** | ![React](https://img.shields.io/badge/-React-61DAFB?style=for-the-badge&logo=react&logoColor=white) ![Vite](https://img.shields.io/badge/-Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white) ![TailwindCSS](https://img.shields.io/badge/-TailwindCSS-38B2AC?style=for-the-badge&logo=tailwindcss&logoColor=white) |
-| **Backend**  | ![Firebase](https://img.shields.io/badge/-Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=white) (Auth, Firestore, Functions)                                                                                                                                                                                  |
-| **APIs**     | ![Google Gemini](https://img.shields.io/badge/-Google%20Gemini-8E77F0?style=for-the-badge&logo=google&logoColor=white)                                                                                                                                                                                                     |
-| **UI**       | `shadcn/ui`, `Chart.js`, `react-hot-toast`                                                                                                                                                                                                                                                                                 |
-| **Hosting**  | ![Netlify](https://img.shields.io/badge/-Netlify-00C7B7?style=for-the-badge&logo=netlify&logoColor=white)                                                                                                                                                                                                                  |
+### 📦 Gestión de Inventario
 
----
+- **Control Total**: Stock en tiempo real, costos, precios y rentabilidad.
+- **Alertas Inteligentes**: Notificaciones automáticas de reposición.
+- **Importación Masiva**: Carga y actualización de productos desde Excel.
 
-## 🛠️ Cómo Empezar (Instalación Local)
+### 📊 Business Intelligence
 
-Sigue estos pasos para levantar el proyecto en tu máquina local.
+- **Dashboards en Tiempo Real**: Visualiza tus ventas, ganancias y métricas clave al instante.
+- **Reportes Detallados**: Cierres de caja, ranking de productos y análisis de tendencias.
+- **Exportación**: Datos listos para compartir en PDF y Excel.
+
+### 🤖 Asistente IA Integrado
+
+- **Gemini AI**: Un copiloto virtual que responde consultas sobre tu stock, ventas y operativa del sistema en lenguaje natural.
+
+### ⚙️ Arquitectura Robusta
+
+- **Multi-Sucursal**: Gestión centralizada de múltiples ubicaciones.
+- **Seguridad de Grado Bancario**: Roles de usuario, auditoría y protección de datos.
+- **Cloud Native**: Acceso seguro desde cualquier lugar, 24/7.
+
+## 🚀 Stack Tecnológico
+
+Construido sobre una base sólida y moderna para garantizar rendimiento y escalabilidad.
+
+| Capa         | Tecnologías                                                                                                                                                                                                                                                                                                      |
+| :----------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Frontend** | ![React](https://img.shields.io/badge/-React-20232A?style=flat-square&logo=react&logoColor=61DAFB) ![Vite](https://img.shields.io/badge/-Vite-646CFF?style=flat-square&logo=vite&logoColor=white) ![Tailwind](https://img.shields.io/badge/-Tailwind-38B2AC?style=flat-square&logo=tailwind-css&logoColor=white) |
+| **Backend**  | ![Firebase](https://img.shields.io/badge/-Firebase-FFCA28?style=flat-square&logo=firebase&logoColor=black) (Functions, Firestore, Auth)                                                                                                                                                                          |
+| **IA**       | ![Gemini](https://img.shields.io/badge/-Google%20Gemini-8E77F0?style=flat-square&logo=google&logoColor=white)                                                                                                                                                                                                    |
+
+## 📂 Estructura del Proyecto
+
+El repositorio se organiza en dos componentes principales, cada uno con su propia documentación detallada:
+
+- **[`/frontend`](./frontend/README.md)**: La aplicación web (React + Vite). Incluye la interfaz de usuario, lógica de POS y dashboards.
+- **[`/functions`](./functions/README.md)**: El backend serverless (Firebase Functions). Maneja la lógica de negocio, integración con AFIP y tareas programadas.
+
+## 🛠️ Guía de Inicio Rápido
 
 ### Prerrequisitos
 
 - Node.js (v18 o superior)
-- `npm` o `yarn`
-- Una cuenta de Firebase
+- Cuenta de Google/Firebase
 
-### 1. Clona el Repositorio
+### 1. Instalación
 
-Bash
-
-git clone [https://github.com/elbrayan9/khaleesi-system1.git](https://github.com/elbrayan9/khaleesi-system1.git)
+```bash
+git clone https://github.com/elbrayan9/khaleesi-system1.git
 cd khaleesi-system1
+```
 
-### 2. Configura el Frontend
+### 2. Configuración del Backend
 
-Bash
-
-cd frontend
+```bash
+cd functions
 npm install
+# Configurar variables de entorno (ver functions/README.md)
+firebase deploy --only functions
+```
 
-Crea un archivo .env en la carpeta frontend y añade las credenciales de tu proyecto de Firebase:
+### 3. Configuración del Frontend
 
-Fragmento de código
-
-VITE_FIREBASE_API_KEY="AIza..."
-VITE_FIREBASE_AUTH_DOMAIN="tu-proyecto.firebaseapp.com"
-VITE_FIREBASE_PROJECT_ID="tu-proyecto"
-VITE_FIREBASE_STORAGE_BUCKET="tu-proyecto.appspot.com"
-VITE_FIREBASE_MESSAGING_SENDER_ID="..."
-VITE_FIREBASE_APP_ID="1:..."
-
----
-
-### 3. Configura el Backend (Firebase Functions)
-
-Bash
-
-cd ../functions
+```bash
+cd ../frontend
 npm install
-Configura las variables de entorno para las Cloud Functions. Necesitarás tu clave de la API de Gemini.
-
-Bash
-
-# firebase functions:config:set gemini.key="TU_API_KEY_DE_GEMINI"
-
-### 4. ¡A Correr!
-
-Para iniciar el servidor de desarrollo del frontend:
-
-Bash
-
-# Desde la carpeta /frontend
-
+# Configurar .env (ver frontend/README.md)
 npm run dev
-Tu aplicación estará disponible en http://localhost:5173.
+```
 
-🌐 Despliegue
-La aplicación está desplegada en Netlify y se actualiza automáticamente con cada push a la rama main. Las funciones del backend se despliegan en Firebase Functions.
+## 🔒 Licencia y Seguridad
 
-📄 Licencia
-Este proyecto está bajo la Licencia MIT. Consulta el archivo LICENSE para más detalles.
+Este proyecto es propiedad privada. Todos los derechos reservados.
+Implementa estrictas políticas de seguridad para proteger la integridad de los datos comerciales.
 
 ---
 
-<p align="center">Hecho con ❤️ por Brian</p>
+<div align="center">
+  <p>Desarrollado con excelencia por <strong>Brian</strong></p>
+</div>

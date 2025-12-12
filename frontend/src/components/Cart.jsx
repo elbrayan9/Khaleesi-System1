@@ -1,12 +1,17 @@
-// frontend/src/components/Cart.jsx
 import React from 'react';
 import { motion } from 'framer-motion';
 import SearchBar from './SearchBar.jsx';
 import { useAppContext } from '../context/AppContext.jsx';
 import { formatCurrency } from '../utils/helpers.js';
-import { Trash2, PlusCircle, MinusCircle } from 'lucide-react';
+import { Trash2, PlusCircle, MinusCircle, FileText } from 'lucide-react';
 
-function Cart({ onCheckout, clients, selectedClientId, onClientSelect }) {
+function Cart({
+  onCheckout,
+  onSaveBudget,
+  clients,
+  selectedClientId,
+  onClientSelect,
+}) {
   const { cartItems, setCartItems, productos, mostrarMensaje } =
     useAppContext();
 
@@ -91,17 +96,40 @@ function Cart({ onCheckout, clients, selectedClientId, onClientSelect }) {
               {/* --- VISUALIZACIÓN CORREGIDA --- */}
               <div className="flex-grow pr-2">
                 <p className="font-medium text-zinc-100">{item.nombre}</p>
-                <p className="text-xs text-zinc-300">
-                  {item.vendidoPor === 'peso'
-                    ? `${item.cantidad.toFixed(3)} Kg`
-                    : `${item.cantidad} u.`}
-                  {item.descuentoPorcentaje > 0 && (
-                    <span className="font-semibold text-green-400">
-                      {' '}
-                      (-{item.descuentoPorcentaje}%)
-                    </span>
+                <div className="flex items-center gap-2">
+                  {item.vendidoPor !== 'ticketBalanza' && (
+                    <div className="flex items-center rounded bg-zinc-700">
+                      <button
+                        onClick={() => handleUpdateQuantity(item.cartId, -1)}
+                        className="p-1 text-zinc-400 hover:text-white"
+                      >
+                        <MinusCircle size={16} />
+                      </button>
+                      <span className="min-w-[2rem] text-center text-xs font-bold text-white">
+                        {item.cantidad}
+                      </span>
+                      <button
+                        onClick={() => handleUpdateQuantity(item.cartId, 1)}
+                        className="p-1 text-zinc-400 hover:text-white"
+                      >
+                        <PlusCircle size={16} />
+                      </button>
+                    </div>
                   )}
-                </p>
+                  <p className="text-xs text-zinc-300">
+                    {item.vendidoPor === 'peso'
+                      ? `${item.cantidad.toFixed(3)} Kg`
+                      : item.vendidoPor === 'ticketBalanza'
+                        ? `${item.cantidad} u.`
+                        : ''}
+                    {item.descuentoPorcentaje > 0 && (
+                      <span className="font-semibold text-green-400">
+                        {' '}
+                        (-{item.descuentoPorcentaje}%)
+                      </span>
+                    )}
+                  </p>
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <div className="text-right">
@@ -154,15 +182,28 @@ function Cart({ onCheckout, clients, selectedClientId, onClientSelect }) {
             inputId="cliente-buscar-react-cart"
           />
         </div>
-        <motion.button
-          onClick={onCheckout}
-          disabled={cartItems.length === 0}
-          className={`w-full rounded-md px-4 py-2 font-bold transition duration-150 ease-in-out ${cartItems.length === 0 ? 'cursor-not-allowed bg-zinc-500 text-zinc-400' : 'bg-green-600 text-white hover:bg-green-700'}`}
-          whileHover={{ scale: cartItems.length > 0 ? 1.03 : 1 }}
-          whileTap={{ scale: cartItems.length > 0 ? 0.97 : 1 }}
-        >
-          Proceder al Pago
-        </motion.button>
+        <div className="flex gap-2">
+          <motion.button
+            onClick={onSaveBudget}
+            disabled={cartItems.length === 0}
+            className={`flex flex-1 items-center justify-center gap-2 rounded-md border border-yellow-600 bg-yellow-600/20 px-4 py-2 font-bold text-yellow-500 transition duration-150 ease-in-out hover:bg-yellow-600 hover:text-white ${cartItems.length === 0 ? 'cursor-not-allowed opacity-50' : ''}`}
+            whileHover={{ scale: cartItems.length > 0 ? 1.03 : 1 }}
+            whileTap={{ scale: cartItems.length > 0 ? 0.97 : 1 }}
+            title="Guardar como Presupuesto"
+          >
+            <FileText size={18} />
+            Presupuesto
+          </motion.button>
+          <motion.button
+            onClick={onCheckout}
+            disabled={cartItems.length === 0}
+            className={`flex-[2] rounded-md px-4 py-2 font-bold transition duration-150 ease-in-out ${cartItems.length === 0 ? 'cursor-not-allowed bg-zinc-500 text-zinc-400' : 'bg-green-600 text-white hover:bg-green-700'}`}
+            whileHover={{ scale: cartItems.length > 0 ? 1.03 : 1 }}
+            whileTap={{ scale: cartItems.length > 0 ? 0.97 : 1 }}
+          >
+            Cobrar
+          </motion.button>
+        </div>
       </div>
     </div>
   );

@@ -20,12 +20,15 @@ import {
 } from 'lucide-react';
 import ChatbotModal from './ChatbotModal.jsx';
 import SubscriptionStatusBanner from './SubscriptionStatusBanner.jsx';
+import SucursalSelector from './SucursalSelector.jsx';
+import ThemeToggle from './ThemeToggle.jsx';
 
 function Layout() {
   // Dentro de function Layout() { ... }
   const [isChatOpen, setIsChatOpen] = useState(false);
   // Se obtiene 'isAdmin' para mostrar el enlace condicionalmente
-  const { handleLogout, isAdmin } = useAppContext();
+  const { handleLogout, isAdmin, canAccessMultisucursal, canAccessAI } =
+    useAppContext();
   const navigate = useNavigate();
 
   // Se usa 'useLocation' para detectar la ruta activa. Es la forma correcta en React Router.
@@ -78,6 +81,13 @@ function Layout() {
       path: '/dashboard/pedidos',
     },
     {
+      id: 'presupuestos',
+      label: 'Presupuestos',
+      Icon: FileText,
+      shortLabel: 'Presup',
+      path: '/dashboard/presupuestos',
+    },
+    {
       id: 'estadisticas',
       label: 'Estadísticas',
       Icon: BarChart3,
@@ -123,24 +133,34 @@ function Layout() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-zinc-900 text-zinc-200">
+    <div className="flex min-h-screen flex-col bg-background text-foreground transition-colors duration-300">
       <header className="p-3 md:p-6">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <AppLogo
               onLogoClick={onLogoClick}
-              className="text-white hover:text-blue-400"
+              className="text-foreground hover:text-blue-400"
             />
-            <h1 className="hidden text-xl font-bold text-zinc-100 sm:text-2xl md:block">
+            <h1 className="hidden text-xl font-bold text-foreground sm:text-2xl md:block">
               Khaleesi System
             </h1>
-            <h1 className="text-xl font-bold text-zinc-100 sm:text-2xl md:hidden">
+            <h1 className="text-xl font-bold text-foreground sm:text-2xl md:hidden">
               POS
             </h1>
+
+            {canAccessMultisucursal && (
+              <div className="ml-4 border-l border-border pl-4">
+                <SucursalSelector />
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
           </div>
         </div>
 
-        <div className="border-b border-zinc-700">
+        <div className="border-b border-border">
           <nav
             className="-mb-px flex flex-wrap justify-center sm:justify-start"
             aria-label="Tabs"
@@ -180,39 +200,41 @@ function Layout() {
         <Outlet />
       </main>
 
-      <Footer />
+      <Footer simple={true} />
       {/* --- INICIO DEL CÓDIGO AÑADIDO --- */}
 
       {/* Nuevo código del botón con animación */}
-      <motion.div
-        className="fixed bottom-6 right-6 z-40"
-        onHoverStart={() => setIsChatButtonHovered(true)}
-        onHoverEnd={() => setIsChatButtonHovered(false)}
-      >
-        <button
-          onClick={() => setIsChatOpen(true)}
-          className={`flex items-center justify-center gap-2 rounded-full shadow-lg transition-all duration-300 ease-in-out ${isChatButtonHovered ? 'w-36 bg-blue-600' : 'w-14 bg-blue-700'} h-14 text-white focus:outline-none`}
-          aria-label="Abrir asistente de chat"
+      {canAccessAI && (
+        <motion.div
+          className="fixed bottom-6 right-6 z-40"
+          onHoverStart={() => setIsChatButtonHovered(true)}
+          onHoverEnd={() => setIsChatButtonHovered(false)}
         >
-          {/* El ícono siempre es visible */}
-          <Bot size={24} className="flex-shrink-0" />
+          <button
+            onClick={() => setIsChatOpen(true)}
+            className={`flex items-center justify-center gap-2 rounded-full shadow-lg transition-all duration-300 ease-in-out ${isChatButtonHovered ? 'w-36 bg-blue-600' : 'w-14 bg-blue-700'} h-14 text-white focus:outline-none`}
+            aria-label="Abrir asistente de chat"
+          >
+            {/* El ícono siempre es visible */}
+            <Bot size={24} className="flex-shrink-0" />
 
-          {/* El texto solo aparece si el mouse está encima y se anima con Framer Motion */}
-          <AnimatePresence>
-            {isChatButtonHovered && (
-              <motion.span
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                transition={{ duration: 0.2 }}
-                className="whitespace-nowrap font-semibold"
-              >
-                Asistente
-              </motion.span>
-            )}
-          </AnimatePresence>
-        </button>
-      </motion.div>
+            {/* El texto solo aparece si el mouse está encima y se anima con Framer Motion */}
+            <AnimatePresence>
+              {isChatButtonHovered && (
+                <motion.span
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -10 }}
+                  transition={{ duration: 0.2 }}
+                  className="whitespace-nowrap font-semibold"
+                >
+                  Asistente
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </button>
+        </motion.div>
+      )}
 
       {/* El componente del modal del chatbot */}
       {/* Se muestra solo si isChatOpen es true */}

@@ -23,6 +23,7 @@ import {
   AlertTriangle,
   Printer,
   TrendingUp,
+  Trash2, // <--- AÑADIDO
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext.jsx';
 import { formatCurrency } from '../utils/helpers.js';
@@ -46,6 +47,8 @@ function ProductosTab() {
     editingProduct,
     mostrarMensaje,
     handleBulkPriceUpdate,
+    handleDeleteSelected, // <--- NUEVO
+    handleDeleteDuplicates, // <--- NUEVO
   } = useAppContext();
 
   // --- INICIO DE LA NUEVA LÓGICA DE ALERTAS ---
@@ -380,11 +383,40 @@ function ProductosTab() {
           <div className="flex flex-wrap items-center justify-between gap-4">
             {/* Grupo de Botones de Acción */}
             <div className="flex items-center gap-2">
+              {/* Botones de Eliminación (NUEVOS) */}
+              {selectedProductIds.size > 0 && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={async () => {
+                    const success =
+                      await handleDeleteSelected(selectedProductIds);
+                    if (success) setSelectedProductIds(new Set());
+                  }}
+                  className="bg-red-600 text-white hover:bg-red-700"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Eliminar ({selectedProductIds.size})
+                </Button>
+              )}
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDeleteDuplicates}
+                className="border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white"
+                title="Eliminar duplicados (conserva mayor stock)"
+              >
+                <AlertTriangle className="mr-2 h-4 w-4" />
+                Limpiar Duplicados
+              </Button>
+
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleImportClick}
                 disabled={isImporting}
+                className="border-blue-500 bg-transparent text-blue-500 hover:bg-blue-500 hover:text-white"
               >
                 <Download className="mr-2 h-4 w-4" />
                 {isImporting ? 'Procesando...' : 'Importar'}
@@ -393,6 +425,7 @@ function ProductosTab() {
                 variant="outline"
                 size="sm"
                 onClick={handleExportTemplate}
+                className="border-green-500 bg-transparent text-green-500 hover:bg-green-500 hover:text-white"
               >
                 <UploadCloud className="mr-2 h-4 w-4" />
                 Exportar

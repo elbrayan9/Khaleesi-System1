@@ -10,7 +10,18 @@ import React, {
 import { motion, AnimatePresence } from 'framer-motion';
 
 const SearchBar = forwardRef(
-  ({ items, placeholder, onSelect, displayKey, filterKeys, inputId }, ref) => {
+  (
+    {
+      items,
+      placeholder,
+      onSelect,
+      onTextChange,
+      displayKey,
+      filterKeys,
+      inputId,
+    },
+    ref,
+  ) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filteredItems, setFilteredItems] = useState([]);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -40,6 +51,9 @@ const SearchBar = forwardRef(
     const handleInputChange = (e) => {
       const value = e.target.value;
       setSearchTerm(value);
+      if (onTextChange) {
+        onTextChange(value);
+      }
       if (value.length > 1) {
         const lowerCaseValue = value.toLowerCase();
         const results = items.filter((item) =>

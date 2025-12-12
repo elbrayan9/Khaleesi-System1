@@ -9,7 +9,7 @@ import { AppProvider } from './context/AppContext.jsx'; // Importa el AppProvide
 import Swal from 'sweetalert2';
 
 const mostrarMensajeDark = (texto, tipo = 'info') => {
-  Swal.fire({
+  return Swal.fire({
     title:
       tipo === 'error'
         ? 'Error Grave'
@@ -21,6 +21,9 @@ const mostrarMensajeDark = (texto, tipo = 'info') => {
     text: texto,
     icon: tipo,
     confirmButtonText: 'Aceptar',
+    // Si es éxito, cerramos automático y ocultamos botón
+    timer: tipo === 'success' ? 1500 : undefined,
+    showConfirmButton: tipo !== 'success',
     heightAuto: false,
     background: '#27272a',
     color: '#e4e4e7',

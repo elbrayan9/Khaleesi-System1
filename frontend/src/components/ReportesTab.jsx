@@ -54,6 +54,14 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
     // confirmarAccion // Si se usa directamente aquí, o a través de los handlers del contexto
   } = useAppContext();
   const { datosNegocio } = useAppContext(); // Obtener datosNegocio específicamente si no se desestructuró antes
+  if (!ventas || !egresos || !ingresosManuales) {
+    console.log('Context missing arrays:', {
+      ventas,
+      egresos,
+      ingresosManuales,
+    });
+    return null;
+  }
   // Versión corregida
   const getCleanToday = () => {
     const today = new Date();
@@ -99,9 +107,15 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
   const nombreMesSeleccionado = obtenerNombreMes(selectedDate.getUTCMonth());
 
   // Filtramos los datos basados en la fecha seleccionada
-  const ventasDelDia = ventas.filter((v) => v.fecha === diaSeleccionadoStr);
-  const egresosDelDia = egresos.filter((e) => e.fecha === diaSeleccionadoStr);
-  const ingresosManualesDelDia = ingresosManuales.filter(
+  const safeVentas = Array.isArray(ventas) ? ventas : [];
+  const safeEgresos = Array.isArray(egresos) ? egresos : [];
+  const safeIngresos = Array.isArray(ingresosManuales) ? ingresosManuales : [];
+
+  const ventasDelDia = safeVentas.filter((v) => v.fecha === diaSeleccionadoStr);
+  const egresosDelDia = safeEgresos.filter(
+    (e) => e.fecha === diaSeleccionadoStr,
+  );
+  const ingresosManualesDelDia = safeIngresos.filter(
     (i) => i.fecha === diaSeleccionadoStr,
   );
 
@@ -116,9 +130,9 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
     );
   };
 
-  const ventasMes = ventas.filter(filterByMonthAndYear);
-  const egresosMes = egresos.filter(filterByMonthAndYear);
-  const ingresosManualesMes = ingresosManuales.filter(filterByMonthAndYear);
+  const ventasMes = safeVentas.filter(filterByMonthAndYear);
+  const egresosMes = safeEgresos.filter(filterByMonthAndYear);
+  const ingresosManualesMes = safeIngresos.filter(filterByMonthAndYear);
 
   // --- Lógica de cálculo (CORREGIDA) ---
   const totalVentasDia = ventasDelDia.reduce(
@@ -520,7 +534,7 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
         ? clientes.find((c) => c.id === ventaToPrintObj.clienteId)
         : null;
     if (ventaToPrintObj && onPrintRequest)
-      onPrintRequest(ventaToPrintObj, clienteInfoObj);
+      onPrintRequest(ventaToPrintObj, 'print');
     else mostrarMensaje('Venta no encontrada.', 'error');
   };
   const handleLocalViewDetailsClick = (itemId) => {

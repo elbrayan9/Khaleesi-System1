@@ -40,8 +40,15 @@ describe('ClientForm', () => {
     const handleSave = vi.fn();
     render(<ClientForm onSave={handleSave} />);
 
+    // Buscamos el formulario por su role (o por un test-id si fuera necesario)
+    // Nota: Al renderizar, el form tiene role="form" implícito o se puede buscar por texto.
+    // Una forma robusta es buscar el botón y luego su formulario, o usar fireEvent.submit(screen.getByRole('button').closest('form'))
+    // Pero aquí, simplemente buscaremos el botón y usaremos fireEvent.submit en el formulario que lo contiene.
     const submitButton = screen.getByRole('button', { name: /Agregar/i });
-    fireEvent.click(submitButton);
+    // fireEvent.click(submitButton); // Esto a veces es bloqueado por 'required' en jsdom
+
+    // Simulamos el envío directo del formulario para probar la lógica de validación JS
+    fireEvent.submit(submitButton.closest('form'));
 
     // Verificamos que onSave NO se haya llamado.
     expect(handleSave).not.toHaveBeenCalled();

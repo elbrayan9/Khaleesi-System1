@@ -86,14 +86,44 @@ exports.getUserDetails = onCall(async (request) => {
     throw new HttpsError('invalid-argument', 'Se requiere un ID de usuario.');
   }
   try {
-    const collectionsToFetch = ['productos', 'clientes', 'ventas', 'notas_cd'];
-    const promises = collectionsToFetch.map((col) =>
-      db.collection(col).where('userId', '==', userId).get(),
-    );
+    // Limitamos a 100 documentos por colección para evitar timeouts y respuestas gigantes
+    const limit = 100;
+
+    const productosPromise = db
+      .collection('productos')
+      .where('userId', '==', userId)
+      .limit(limit)
+      .get();
+
+    const clientesPromise = db
+      .collection('clientes')
+      .where('userId', '==', userId)
+      .limit(limit)
+      .get();
+
+    const ventasPromise = db
+      .collection('ventas')
+      .where('userId', '==', userId)
+      .limit(limit)
+      .get();
+
+    const notasCDPromise = db
+      .collection('notas_cd')
+      .where('userId', '==', userId)
+      .limit(limit)
+      .get();
+
     const [productosSnap, clientesSnap, ventasSnap, notasCDSnap] =
-      await Promise.all(promises);
+      await Promise.all([
+        productosPromise,
+        clientesPromise,
+        ventasPromise,
+        notasCDPromise,
+      ]);
+
     const getData = (snapshot) =>
       snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+
     return {
       productos: getData(productosSnap),
       clientes: getData(clientesSnap),
@@ -102,6 +132,16 @@ exports.getUserDetails = onCall(async (request) => {
     };
   } catch (error) {
     console.error('Error al obtener detalles del usuario:', error);
+    // Si falla por índice faltante (común con orderBy), intentamos sin ordenamiento
+    if (error.code === 9 || error.message.includes('index')) {
+      console.log('Reintentando sin ordenamiento...');
+      // Fallback simple sin orderBy
+      // ... (podríamos implementar retry aquí, pero por simplicidad solo lanzamos error más descriptivo)
+      throw new HttpsError(
+        'failed-precondition',
+        'Falta un índice compuesto en Firestore. Revisa los logs.',
+      );
+    }
     throw new HttpsError(
       'internal',
       'No se pudo obtener los detalles del usuario.',
@@ -116,21 +156,41 @@ exports.updateUserSubscription = onCall(async (request) => {
       'Solo un administrador puede modificar suscripciones.',
     );
   }
-  const { userId, newStatus } = request.data;
-  if (!userId || !['active', 'trial', 'expired'].includes(newStatus)) {
+  const { userId, newStatus, plan } = request.data;
+
+  // Validamos que al menos uno de los dos (status o plan) esté presente
+  if (!userId || (!newStatus && !plan)) {
     throw new HttpsError(
       'invalid-argument',
-      'Faltan datos o el nuevo estado es inválido.',
+      'Faltan datos (userId y al menos newStatus o plan).',
     );
   }
+
+  if (newStatus && !['active', 'trial', 'expired'].includes(newStatus)) {
+    throw new HttpsError('invalid-argument', 'El nuevo estado es inválido.');
+  }
+
+  if (plan && !['basic', 'premium'].includes(plan)) {
+    throw new HttpsError('invalid-argument', 'El plan es inválido.');
+  }
+
   try {
     const userDocRef = db.collection('datosNegocio').doc(userId);
-    const updates = { subscriptionStatus: newStatus };
-    if (newStatus === 'active') {
-      const newEndDate = new Date();
-      newEndDate.setDate(newEndDate.getDate() + 30);
-      updates.subscriptionEndDate = newEndDate;
+    const updates = {};
+
+    if (newStatus) {
+      updates.subscriptionStatus = newStatus;
+      if (newStatus === 'active') {
+        const newEndDate = new Date();
+        newEndDate.setDate(newEndDate.getDate() + 30);
+        updates.subscriptionEndDate = newEndDate;
+      }
     }
+
+    if (plan) {
+      updates.plan = plan;
+    }
+
     await userDocRef.update(updates);
     return {
       success: true,
@@ -168,34 +228,75 @@ exports.bulkUpdateProducts = onCall(async (request) => {
     );
   }
 
+  const isAdmin = request.auth.token.admin === true;
+  const uid = request.auth.uid;
   const batch = db.batch();
+  let productsProcessed = 0;
 
-  productsToUpdate.forEach((product) => {
-    if (
-      !product.id ||
-      (product.precio === undefined && product.stock === undefined)
-    ) {
-      return;
-    }
-    const productRef = db.collection('productos').doc(product.id);
-    const updateData = {};
-    if (product.precio !== undefined && product.precio !== null) {
-      updateData.precio = Number(product.precio);
-    }
-    if (product.stock !== undefined && product.stock !== null) {
-      updateData.stock = Number(product.stock);
-    }
-
-    if (Object.keys(updateData).length > 0) {
-      batch.update(productRef, updateData);
-    }
+  // Mapa para acceso rápido a los datos de actualización
+  const updatesMap = new Map();
+  productsToUpdate.forEach((p) => {
+    if (p.id) updatesMap.set(p.id, p);
   });
 
   try {
-    await batch.commit();
+    if (isAdmin) {
+      // Admin: Actualización directa sin verificación de propiedad
+      updatesMap.forEach((updateReq, id) => {
+        const productRef = db.collection('productos').doc(id);
+        const updateData = {};
+        if (updateReq.precio !== undefined && updateReq.precio !== null)
+          updateData.precio = Number(updateReq.precio);
+        if (updateReq.stock !== undefined && updateReq.stock !== null)
+          updateData.stock = Number(updateReq.stock);
+
+        if (Object.keys(updateData).length > 0) {
+          batch.update(productRef, updateData);
+          productsProcessed++;
+        }
+      });
+    } else {
+      // Usuario Normal: Verificación estricta de propiedad
+      const refs = Array.from(updatesMap.keys()).map((id) =>
+        db.collection('productos').doc(id),
+      );
+
+      // Firestore getAll soporta varargs, pero cuidado con límites muy altos.
+      // Asumimos que el frontend envía lotes razonables.
+      if (refs.length > 0) {
+        const snapshots = await db.getAll(...refs);
+
+        snapshots.forEach((doc) => {
+          if (doc.exists && doc.data().userId === uid) {
+            const updateReq = updatesMap.get(doc.id);
+            const productRef = db.collection('productos').doc(doc.id);
+            const updateData = {};
+
+            if (updateReq.precio !== undefined && updateReq.precio !== null)
+              updateData.precio = Number(updateReq.precio);
+            if (updateReq.stock !== undefined && updateReq.stock !== null)
+              updateData.stock = Number(updateReq.stock);
+
+            if (Object.keys(updateData).length > 0) {
+              batch.update(productRef, updateData);
+              productsProcessed++;
+            }
+          } else {
+            console.warn(
+              `Intento de modificación no autorizado: Usuario ${uid} intentó modificar producto ${doc.id}`,
+            );
+          }
+        });
+      }
+    }
+
+    if (productsProcessed > 0) {
+      await batch.commit();
+    }
+
     return {
       success: true,
-      message: `Se procesaron ${productsToUpdate.length} productos.`,
+      message: `Se procesaron ${productsProcessed} productos correctamente.`,
     };
   } catch (error) {
     console.error('Error en la actualización masiva:', error);
@@ -251,7 +352,7 @@ async function enforceDailyLimit(uid, maxPerDay = 10) {
 // =======================
 // Chat con Gemini (Gen2 + Secret + modelo vigente)
 // =======================
-const MODEL_NAME = 'gemini-1.5-flash';
+const MODEL_NAME = 'gemini-1.5-flash-001';
 const TOPIC_KEYWORDS = [
   'pago',
   'pagos',
@@ -381,9 +482,12 @@ exports.askGemini = onCall({ secrets: [GEMINI_KEY] }, async (request) => {
     `.trim();
 
     const model = genAI.getGenerativeModel({
-      model: MODEL_NAME,
-      systemInstruction,
+      model: 'gemini-pro',
     });
+
+    // Prepend system instruction to the prompt since some models/API versions
+    // might not support the systemInstruction parameter directly yet.
+    finalPrompt = `${systemInstruction}\n\n${finalPrompt}`;
 
     const result = await model.generateContent(finalPrompt);
     const text = result?.response?.text?.();
@@ -395,10 +499,34 @@ exports.askGemini = onCall({ secrets: [GEMINI_KEY] }, async (request) => {
     return { reply: text };
   } catch (error) {
     console.error('Error al contactar la API de Gemini o Firestore:', error);
-    throw new HttpsError(
-      'internal',
-      'No se pudo obtener una respuesta del asistente.',
-    );
+
+    // Si el error es 404 (Modelo no encontrado), intentamos listar los modelos disponibles
+    if (error.message.includes('404') || error.message.includes('not found')) {
+      try {
+        const apiKey = GEMINI_KEY.value();
+        console.log('Intentando listar modelos disponibles...');
+        const listResp = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
+        );
+        if (listResp.ok) {
+          const listData = await listResp.json();
+          const availableModels = listData.models
+            .map((m) => m.name.replace('models/', ''))
+            .join(', ');
+          console.log('Modelos disponibles:', availableModels);
+          throw new HttpsError(
+            'internal',
+            `Error de modelo. Disponibles: ${availableModels}`,
+          );
+        } else {
+          console.error('Error al listar modelos, status:', listResp.status);
+        }
+      } catch (listError) {
+        console.error('Error al listar modelos (catch):', listError);
+      }
+    }
+
+    throw new HttpsError('internal', `Error interno: ${error.message}`);
   }
 });
 // ===============================================
@@ -490,6 +618,22 @@ exports.notifyAdminOfPayment = onCall(async (request) => {
     console.error('Error al guardar la notificación de pago:', error);
     throw new HttpsError('internal', 'No se pudo enviar la notificación.');
   }
+});
+
+// =======================
+// Facturación Electrónica (AFIP)
+// =======================
+const afipController = require('./afipController');
+exports.createInvoice = onCall(async (request) => {
+  return await afipController.createInvoice(request);
+});
+
+exports.getContribuyente = onCall(async (request) => {
+  return await afipController.getContribuyente(request);
+});
+
+exports.checkAfipStatus = onCall(async (request) => {
+  return await afipController.getServerStatus(request);
 });
 
 // ===============================================

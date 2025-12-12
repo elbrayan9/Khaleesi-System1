@@ -46,7 +46,7 @@ function ChatbotModal({ isOpen, onClose }) {
         ...prev,
         {
           sender: 'bot',
-          text: 'Lo siento, no pude procesar tu solicitud en este momento.',
+          text: `Lo siento, hubo un error: ${error.message || 'No pude procesar tu solicitud.'}`,
         },
       ]);
     } finally {

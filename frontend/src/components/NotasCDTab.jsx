@@ -23,24 +23,34 @@ import { formatCurrency } from '../utils/helpers.js';
 function NotasCDTab({ onViewDetailsNotaCD, onPrintNotaCD }) {
   const {
     notasCD,
-    handleGenerarNotaManual, // <-- CAMBIO 1: Usamos el nombre correcto del contexto
+    handleCrearNotaManual,
     handleEliminarNotaCD,
     clientes,
     productos,
     mostrarMensaje,
+    sucursalActual, // Necesario para config AFIP
+    datosNegocio, // Necesario para config AFIP
   } = useAppContext();
 
   const [tipoNota, setTipoNota] = useState('credito');
   const [ventaRelacionadaId, setVentaRelacionadaId] = useState('');
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
+  const [clienteNombreManual, setClienteNombreManual] = useState('');
   const [motivo, setMotivo] = useState('');
   const [monto, setMonto] = useState('');
+  const [metodoPago, setMetodoPago] = useState('Efectivo');
   const [implicaDevolucion, setImplicaDevolucion] = useState(false);
   const [itemsDevueltos, setItemsDevueltos] = useState([]);
   const [productoSeleccionadoParaDev, setProductoSeleccionadoParaDev] =
     useState(null);
   const [cantidadDevolucion, setCantidadDevolucion] = useState(1);
+
+  // Estado de carga y configuración AFIP
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [generarEnAfip, setGenerarEnAfip] = useState(false);
+
   const productoDevRef = useRef(null);
+  const clienteRef = useRef(null);
 
   useEffect(() => {
     if (!implicaDevolucion || tipoNota === 'debito') {
@@ -100,9 +110,9 @@ function NotasCDTab({ onViewDetailsNotaCD, onPrintNotaCD }) {
   const handleQuitarItemDevuelto = (index) =>
     setItemsDevueltos((prev) => prev.filter((_, i) => i !== index));
 
-  const handleLocalGenerarNotaClick = () => {
+  const handleLocalGenerarNotaClick = async () => {
     const montoNota = parseFloat(monto);
-    // Se elimina la validación obligatoria de cliente
+
     if (!motivo.trim()) {
       mostrarMensaje('Ingrese un motivo.', 'warning');
       return;
@@ -120,31 +130,153 @@ function NotasCDTab({ onViewDetailsNotaCD, onPrintNotaCD }) {
       return;
     }
 
-    const notaDataParaApp = {
-      tipo: tipoNota,
-      ventaRelacionadaId: ventaRelacionadaId.trim() || null,
-      cliente: clienteSeleccionado, // Se pasa el objeto cliente completo
-      motivo: motivo.trim(),
-      monto: montoNota,
-      implicaDevolucion: implicaDevolucion,
-      itemsDevueltos:
-        implicaDevolucion && tipoNota === 'credito' ? itemsDevueltos : [],
-    };
+    setIsProcessing(true);
 
-    handleGenerarNotaManual(notaDataParaApp);
+    try {
+      let datosAfip = {};
+      let cbteTipoAFIP = null;
 
-    // Limpiar formulario
-    setTipoNota('credito');
-    setVentaRelacionadaId('');
-    setClienteSeleccionado(null);
-    setMotivo('');
-    setMonto('');
-    setImplicaDevolucion(false);
-    setItemsDevueltos([]);
-    setProductoSeleccionadoParaDev(null);
-    setCantidadDevolucion(1);
-    productoDevRef.current?.clearInput?.();
-    clienteRef.current?.clearInput?.();
+      // 1. SI SE SELECCIONÓ GENERAR EN AFIP
+      if (generarEnAfip) {
+        mostrarMensaje('Contactando a AFIP...', 'info');
+
+        // Determinar Punto de Venta
+        const ptoVta =
+          datosNegocio?.puntoVenta ||
+          sucursalActual?.configuracion?.puntoVenta ||
+          sucursalActual?.puntoVenta ||
+          1;
+
+        // Determinar Tipo de Comprobante
+        // Lógica: Si el emisor es Monotributista -> C (11, 12, 13)
+        // Si el emisor es RI -> A (1, 2, 3) o B (6, 7, 8)
+        // Por ahora, asumimos Monotributo (C) como default seguro, o B si es RI a Consumidor Final.
+        cbteTipoAFIP = 13; // Nota Crédito C
+        if (tipoNota === 'debito') cbteTipoAFIP = 12; // Nota Débito C
+
+        // Determinar Cliente (DocTipo y DocNro)
+        let docTipo = 99; // Consumidor Final
+        let docNro = 0; // Anónimo
+
+        if (clienteSeleccionado && clienteSeleccionado.cuit) {
+          const cleanCuit = String(clienteSeleccionado.cuit).replace(/\D/g, '');
+          const miCuit = String(datosNegocio?.cuit || '').replace(/\D/g, '');
+          if (cleanCuit === miCuit) {
+            console.warn(
+              'Aviso: Intentando facturar al mismo emisor. Cambiando a Consumidor Final.',
+            );
+            docTipo = 99;
+            docNro = 0;
+          } else {
+            // Si es distinto, procesamos normal
+            if (cleanCuit.length === 11) {
+              docTipo = 80; // CUIT
+              docNro = cleanCuit;
+            } else if (cleanCuit.length >= 7) {
+              docTipo = 96; // DNI
+              docNro = cleanCuit;
+            }
+          }
+        }
+
+        // Importar función
+        const { getFunctions, httpsCallable } =
+          await import('firebase/functions');
+
+        const functions = getFunctions();
+
+        const createInvoice = httpsCallable(functions, 'createInvoice');
+
+        const numeroVentaOriginal = ventaRelacionadaId
+          ? String(ventaRelacionadaId).replace(/\D/g, '')
+          : '0';
+
+        // Llamar a AFIP
+
+        const resultAfip = await createInvoice({
+          sucursalId: sucursalActual?.id,
+
+          ptoVta: ptoVta,
+
+          cbteTipo: cbteTipoAFIP,
+
+          concepto: 1, // Productos
+
+          docTipo: docTipo,
+
+          docNro: docNro,
+
+          importeTotal: montoNota,
+
+          importeNeto: montoNota, // En C es igual al total
+
+          importeIva: 0,
+
+          importeExento: 0,
+
+          cbteAsocNro: parseInt(numeroVentaOriginal) || 0,
+        });
+
+        datosAfip = resultAfip.data;
+
+        if (!datosAfip.success) {
+          throw new Error('AFIP no autorizó el comprobante.');
+        }
+
+        mostrarMensaje(
+          `¡${tipoNota === 'credito' ? 'Nota de Crédito' : 'Nota de Débito'} Autorizada! CAE: ${datosAfip.cae}`,
+          'success',
+        );
+      } else {
+        // Generación Local (Interna)
+        mostrarMensaje('Generando nota interna...', 'info');
+      }
+
+      // 2. GUARDAR EN BASE DE DATOS LOCAL
+      const notaDataParaApp = {
+        tipo: tipoNota,
+        ventaRelacionadaId: ventaRelacionadaId.trim() || null,
+        cliente:
+          clienteSeleccionado || clienteNombreManual || 'Consumidor Final',
+        motivo: motivo.trim(),
+        monto: montoNota,
+        metodoPago,
+        implicaDevolucion: implicaDevolucion,
+        itemsDevueltos:
+          implicaDevolucion && tipoNota === 'credito' ? itemsDevueltos : [],
+
+        // --- DATOS FISCALES (Solo si se generó en AFIP) ---
+        esAfip: generarEnAfip,
+        cae: datosAfip?.cae || null,
+        caeFchVto: datosAfip?.caeFchVto || null,
+        ptoVta: datosAfip?.ptoVta || null,
+        cbteTipo: datosAfip?.cbteTipo || cbteTipoAFIP || null,
+        cbteNro: datosAfip?.cbteNro || null,
+      };
+
+      await handleCrearNotaManual(notaDataParaApp);
+
+      // 3. LIMPIAR FORMULARIO
+      setTipoNota('credito');
+      setVentaRelacionadaId('');
+      setClienteSeleccionado(null);
+      setClienteNombreManual('');
+      setMotivo('');
+      setMonto('');
+      setMetodoPago('Efectivo');
+      setImplicaDevolucion(false);
+      setItemsDevueltos([]);
+      setProductoSeleccionadoParaDev(null);
+      setCantidadDevolucion(1);
+      setGenerarEnAfip(false); // Resetear checkbox
+      if (productoDevRef.current) productoDevRef.current.clearInput();
+      if (clienteRef.current) clienteRef.current.clearInput();
+    } catch (error) {
+      console.error('Error generando Nota:', error);
+      mostrarMensaje(`Error: ${error.message}`, 'error');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const isActionDisabled = (nota) =>
@@ -161,9 +293,27 @@ function NotasCDTab({ onViewDetailsNotaCD, onPrintNotaCD }) {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
         <div className="rounded-lg bg-zinc-800 p-4 shadow-md sm:p-5">
           <h3 className="mb-3 border-b border-zinc-700 pb-2 text-lg font-medium text-white sm:text-xl">
-            Generar Nueva Nota
+            Generar Nueva Nota (AFIP)
           </h3>
           <div className="space-y-3">
+            {/* CHECKBOX AFIP */}
+            <div className="mb-4 rounded-md border border-zinc-600 bg-zinc-700/50 p-3">
+              <label className="flex cursor-pointer items-center text-sm font-medium text-white">
+                <input
+                  type="checkbox"
+                  checked={generarEnAfip}
+                  onChange={(e) => setGenerarEnAfip(e.target.checked)}
+                  className="mr-2 h-5 w-5 rounded border-zinc-500 bg-zinc-700 text-blue-600 focus:ring-blue-500"
+                />
+                Generar Comprobante Oficial en AFIP (CAE)
+              </label>
+              {generarEnAfip && (
+                <p className="ml-7 mt-1 text-xs text-yellow-400">
+                  Se conectará con AFIP para autorizar la nota.
+                </p>
+              )}
+            </div>
+
             <div>
               <label
                 htmlFor="nota-tipo-form"
@@ -205,13 +355,25 @@ function NotasCDTab({ onViewDetailsNotaCD, onPrintNotaCD }) {
                 Cliente (Opcional):
               </label>
               <SearchBar
+                ref={clienteRef}
                 items={clientes}
                 placeholder="Buscar o dejar vacío para Consumidor Final"
                 onSelect={setClienteSeleccionado}
+                onTextChange={(text) => {
+                  // Si el usuario escribe, limpiamos la selección anterior si no coincide
+                  // Pero guardamos el texto como posible nombre de cliente manual
+                  if (
+                    clienteSeleccionado &&
+                    clienteSeleccionado.nombre !== text
+                  ) {
+                    setClienteSeleccionado(null);
+                  }
+                  setClienteNombreManual(text);
+                }}
                 displayKey="nombre"
                 filterKeys={['nombre', 'cuit']}
                 inputId="nota-cliente-form"
-              />
+              />{' '}
             </div>
             <div>
               <label
@@ -229,6 +391,26 @@ function NotasCDTab({ onViewDetailsNotaCD, onPrintNotaCD }) {
                 className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100 placeholder-zinc-400"
                 required
               ></textarea>
+            </div>
+            <div>
+              <label
+                htmlFor="nota-metodo-pago-form"
+                className="mb-1 block text-sm font-medium text-zinc-300"
+              >
+                Método de Reembolso:
+              </label>
+              <select
+                id="nota-metodo-pago-form"
+                value={metodoPago}
+                onChange={(e) => setMetodoPago(e.target.value)}
+                className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100"
+              >
+                <option value="Efectivo">Efectivo</option>
+                <option value="Transferencia">Transferencia</option>
+                <option value="Tarjeta">Tarjeta</option>
+                <option value="Cuenta Corriente">Cuenta Corriente</option>
+                <option value="Otro">Otro</option>
+              </select>
             </div>
             <div>
               <label
@@ -344,12 +526,19 @@ function NotasCDTab({ onViewDetailsNotaCD, onPrintNotaCD }) {
             <div className="mt-4 text-right">
               <motion.button
                 onClick={handleLocalGenerarNotaClick}
-                className="inline-flex w-full items-center rounded-md bg-purple-600 px-3 py-2 font-bold text-white hover:bg-purple-700 sm:w-auto"
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
+                disabled={isProcessing}
+                className={`inline-flex w-full items-center justify-center rounded-md px-3 py-2 font-bold text-white sm:w-auto ${isProcessing ? 'cursor-not-allowed bg-gray-600' : 'bg-purple-600 hover:bg-purple-700'}`}
+                whileHover={!isProcessing ? { scale: 1.03 } : {}}
+                whileTap={!isProcessing ? { scale: 0.97 } : {}}
               >
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Generar Nota
+                {isProcessing ? (
+                  <span>Generando en AFIP...</span>
+                ) : (
+                  <>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Generar Nota
+                  </>
+                )}
               </motion.button>
             </div>
           </div>
@@ -366,7 +555,7 @@ function NotasCDTab({ onViewDetailsNotaCD, onPrintNotaCD }) {
             <Table>
               <TableHeader>
                 <TableRow className="border-b-zinc-700 hover:bg-transparent">
-                  <TableHead className={thClasses}>ID</TableHead>
+                  <TableHead className={thClasses}>N° Comp</TableHead>
                   <TableHead className={thClasses}>Tipo</TableHead>
                   <TableHead className={thClasses}>Fecha</TableHead>
                   <TableHead className={thClasses}>Cliente</TableHead>
@@ -390,10 +579,13 @@ function NotasCDTab({ onViewDetailsNotaCD, onPrintNotaCD }) {
                       key={n.id || `nota_fb_${Date.now()}${Math.random()}`}
                       className="border-b-zinc-700 hover:bg-zinc-700/30"
                     >
-                      <TableCell
-                        className={`${tdClasses} font-medium text-zinc-200`}
-                      >
-                        {(n.id || 'N/A').substring(0, 8)}...
+                      <TableCell className={`${tdClasses} text-zinc-200`}>
+                        {n.cbteNro ? `#${n.cbteNro}` : 'Pendiente'}
+                        {n.cae && (
+                          <span className="ml-2 rounded border border-green-400 px-1 text-[10px] text-green-400">
+                            CAE
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell
                         className={`${tdClasses} font-medium ${n.tipo === 'credito' ? 'text-red-400' : 'text-green-400'}`}

@@ -54,12 +54,30 @@ function ClientesTab() {
     let items = [...clientes];
     if (searchTerm) {
       const lower = searchTerm.toLowerCase();
-      items = items.filter(
-        (c) =>
-          c.nombre.toLowerCase().includes(lower) ||
-          (c.cuit && c.cuit.toLowerCase().includes(lower)) ||
-          (c.id && c.id.toString().toLowerCase().includes(lower)),
-      );
+      // Limpiamos el término de búsqueda de guiones y espacios para comparar números
+      const cleanSearch = lower.replace(/[^0-9a-z]/g, '');
+
+      items = items.filter((c) => {
+        const nombreMatch = c.nombre.toLowerCase().includes(lower);
+        const idMatch = c.id && c.id.toString().toLowerCase().includes(lower);
+
+        // Búsqueda robusta de CUIT/DNI
+        let cuitMatch = false;
+        if (c.cuit) {
+          const cleanCuit = c.cuit.replace(/[^0-9a-z]/g, ''); // Limpiamos el CUIT guardado
+          // Comparamos si el CUIT limpio incluye el término limpio (o viceversa si es corto)
+          cuitMatch = cleanCuit.includes(cleanSearch);
+        }
+
+        // También buscamos si tiene campo 'dni' explícito (por compatibilidad)
+        let dniMatch = false;
+        if (c.dni) {
+          const cleanDni = c.dni.toString().replace(/[^0-9a-z]/g, '');
+          dniMatch = cleanDni.includes(cleanSearch);
+        }
+
+        return nombreMatch || idMatch || cuitMatch || dniMatch;
+      });
     }
     if (sortConfig.key) {
       items.sort((a, b) => {
@@ -117,7 +135,7 @@ function ClientesTab() {
             </span>
             <input
               type="text"
-              placeholder="Buscar por Nombre, CUIT o ID..."
+              placeholder="Buscar por Nombre, CUIT/DNI o ID..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full rounded-md border border-zinc-600 bg-zinc-700 py-2 pl-10 pr-4 text-sm text-zinc-100 placeholder-zinc-400 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:w-64"

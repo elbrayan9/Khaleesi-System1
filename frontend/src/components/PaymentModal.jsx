@@ -151,6 +151,23 @@ function PaymentModal({
                   <option value="qr_billetera">QR Billetera</option>
                 </select>
               </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-zinc-300">
+                  Tipo de Comprobante
+                </label>
+                <select
+                  value={tipoFactura}
+                  onChange={(e) => setTipoFactura(e.target.value)}
+                  className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2"
+                >
+                  <option value="B">Factura B (Consumidor Final)</option>
+                  <option value="A">Factura A (Resp. Inscripto)</option>
+                  <option value="C">Factura C (Monotributo)</option>
+                  <option value="X">Ticket X (Presupuesto)</option>
+                </select>
+              </div>
+
               <div>
                 <label className="mb-1 block text-sm font-medium text-zinc-300">
                   Monto

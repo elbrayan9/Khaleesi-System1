@@ -1,5 +1,5 @@
 // src/firebaseConfig.js
-import { getAuth } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { initializeApp } from 'firebase/app';
 import {
   initializeFirestore,
@@ -50,3 +50,4 @@ if (typeof window !== 'undefined') {
   });
 }
 export const auth = getAuth(app);
+export const googleProvider = new GoogleAuthProvider();

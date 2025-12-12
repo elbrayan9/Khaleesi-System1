@@ -23,14 +23,30 @@ function VentaTab() {
     handleAddManualItemToCart,
     mostrarMensaje,
     handleAddToCart,
+    handleSaveBudget,
+    sucursalActual,
+    selectedClientId, // <--- Usamos el del contexto
+    setSelectedClientId, // <--- Usamos el del contexto
   } = useAppContext();
 
   // --- ESTADOS LOCALES DEL COMPONENTE ---
   const [selectedProductManual, setSelectedProductManual] = useState(null);
   const [cantidadVenta, setCantidadVenta] = useState(1);
-  const [selectedClientId, setSelectedClientId] = useState(null);
+  // const [selectedClientId, setSelectedClientId] = useState(null); // <--- ELIMINADO (ahora es global)
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [descuentoVenta, setDescuentoVenta] = useState(0);
+
+  // Estado local para el vendedor DE LA VENTA (puede ser distinto al del turno)
+  // const [saleSellerId, setSaleSellerId] = useState(vendedorActivoId); // ELIMINADO
+
+  // Sincronizar si cambia el vendedor activo (opcional, por comodidad)
+  /*
+  useEffect(() => {
+    if (vendedorActivoId) {
+      setSaleSellerId(vendedorActivoId);
+    }
+  }, [vendedorActivoId]);
+  */
 
   // --- Estados para la Venta Rápida ---
   const [descripcionManual, setDescripcionManual] = useState('');
@@ -42,12 +58,22 @@ function VentaTab() {
   const descripcionManualRef = useRef(null);
   const manualProductSearchRef = useRef(null);
 
-  useEffect(() => {
+  // --- HELPER PARA FOCO SEGURO (Evita conflicto con SweetAlert) ---
+  const safeFocus = useCallback(() => {
+    // Si hay un modal de SweetAlert abierto, esperamos
+    if (document.querySelector('.swal2-container')) {
+      setTimeout(safeFocus, 100);
+      return;
+    }
     barcodeInputRef.current?.focus();
   }, []);
 
+  useEffect(() => {
+    safeFocus();
+  }, [safeFocus]);
+
   // --- LÓGICA PARA AGREGAR ITEMS AL CARRITO ---
-  const handleAgregarPorCodigo = (codigo) => {
+  const handleAgregarPorCodigo = async (codigo) => {
     if (!codigo || !codigo.trim()) return;
     const barcode = codigo.trim();
 
@@ -71,7 +97,7 @@ function VentaTab() {
           };
           handleAddToCart(itemFromScale, 1, 0); // Lo añadimos al carrito
           if (barcodeInputRef.current) barcodeInputRef.current.value = '';
-          barcodeInputRef.current?.focus();
+          safeFocus();
           return; // Terminamos la ejecución aquí
         }
       }
@@ -82,9 +108,9 @@ function VentaTab() {
     if (product) {
       handleAddToCart(product, 1, 0);
       if (barcodeInputRef.current) barcodeInputRef.current.value = '';
-      barcodeInputRef.current?.focus();
+      safeFocus();
     } else {
-      mostrarMensaje(`Código "${barcode}" no encontrado.`, 'warning');
+      await mostrarMensaje(`Código "${barcode}" no encontrado.`, 'warning');
       barcodeInputRef.current?.select();
     }
   };
@@ -108,7 +134,7 @@ function VentaTab() {
     setCantidadVenta(1);
     setDescuentoVenta(0); // También reseteamos el descuento
     manualProductSearchRef.current?.clearInput();
-    barcodeInputRef.current?.focus();
+    safeFocus();
   };
 
   const handleAgregarVentaRapida = () => {
@@ -119,21 +145,106 @@ function VentaTab() {
     }
   };
 
-  const handleConfirmPayment = (metodoPago, tipoFactura) => {
+  const handleConfirmPayment = async (metodoPago, tipoFactura) => {
     setIsPaymentModalOpen(false);
     const totalVenta = calculateTotal();
     const clienteFinal = selectedClientId
       ? clientes.find((c) => c.id === selectedClientId)
       : null;
-    handleSaleConfirmed(
+
+    let afipResult = null;
+
+    // Si es Factura A, B o C, llamamos a la Cloud Function
+    if (['A', 'B', 'C'].includes(tipoFactura)) {
+      try {
+        // No esperamos este mensaje inicial para no bloquear la UI, o usamos un toast no bloqueante si existiera.
+        // Pero como mostrarMensaje es Swal (modal), si lo esperamos, el usuario tiene que dar OK.
+        // Lo mejor es mostrarlo y que se cierre solo o usar un loading.
+        // Por ahora, para evitar el error de foco, lo comentamos o lo hacemos async si es informativo.
+        // mostrarMensaje('Generando Factura Electrónica...', 'info');
+
+        // O mejor, usamos un loading de Swal que no requiera interacción y se cierre programáticamente.
+        // Como no tenemos esa función a mano en el context, simplemente esperaremos el resultado.
+
+        // Importación dinámica para no romper si no se usa
+        const { getFunctions, httpsCallable } =
+          await import('firebase/functions');
+        const functions = getFunctions();
+        const createInvoice = httpsCallable(functions, 'createInvoice');
+
+        // 1. Preparar Datos para AFIP
+        // Priorizamos el Punto de Venta de la Sucursal, si existe. Si no, usamos el global.
+        const ptoVta =
+          sucursalActual?.puntoVenta ||
+          sucursalActual?.configuracion?.puntoVenta ||
+          datosNegocio?.puntoVenta ||
+          1;
+        const cbteTipo = tipoFactura === 'A' ? 1 : tipoFactura === 'B' ? 6 : 11;
+        const concepto = 1; // Productos
+
+        let docTipo = 99; // Consumidor Final
+        let docNro = 0;
+
+        // 2. Calcular Importes (Asumiendo IVA 21% incluido para RI)
+        let importeNeto = totalVenta;
+        let importeIva = 0;
+        let importeExento = 0;
+
+        if (tipoFactura === 'A' || tipoFactura === 'B') {
+          importeNeto = totalVenta / 1.21;
+          importeIva = totalVenta - importeNeto;
+        }
+
+        const result = await createInvoice({
+          sucursalId: sucursalActual?.id,
+          ptoVta,
+          cbteTipo,
+          concepto,
+          docTipo,
+          docNro,
+          importeTotal: totalVenta,
+          importeNeto,
+          importeIva,
+          importeExento,
+        });
+
+        // Agregamos datos locales importantes al resultado para guardarlos
+        afipResult = {
+          ...result.data,
+          ptoVta,
+          cbteTipo,
+          docTipo,
+          docNro,
+        };
+
+        if (afipResult.mock) {
+          await mostrarMensaje('Factura generada en MODO PRUEBA.', 'warning');
+        } else {
+          await mostrarMensaje(
+            'Factura Electrónica generada con éxito.',
+            'success',
+          );
+        }
+      } catch (error) {
+        console.error('Error al facturar:', error);
+        await mostrarMensaje(`Error al facturar: ${error.message}`, 'error');
+        // Preguntar si desea continuar como Ticket X o cancelar
+        // Por simplicidad, abortamos.
+        return;
+      }
+    }
+
+    await handleSaleConfirmed(
       cartItems,
       totalVenta,
       clienteFinal,
       metodoPago,
       tipoFactura,
+      vendedorActivoId, // <--- USAMOS EL GLOBAL
+      afipResult, // <--- Pasamos los datos de AFIP
     );
     setSelectedClientId(null);
-    barcodeInputRef.current?.focus();
+    safeFocus();
   };
 
   const calculateTotal = () => {
@@ -144,7 +255,7 @@ function VentaTab() {
       return total + item.precioFinal;
     }, 0);
   };
-  const productosConStock = productos.filter((p) => p.stock > 0);
+  // const productosConStock = productos.filter((p) => p.stock > 0); // Eliminado para permitir venta sin stock
 
   return (
     <div id="venta">
@@ -153,16 +264,37 @@ function VentaTab() {
       </h2>
       <div className="mb-4 max-w-md rounded-lg border border-zinc-700 bg-zinc-800 p-4">
         <label className="text-md mb-2 block font-medium text-zinc-200">
-          Vendedor Activo
+          Gestión de Turno y Venta
         </label>
         {/* --- CONTENEDOR PARA SELECTOR Y TURNO --- */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-1">
-          <SelectorVendedor
-            vendedores={vendedores}
-            vendedorActivoId={vendedorActivoId}
-            onSelectVendedor={setVendedorActivoId}
-          />
-          <ShiftManager />
+          {/* 1. CAJERO (Responsable del Turno) */}
+          <div className="rounded-md border border-zinc-600 bg-zinc-900 p-3">
+            <label className="mb-1 block text-xs font-bold text-zinc-400">
+              CAJERO (Responsable Turno):
+            </label>
+            <div className="mb-2">
+              <SelectorVendedor
+                vendedores={vendedores}
+                vendedorActivoId={vendedorActivoId}
+                onSelectVendedor={setVendedorActivoId}
+              />
+            </div>
+            {/* Manager del TURNO (usa vendedorActivoId global) */}
+            <ShiftManager />
+          </div>
+
+          {/* 2. VENDEDOR (Para esta venta) */}
+          <div className="rounded-md border border-zinc-600 bg-zinc-900 p-3">
+            <label className="mb-1 block text-xs font-bold text-zinc-400">
+              VENDEDOR (Para esta venta):
+            </label>
+            <SelectorVendedor
+              vendedores={vendedores}
+              vendedorActivoId={vendedorActivoId} // <--- USAMOS EL GLOBAL
+              onSelectVendedor={setVendedorActivoId} // <--- USAMOS EL GLOBAL
+            />
+          </div>
         </div>
       </div>
       <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-3">
@@ -217,7 +349,7 @@ function VentaTab() {
               </label>
               <SearchBar
                 ref={manualProductSearchRef}
-                items={productosConStock}
+                items={productos} // --- MODIFICADO: Mostrar todos los productos, incluso sin stock
                 placeholder="Escriba para buscar..."
                 onSelect={setSelectedProductManual}
                 displayKey="nombre"
@@ -338,6 +470,16 @@ function VentaTab() {
           onCheckout={() => {
             if (cartItems.length > 0) setIsPaymentModalOpen(true);
             else mostrarMensaje('El carrito está vacío.', 'warning');
+          }}
+          onSaveBudget={() => {
+            if (cartItems.length === 0) {
+              mostrarMensaje('El carrito está vacío.', 'warning');
+              return;
+            }
+            const cliente = selectedClientId
+              ? clientes.find((c) => c.id === selectedClientId)
+              : null;
+            handleSaveBudget(cartItems, calculateTotal(), cliente);
           }}
           clients={clientes}
           selectedClientId={selectedClientId}

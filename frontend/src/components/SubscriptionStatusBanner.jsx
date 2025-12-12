@@ -17,7 +17,9 @@ const SubscriptionStatusBanner = () => {
   const { subscriptionStatus, subscriptionEndDate } = datosNegocio;
 
   // Calculamos los días restantes para el período de prueba
-  const endDate = subscriptionEndDate?.toDate();
+  const endDate = subscriptionEndDate?.toDate
+    ? subscriptionEndDate.toDate()
+    : new Date(subscriptionEndDate);
   const now = new Date();
   const daysLeft = endDate
     ? Math.ceil((endDate - now) / (1000 * 60 * 60 * 24))

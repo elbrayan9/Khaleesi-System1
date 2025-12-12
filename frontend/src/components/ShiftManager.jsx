@@ -73,6 +73,21 @@ const CloseShiftModal = ({
   const totalVentasTurno = turnoVentas.reduce((sum, v) => sum + v.total, 0);
   const totalEsperado = (turnoActivo?.montoInicial || 0) + totalVentasTurno;
 
+  // Calcular desglose por método de pago
+  const desglosePagos = turnoVentas.reduce((acc, venta) => {
+    const pagos = venta.pagos || [];
+    pagos.forEach((pago) => {
+      const metodo = pago.metodo || 'desconocido';
+      const monto = Number(pago.monto) || 0;
+      acc[metodo] = (acc[metodo] || 0) + monto;
+    });
+    // Si no hay pagos registrados pero hay total (caso legacy o error), asumir efectivo
+    if (pagos.length === 0 && venta.total > 0) {
+      acc['efectivo'] = (acc['efectivo'] || 0) + venta.total;
+    }
+    return acc;
+  }, {});
+
   if (!isOpen) return null;
 
   return (
@@ -96,16 +111,48 @@ const CloseShiftModal = ({
             <span>Monto Inicial:</span>{' '}
             <span>{formatCurrency(turnoActivo.montoInicial)}</span>
           </div>
-          <div className="flex justify-between">
-            <span>Ventas del Turno:</span>{' '}
-            <span>{formatCurrency(totalVentasTurno)}</span>
+          <div className="flex justify-between border-b border-zinc-600 pb-2">
+            <span>Ventas Totales:</span>{' '}
+            <span className="font-bold text-white">
+              {formatCurrency(totalVentasTurno)}
+            </span>
           </div>
+
+          {/* Desglose de Medios de Pago */}
+          <div className="py-2">
+            <p className="mb-1 text-xs font-semibold uppercase text-zinc-500">
+              Desglose por Medio de Pago
+            </p>
+            {Object.entries(desglosePagos).length === 0 ? (
+              <p className="text-sm italic text-zinc-500">
+                Sin ventas registradas.
+              </p>
+            ) : (
+              Object.entries(desglosePagos).map(([metodo, monto]) => (
+                <div key={metodo} className="flex justify-between text-sm">
+                  <span className="capitalize text-zinc-400">
+                    {metodo.replace(/_/g, ' ')}:
+                  </span>
+                  <span className="text-zinc-200">
+                    ${formatCurrency(monto)}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+
           <div className="mt-2 flex justify-between border-t border-zinc-600 pt-2 text-lg font-bold">
             <span>Total Esperado en Caja:</span>{' '}
             <span className="text-cyan-400">
-              {formatCurrency(totalEsperado)}
+              {formatCurrency(
+                (turnoActivo?.montoInicial || 0) +
+                  (desglosePagos['efectivo'] || 0),
+              )}
             </span>
           </div>
+          <p className="text-right text-xs text-zinc-500">
+            * Solo suma efectivo + monto inicial
+          </p>
         </div>
         <Button
           onClick={() =>
@@ -141,6 +188,8 @@ const ShiftManager = () => {
     handleAbrirTurno,
     handleCerrarTurno,
     ventas,
+    sucursalActual,
+    vendedores, // <--- Necesario para validar
   } = useAppContext();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -149,11 +198,12 @@ const ShiftManager = () => {
 
   useEffect(() => {
     const checkForOpenShift = async () => {
-      if (vendedorActivoId && currentUserId) {
+      if (vendedorActivoId && currentUserId && sucursalActual) {
         setIsLoading(true);
         const openShiftSnap = await getOpenShift(
           currentUserId,
           vendedorActivoId,
+          sucursalActual.id,
         );
         if (!openShiftSnap.empty) {
           const shiftDoc = openShiftSnap.docs[0];
@@ -168,12 +218,15 @@ const ShiftManager = () => {
       }
     };
     checkForOpenShift();
-  }, [vendedorActivoId, currentUserId, setTurnoActivo]);
+  }, [vendedorActivoId, currentUserId, setTurnoActivo, sucursalActual]);
 
-  if (!vendedorActivoId) {
+  // Validar que el vendedor seleccionado exista en la lista actual (por si cambió la sucursal)
+  const vendedorValido = vendedores.find((v) => v.id === vendedorActivoId);
+
+  if (!vendedorActivoId || !vendedorValido) {
     return (
       <div className="rounded-md border border-zinc-700 bg-zinc-800 p-3 text-center text-sm text-zinc-400">
-        Selecciona un vendedor para gestionar el turno.
+        Selecciona un vendedor válido para gestionar el turno.
       </div>
     );
   }

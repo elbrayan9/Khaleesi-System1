@@ -19,6 +19,7 @@ import ClientesTab from './components/ClientesTab.jsx';
 import VendedoresTab from './components/VendedoresTab.jsx';
 import ProveedoresTab from './components/ProveedoresTab.jsx';
 import PedidosTab from './components/PedidosTab.jsx';
+import PresupuestosTab from './components/PresupuestosTab.jsx';
 import EstadisticasTab from '@/components/EstadisticasTab.jsx';
 import ReportesTab from './components/ReportesTab.jsx';
 import NotasCDTab from './components/NotasCDTab.jsx';
@@ -28,6 +29,7 @@ import PrintNota from './components/PrintNota.jsx';
 import SaleDetailModal from './components/SaleDetailModal.jsx';
 import NotaDetailModal from './components/NotaDetailModal.jsx';
 import { formatCurrency } from './utils/helpers.js';
+import { generarPdfVenta } from './services/pdfService'; // Importar servicio PDF
 import AdminPanel from './screens/AdminPanel.jsx';
 import UserDetailAdmin from './screens/UserDetailAdmin.jsx';
 import LandingPage from './screens/LandingPage.jsx';
@@ -64,41 +66,48 @@ function App() {
     }
   }, [notaToPrint]);
 
-  const handlePrintRequest = (ventaObjeto) => {
+  const handlePrintRequest = async (ventaObjeto, accion = 'print') => {
     if (!ventaObjeto || !ventaObjeto.id) {
       mostrarMensaje('Datos de venta inválidos para imprimir.', 'error');
       return;
     }
 
-    const cliente = clientes.find((c) => c.id === ventaObjeto.clienteId);
-    setVentaToPrint(ventaObjeto);
-    setClienteToPrint(cliente);
+    try {
+      const cliente = clientes.find((c) => c.id === ventaObjeto.clienteId) || {
+        nombre: ventaObjeto.clienteNombre || 'Consumidor Final',
+        cuit: ventaObjeto.clienteCuit || '',
+        direccion: '',
+        condicionFiscal: 'Consumidor Final',
+      };
 
-    setTimeout(() => {
-      const content = printVentaRef.current;
-      if (content) {
-        const iframe = document.createElement('iframe');
-        iframe.style.position = 'absolute';
-        iframe.style.width = '0';
-        iframe.style.height = '0';
-        iframe.style.border = '0';
-        document.body.appendChild(iframe);
-
-        const pri = iframe.contentWindow;
-        pri.document.open();
-        pri.document.write('<html><head><title>&zwnj;</title></head><body>');
-        pri.document.write(content.innerHTML);
-        pri.document.write('</body></html>');
-        pri.document.close();
-
-        pri.focus();
-        pri.print();
-
-        document.body.removeChild(iframe);
-        setVentaToPrint(null);
-        setClienteToPrint(null);
+      // Determinar Tipo de Documento
+      let tipoDoc = 'Ticket X';
+      if (ventaObjeto.afipData) {
+        const tipo = parseInt(ventaObjeto.afipData.cbteTipo, 10);
+        if (tipo === 1) tipoDoc = 'Factura A';
+        if (tipo === 6) tipoDoc = 'Factura B';
+        if (tipo === 11) tipoDoc = 'Factura C';
+      } else if (ventaObjeto.tipo === 'Presupuesto') {
+        tipoDoc = 'Presupuesto';
       }
-    }, 200);
+
+      await generarPdfVenta(
+        ventaObjeto,
+        datosNegocio,
+        cliente,
+        tipoDoc,
+        accion,
+      );
+
+      if (accion === 'download') {
+        mostrarMensaje('PDF descargado.', 'success');
+      } else {
+        mostrarMensaje('Abriendo impresión...', 'info');
+      }
+    } catch (error) {
+      console.error('Error generando PDF de venta:', error);
+      mostrarMensaje('Error al generar PDF.', 'error');
+    }
   };
 
   const openSaleDetailModal = (ventaId) => {
@@ -111,12 +120,90 @@ function App() {
     }
   };
 
-  const handlePrintNota = (notaId) => {
+  const handlePrintNota = async (notaId, accion = 'print') => {
     const nota = notasCD.find((n) => n.id === notaId);
-    if (nota) {
-      setNotaToPrint(nota);
-    } else {
+    if (!nota) {
       mostrarMensaje('Nota no encontrada para imprimir.', 'error');
+      return;
+    }
+
+    try {
+      const cliente = clientes.find((c) => c.id === nota.clienteId) || {
+        nombre: nota.clienteNombre,
+        cuit: nota.clienteCuit, // Si existe en la nota
+        direccion: '',
+        condicionFiscal: 'Consumidor Final',
+      };
+
+      // Determinar Tipo de Documento para el PDF
+      let tipoDoc = 'Nota de Crédito X'; // Default Interna
+      if (nota.tipo === 'debito') tipoDoc = 'Nota de Débito X';
+
+      // Si es fiscal (tiene CAE), usamos el tipo correcto
+      if (nota.cae && nota.cbteTipo) {
+        const tipo = parseInt(nota.cbteTipo, 10);
+        if (tipo === 3) tipoDoc = 'Nota de Crédito A';
+        if (tipo === 8) tipoDoc = 'Nota de Crédito B';
+        if (tipo === 13) tipoDoc = 'Nota de Crédito C';
+        if (tipo === 2) tipoDoc = 'Nota de Débito A';
+        if (tipo === 7) tipoDoc = 'Nota de Débito B';
+        if (tipo === 12) tipoDoc = 'Nota de Débito C';
+      }
+
+      // Adaptar objeto nota a formato venta para el servicio PDF
+      const notaParaPdf = {
+        id: nota.id,
+        fecha: nota.fecha, // Asumiendo formato DD/MM/YYYY
+        total: nota.monto,
+        clienteNombre: nota.clienteNombre,
+        clienteCuit: nota.clienteCuit || cliente.cuit,
+        metodoPago: nota.metodoPago || 'Cuenta Corriente',
+        items:
+          nota.itemsDevueltos && nota.itemsDevueltos.length > 0
+            ? nota.itemsDevueltos.map((item) => ({
+                codigoBarras: item.id ? item.id.substring(0, 5) : 'ITEM',
+                nombre: item.nombre,
+                cantidad: item.cantidad,
+                precioOriginal: item.precioOriginal || 0,
+                descuentoPorcentaje: 0,
+                precioFinal: item.precioOriginal || 0,
+              }))
+            : [
+                {
+                  codigoBarras: 'SERV',
+                  nombre: nota.motivo || 'Ajuste / Concepto',
+                  cantidad: 1,
+                  precioOriginal: nota.monto,
+                  descuentoPorcentaje: 0,
+                  precioFinal: nota.monto,
+                },
+              ],
+        afipData: {
+          cae: nota.cae,
+          caeFchVto: nota.caeFchVto,
+          ptoVta: nota.ptoVta,
+          cbteTipo: nota.cbteTipo,
+          cbteNro: nota.cbteNro,
+          docTipo: nota.docTipo || 99,
+          docNro: nota.docNro || 0,
+        },
+      };
+
+      await generarPdfVenta(
+        notaParaPdf,
+        datosNegocio,
+        cliente,
+        tipoDoc,
+        accion,
+      );
+      if (accion === 'download') {
+        mostrarMensaje('PDF descargado.', 'success');
+      } else {
+        mostrarMensaje('Abriendo impresión...', 'info');
+      }
+    } catch (error) {
+      console.error('Error generando PDF de nota:', error);
+      mostrarMensaje('Error al generar PDF.', 'error');
     }
   };
 
@@ -228,6 +315,7 @@ function App() {
               <Route path="vendedores" element={<VendedoresTab />} />
               <Route path="proveedores" element={<ProveedoresTab />} />
               <Route path="pedidos" element={<PedidosTab />} />
+              <Route path="presupuestos" element={<PresupuestosTab />} />
               <Route path="estadisticas" element={<EstadisticasTab />} />
               <Route
                 path="reportes"
@@ -292,6 +380,7 @@ function App() {
             )}
             formatCurrency={formatCurrency}
             datosNegocio={datosNegocio}
+            onPrint={handlePrintRequest}
           />
         )}
         {notaDetailModalOpen && (
@@ -301,6 +390,7 @@ function App() {
             nota={selectedNotaData}
             clientes={clientes}
             formatCurrency={formatCurrency}
+            onPrint={handlePrintNota}
           />
         )}
       </AnimatePresence>

@@ -4,8 +4,8 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
+    --background: 240 5% 90%; /* Blanco aún más suave (antes 96%) */
+    --foreground: 240 5% 10%; /* Gris oscuro suave (antes 240 10% 3.9%) */
     --card: 0 0% 100%;
     --card-foreground: 240 10% 3.9%;
     --popover: 0 0% 100%;
@@ -31,8 +31,8 @@
     --radius: 0.5rem;
   }
   .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
+    --background: 240 6% 10%; /* Negro suave (antes 240 10% 3.9%) */
+    --foreground: 0 0% 95%; /* Blanco no tan brillante (antes 0 0% 98%) */
     --card: 240 10% 3.9%;
     --card-foreground: 0 0% 98%;
     --popover: 240 10% 3.9%;
@@ -71,24 +71,15 @@
 
 body {
   font-family: 'Inter', sans-serif;
-  background-color: #18181b;
+  /* background-color: #18181b; Eliminado para soportar temas */
 }
 
 .active-nav-link {
-  border-bottom-width: 2px;
-  border-color: #60a5fa; /* azul */
-  color: #60a5fa !important;
+  @apply border-b-2 border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-400;
 }
 
 .inactive-nav-link {
-  border-bottom-width: 2px;
-  border-color: transparent;
-  color: #a1a1aa; /* zinc-400 */
-}
-
-.inactive-nav-link:hover {
-  border-color: #52525b; /* zinc-600 */
-  color: #e4e4e7 !important; /* zinc-200 */
+  @apply border-b-2 border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-900 dark:text-zinc-400 dark:hover:border-zinc-600 dark:hover:text-zinc-200;
 }
 
 .monto-positivo {

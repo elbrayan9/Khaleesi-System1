@@ -1,5 +1,11 @@
 // src/context/AppContext.jsx
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, {
+  createContext,
+  useState,
+  useEffect,
+  useContext,
+  useRef,
+} from 'react';
 import { db, auth } from '../firebaseConfig';
 import {
   collection,
@@ -45,16 +51,32 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
   const [egresos, setEgresos] = useState([]);
   const [ingresosManuales, setIngresosManuales] = useState([]);
   const [notasCD, setNotasCD] = useState([]);
+  const [presupuestos, setPresupuestos] = useState([]);
   const [datosNegocio, setDatosNegocio] = useState(null);
   const [turnos, setTurnos] = useState([]);
+
   const [turnoActivo, setTurnoActivo] = useState(null);
+
+  // --- Sucursales ---
+  const [sucursales, setSucursales] = useState([]);
+  const [sucursalActual, setSucursalActual] = useState(null);
+  const [isMigrating, setIsMigrating] = useState(false);
 
   // --- UI edición ---
   const [editingProduct, setEditingProduct] = useState(null);
   const [editingClient, setEditingClient] = useState(null);
   const [vendedorActivoId, setVendedorActivoId] = useState(null);
+  const [selectedClientId, setSelectedClientId] = useState(null); // <--- Nuevo estado persistente
 
-  // ---- AUTH ----
+  // --- TEMA ---
+  const [theme, setTheme] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('theme') || 'dark';
+    }
+    return 'dark';
+  });
+
+  // ---- AUTH & SUCURSALES ----
   useEffect(() => {
     setIsLoadingData(true);
     const unsub = onAuthStateChanged(auth, async (user) => {
@@ -63,6 +85,72 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
         setIsAdmin(tokenResult.claims.admin === true);
         setCurrentUserId(user.uid);
         setIsLoggedIn(true);
+
+        // --- Lógica de Sucursales y Migración ---
+        try {
+          const sucursalesExistentes = await fsService.getSucursales(user.uid);
+
+          if (sucursalesExistentes.length === 0) {
+            // MIGRACIÓN INICIAL: No hay sucursales, creamos la Principal
+            setIsMigrating(true);
+            console.log('Iniciando migración a sistema multisucursal...');
+            const nuevaSucursalId = await fsService.addSucursal(user.uid, {
+              nombre: 'Sucursal Principal',
+              direccion: 'Dirección Principal',
+              esPrincipal: true,
+            });
+
+            if (nuevaSucursalId) {
+              // Asignar datos huérfanos a esta nueva sucursal
+              const coleccionesAMigrar = [
+                'productos',
+                'ventas',
+                'pedidos',
+                'turnos',
+                'egresos',
+                'ingresos_manuales',
+                'notas_cd',
+                // 'clientes' y 'proveedores' podrían ser compartidos, pero por consistencia inicial los migramos
+                'clientes',
+                'proveedores',
+                'vendedores',
+              ];
+
+              for (const coll of coleccionesAMigrar) {
+                await fsService.migrarDocumentosASucursal(
+                  user.uid,
+                  nuevaSucursalId,
+                  coll,
+                );
+              }
+
+              // Recargar sucursales y setear actual
+              const sucursalesActualizadas = await fsService.getSucursales(
+                user.uid,
+              );
+              setSucursales(sucursalesActualizadas);
+              setSucursalActual(
+                sucursalesActualizadas.find((s) => s.id === nuevaSucursalId),
+              );
+              mostrarMensaje?.(
+                'Sistema actualizado a Multisucursal. Se ha creado tu Sucursal Principal.',
+                'success',
+              );
+            }
+            setIsMigrating(false);
+          } else {
+            // Ya existen sucursales, seleccionamos la primera por defecto o la guardada
+            setSucursales(sucursalesExistentes);
+            // Podríamos guardar la última usada en localStorage, por ahora usamos la primera
+            setSucursalActual(sucursalesExistentes[0]);
+          }
+        } catch (error) {
+          console.error('Error cargando sucursales:', error);
+          mostrarMensaje?.(
+            'Error al cargar la configuración de sucursales.',
+            'error',
+          );
+        }
       } else {
         setCurrentUserId(null);
         setIsLoggedIn(false);
@@ -76,6 +164,8 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
         setIngresosManuales([]);
         setNotasCD([]);
         setDatosNegocio(null);
+        setSucursales([]);
+        setSucursalActual(null);
       }
       setIsLoadingData(false);
       setIsLoading(false);
@@ -83,9 +173,126 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     return () => unsub();
   }, []);
 
-  // ---- Listeners en tiempo real (sin índices compuestos) ----
+  // --- Efecto de Tema ---
   useEffect(() => {
-    if (!currentUserId) return;
+    const root = window.document.documentElement;
+    root.classList.remove('light', 'dark');
+    root.classList.add(theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
+
+  // --- Lógica de Planes ---
+  const plan = datosNegocio?.plan || 'basic'; // Default a basic si no hay dato
+  const isPremium = plan === 'premium';
+
+  // Admin tiene acceso total siempre
+  const canAccessAfip = isPremium || isAdmin;
+  const canAccessMultisucursal = isPremium || isAdmin;
+  const canAccessDailyReport = isPremium || isAdmin;
+  const canAccessAI = isPremium || isAdmin;
+
+  // --- Persistencia por Sucursal (Carrito, Vendedor, Turno, Cliente) ---
+  const prevSucursalRef = useRef(null);
+
+  // 1. Cargar datos al cambiar de sucursal
+  useEffect(() => {
+    if (sucursalActual?.id) {
+      const sucursalId = sucursalActual.id;
+      console.log(`[Context] Cargando estado para sucursal ${sucursalId}`);
+
+      // --- CARRITO ---
+      const cartKey = `cart_${sucursalId}`;
+      const savedCart = localStorage.getItem(cartKey);
+      if (savedCart) {
+        try {
+          setCartItems(JSON.parse(savedCart));
+        } catch (e) {
+          console.error('Error loading cart:', e);
+          setCartItems([]);
+        }
+      } else {
+        setCartItems([]);
+      }
+
+      // --- VENDEDOR ---
+      const sellerKey = `seller_${sucursalId}`;
+      const savedSeller = localStorage.getItem(sellerKey);
+      setVendedorActivoId(savedSeller || null);
+
+      // --- TURNO (Estado local) ---
+      // Nota: Esto solo guarda el ID/Estado en memoria local.
+      // La validación real de si el turno está abierto debe venir de Firestore.
+      const shiftKey = `shift_${sucursalId}`;
+      const savedShift = localStorage.getItem(shiftKey);
+      if (savedShift) {
+        try {
+          setTurnoActivo(JSON.parse(savedShift));
+        } catch (e) {
+          console.error('Error loading shift:', e);
+          setTurnoActivo(null);
+        }
+      } else {
+        setTurnoActivo(null);
+      }
+
+      // --- CLIENTE SELECCIONADO ---
+      const clientKey = `client_${sucursalId}`;
+      const savedClient = localStorage.getItem(clientKey);
+      setSelectedClientId(savedClient || null);
+    }
+  }, [sucursalActual?.id]);
+
+  // 2. Guardar datos al cambiar (Solo si no estamos cambiando de sucursal)
+  useEffect(() => {
+    if (!sucursalActual?.id) return;
+
+    // Si acabamos de cambiar de sucursal, actualizamos la ref y NO guardamos
+    // (para evitar sobrescribir los datos de la nueva sucursal con los de la vieja)
+    if (prevSucursalRef.current !== sucursalActual.id) {
+      prevSucursalRef.current = sucursalActual.id;
+      return;
+    }
+
+    const sucursalId = sucursalActual.id;
+
+    // Guardar Carrito
+    localStorage.setItem(`cart_${sucursalId}`, JSON.stringify(cartItems));
+
+    // Guardar Vendedor
+    if (vendedorActivoId) {
+      localStorage.setItem(`seller_${sucursalId}`, vendedorActivoId);
+    } else {
+      localStorage.removeItem(`seller_${sucursalId}`);
+    }
+
+    // Guardar Turno
+    if (turnoActivo) {
+      localStorage.setItem(`shift_${sucursalId}`, JSON.stringify(turnoActivo));
+    } else {
+      localStorage.removeItem(`shift_${sucursalId}`);
+    }
+
+    // Guardar Cliente
+    if (selectedClientId) {
+      localStorage.setItem(`client_${sucursalId}`, selectedClientId);
+    } else {
+      localStorage.removeItem(`client_${sucursalId}`);
+    }
+  }, [
+    cartItems,
+    vendedorActivoId,
+    turnoActivo,
+    selectedClientId,
+    sucursalActual?.id,
+  ]);
+
+  // ---- Listeners en tiempo real (CON FILTRO DE SUCURSAL) ----
+  useEffect(() => {
+    if (!currentUserId || !sucursalActual?.id) return;
 
     const collectionsToListen = [
       { name: 'productos', setter: setProductos },
@@ -97,20 +304,23 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       { name: 'egresos', setter: setEgresos },
       { name: 'ingresos_manuales', setter: setIngresosManuales },
       { name: 'notas_cd', setter: setNotasCD },
+      { name: 'presupuestos', setter: setPresupuestos },
       { name: 'turnos', setter: setTurnos },
     ];
 
     const unsubscribes = collectionsToListen.map(({ name, setter }) => {
-      const q = query(
-        collection(db, name),
-        where('userId', '==', currentUserId),
-      );
+      let q = query(collection(db, name), where('userId', '==', currentUserId));
+
+      // Aplicamos filtro de sucursal
+      // Nota: Si decidimos que clientes/proveedores son globales, excluirlos aquí.
+      // Por ahora, todo es por sucursal según el plan.
+      q = query(q, where('sucursalId', '==', sucursalActual.id));
+
       return onSnapshot(
         q,
         (querySnapshot) => {
           const data = querySnapshot.docs
             .map((d) => ({ id: d.id, ...d.data() }))
-            // Ordenamos en memoria por timestamp desc para evitar índices compuestos
             .sort((a, b) => {
               const ta = a?.timestamp?.toDate
                 ? a.timestamp.toDate().getTime()
@@ -124,25 +334,40 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
         },
         (error) => {
           console.error(`Error escuchando la colección ${name}:`, error);
-          mostrarMensaje?.(
-            `No se pudo conectar a ${name} en tiempo real.`,
-            'error',
-          );
+          // Omitimos mostrar error en UI para no saturar si es permiso denegado temporal
         },
       );
     });
 
+    // Listener de Datos de Negocio (POR SUCURSAL)
+    // Primero intentamos inicializar si no existe
+    const initSettings = async () => {
+      await fsService.initializeBranchSettings(
+        currentUserId,
+        sucursalActual.id,
+      );
+    };
+    initSettings();
+
+    // AHORA ESCUCHAMOS EL DOCUMENTO DE LA SUCURSAL
     const unsubDatosNegocio = onSnapshot(
-      doc(db, 'datosNegocio', currentUserId),
+      doc(db, 'sucursales', sucursalActual.id),
       (snap) => {
-        setDatosNegocio(snap.exists() ? { id: snap.id, ...snap.data() } : null);
+        if (snap.exists()) {
+          const data = snap.data();
+          // Si tiene configuracion, la usamos. Si no, podríamos necesitar cargar la global.
+          // Pero initializeBranchSettings ya debería haber copiado la global aquí.
+          if (data.configuracion) {
+            setDatosNegocio({ id: sucursalActual.id, ...data.configuracion });
+          } else {
+            // Fallback: Si por alguna razón no tiene config, podríamos intentar leer la global
+            // Pero para simplificar y evitar loops, esperamos a que initialize haga su trabajo.
+            // Opcional: setDatosNegocio(null) o mantener el anterior.
+          }
+        }
       },
       (error) => {
-        console.error('Error escuchando datos del negocio:', error);
-        mostrarMensaje?.(
-          'No se pudo conectar a los datos de tu negocio.',
-          'error',
-        );
+        console.error('Error escuchando datos del negocio (sucursal):', error);
       },
     );
     unsubscribes.push(unsubDatosNegocio);
@@ -150,7 +375,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     return () => {
       unsubscribes.forEach((u) => u && u());
     };
-  }, [currentUserId]);
+  }, [currentUserId, sucursalActual]); // Dependencia clave: sucursalActual
 
   // ---- Handlers ----
   // frontend/src/context/AppContext.jsx
@@ -307,24 +532,40 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
 
   // Productos
   const handleSaveProduct = async (productDataFromForm) => {
+    if (!sucursalActual) {
+      mostrarMensaje?.('No hay una sucursal seleccionada.', 'error');
+      return;
+    }
     const productDataFirebase = {
       ...productDataFromForm,
       userId: currentUserId,
+      sucursalId: sucursalActual.id, // Asignar sucursal
     };
     const isEditing = isValidFirestoreId(productDataFromForm.id);
-    const existsBarcode = productos.find(
-      (p) =>
-        p.codigoBarras &&
-        productDataFirebase.codigoBarras &&
-        p.codigoBarras === productDataFirebase.codigoBarras &&
-        p.id !== productDataFromForm.id,
-    );
-    if (existsBarcode) {
-      mostrarMensaje?.(
-        `Código de barras "${productDataFirebase.codigoBarras}" ya asignado.`,
-        'warning',
-      );
-      return;
+
+    // Validación de código de barras duplicado
+    if (productDataFirebase.codigoBarras) {
+      const barcodeToCheck = String(productDataFirebase.codigoBarras).trim();
+      if (barcodeToCheck) {
+        const existsBarcode = productos.find((p) => {
+          if (!p.codigoBarras) return false;
+          const currentBarcode = String(p.codigoBarras).trim();
+
+          // Si tiene ID y coincide, es el mismo producto -> NO es duplicado
+          if (productDataFromForm.id && p.id === productDataFromForm.id)
+            return false;
+
+          return currentBarcode === barcodeToCheck;
+        });
+
+        if (existsBarcode) {
+          mostrarMensaje?.(
+            `Código de barras "${barcodeToCheck}" ya asignado a "${existsBarcode.nombre}".`,
+            'warning',
+          );
+          return;
+        }
+      }
     }
     setIsLoadingData(true);
     if (isEditing) {
@@ -336,7 +577,11 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       );
     } else {
       const { id, ...dataToAdd } = productDataFirebase;
-      const newId = await fsService.addProducto(currentUserId, dataToAdd);
+      const newId = await fsService.addProducto(
+        currentUserId,
+        dataToAdd,
+        sucursalActual.id,
+      );
       mostrarMensaje?.(
         isValidFirestoreId(newId)
           ? 'Producto agregado.'
@@ -418,7 +663,12 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
 
   // Clientes
   const handleSaveClient = async (clientDataFromForm) => {
-    const clientDataFirebase = { ...clientDataFromForm, userId: currentUserId };
+    if (!sucursalActual) return;
+    const clientDataFirebase = {
+      ...clientDataFromForm,
+      userId: currentUserId,
+      sucursalId: sucursalActual.id,
+    };
     const isEditing = isValidFirestoreId(clientDataFromForm.id);
     setIsLoadingData(true);
     if (isEditing) {
@@ -430,7 +680,11 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       );
     } else {
       const { id, ...dataToAdd } = clientDataFirebase;
-      const newId = await fsService.addCliente(currentUserId, dataToAdd);
+      const newId = await fsService.addCliente(
+        currentUserId,
+        dataToAdd,
+        sucursalActual.id,
+      );
       mostrarMensaje?.(
         isValidFirestoreId(newId)
           ? 'Cliente agregado.'
@@ -471,6 +725,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
 
   // Vendedores
   const handleSaveVendedor = async (vendedorData, vendedorId = null) => {
+    if (!sucursalActual) return;
     setIsLoadingData(true);
     if (isValidFirestoreId(vendedorId)) {
       const ok = await fsService.updateVendedor(vendedorId, vendedorData);
@@ -479,7 +734,11 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
         ok ? 'success' : 'error',
       );
     } else {
-      const newId = await fsService.addVendedor(currentUserId, vendedorData);
+      const newId = await fsService.addVendedor(
+        currentUserId,
+        vendedorData,
+        sucursalActual.id,
+      );
       mostrarMensaje?.(
         isValidFirestoreId(newId)
           ? 'Vendedor agregado.'
@@ -513,6 +772,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
 
   // Proveedores
   const handleSaveProveedor = async (proveedorData, proveedorId = null) => {
+    if (!sucursalActual) return;
     setIsLoadingData(true);
     // Ya no pasamos el userId como primer argumento, ya viene en proveedorData desde el form
     // y la función de servicio se encarga de agregarlo.
@@ -525,7 +785,11 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
         ok ? 'success' : 'error',
       );
     } else {
-      const newId = await fsService.addProveedor(currentUserId, proveedorData);
+      const newId = await fsService.addProveedor(
+        currentUserId,
+        proveedorData,
+        sucursalActual.id,
+      );
       mostrarMensaje?.(
         isValidFirestoreId(newId)
           ? 'Proveedor agregado.'
@@ -561,8 +825,13 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
 
   // Pedidos a Proveedores
   const handleSavePedido = async (pedidoData) => {
+    if (!sucursalActual) return false;
     setIsLoadingData(true);
-    const newId = await fsService.addPedido(currentUserId, pedidoData);
+    const newId = await fsService.addPedido(
+      currentUserId,
+      pedidoData,
+      sucursalActual.id,
+    );
     const success = isValidFirestoreId(newId);
     mostrarMensaje?.(
       success ? 'Pedido creado con éxito.' : 'Error al crear el pedido.',
@@ -664,8 +933,13 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     cliente,
     pagos,
     tipoFactura,
+    overrideVendedorId = null,
+    afipData = null, // <--- Nuevo parámetro opcional
   ) => {
-    if (!vendedorActivoId) {
+    // Usamos el override si existe, sino el del contexto (cajero)
+    const vendedorIdFinal = overrideVendedorId || vendedorActivoId;
+
+    if (!vendedorIdFinal) {
       mostrarMensaje?.(
         'Debe seleccionar un vendedor para registrar la venta.',
         'warning',
@@ -673,7 +947,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       return;
     }
     const vendedorSeleccionado = vendedores.find(
-      (v) => v.id === vendedorActivoId,
+      (v) => v.id === vendedorIdFinal,
     );
     if (!vendedorSeleccionado) {
       mostrarMensaje?.('El vendedor seleccionado no es válido.', 'error');
@@ -715,11 +989,12 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       hora,
       clienteId: clienteIdFinal,
       clienteNombre: cliente?.nombre || 'Consumidor Final',
-      items: itemsWithCost, // <--- Usamos el nuevo array de items que incluye el costo
+      items: itemsWithCost,
       total,
       pagos: ensureArray(pagos),
       vuelto: vueltoFinal,
       tipoFactura,
+      afipData: afipData || null, // <--- Guardamos datos de AFIP si existen
       userId: currentUserId,
       vendedorId: vendedorSeleccionado.id,
       vendedorNombre: vendedorSeleccionado.nombre,
@@ -727,7 +1002,11 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
 
     try {
       // 1. Primero, creamos la venta como siempre
-      const ventaId = await fsService.addVenta(currentUserId, newSaleData);
+      const ventaId = await fsService.addVenta(
+        currentUserId,
+        newSaleData,
+        sucursalActual.id,
+      );
 
       if (isValidFirestoreId(ventaId)) {
         // 2. Si la venta se guardó bien Y HAY UN TURNO ACTIVO...
@@ -738,10 +1017,13 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
 
         // 3. Limpiamos el carrito y mostramos el mensaje de éxito
         setCartItems([]);
-        mostrarMensaje?.('Venta registrada con éxito.', 'success');
+        await mostrarMensaje?.('Venta registrada con éxito.', 'success');
       }
     } catch (error) {
-      mostrarMensaje?.(error.message || 'Error al procesar la venta.', 'error');
+      await mostrarMensaje?.(
+        error.message || 'Error al procesar la venta.',
+        'error',
+      );
     } finally {
       setIsLoadingData(false);
     }
@@ -763,7 +1045,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       ventasIds: [],
     };
 
-    const newDocRef = await fsService.startShift(turnoData);
+    const newDocRef = await fsService.startShift(turnoData, sucursalActual.id);
     const newTurno = { id: newDocRef.id, ...turnoData };
     setTurnoActivo(newTurno);
     mostrarMensaje('Turno iniciado con éxito.', 'success');
@@ -795,25 +1077,28 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
   };
   // Ingresos / Egresos manuales
   const handleRegistrarIngresoManual = async (descripcion, monto) => {
+    if (!sucursalActual) return;
     const { fecha, hora } = obtenerFechaHoraActual();
     const newIngresoData = {
       fecha,
       hora,
       descripcion,
-      monto: Number(monto) || 0,
+      monto: Number(monto),
       userId: currentUserId,
+      sucursalId: sucursalActual.id,
     };
     const newId = await fsService.addIngresoManual(
       currentUserId,
       newIngresoData,
+      sucursalActual.id,
     );
-    mostrarMensaje?.(
-      isValidFirestoreId(newId)
-        ? 'Ingreso manual registrado.'
-        : 'Error al registrar ingreso.',
-      isValidFirestoreId(newId) ? 'success' : 'error',
-    );
+    if (isValidFirestoreId(newId)) {
+      mostrarMensaje('Ingreso registrado.', 'success');
+    } else {
+      mostrarMensaje('Error al registrar ingreso.', 'error');
+    }
   };
+
   const handleEliminarIngresoManual = async (id, descripcion) => {
     if (!isValidFirestoreId(id)) return;
     if (
@@ -833,22 +1118,28 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
   };
 
   const handleRegistrarEgreso = async (descripcion, monto) => {
+    if (!sucursalActual) return;
     const { fecha, hora } = obtenerFechaHoraActual();
     const newEgresoData = {
       fecha,
       hora,
       descripcion,
-      monto: Number(monto) || 0,
+      monto: Number(monto),
       userId: currentUserId,
+      sucursalId: sucursalActual.id,
     };
-    const newId = await fsService.addEgreso(currentUserId, newEgresoData);
-    mostrarMensaje?.(
-      isValidFirestoreId(newId)
-        ? 'Egreso registrado.'
-        : 'Error al registrar egreso.',
-      isValidFirestoreId(newId) ? 'success' : 'error',
+    const newId = await fsService.addEgreso(
+      currentUserId,
+      newEgresoData,
+      sucursalActual.id,
     );
+    if (isValidFirestoreId(newId)) {
+      mostrarMensaje('Egreso registrado.', 'success');
+    } else {
+      mostrarMensaje('Error al registrar egreso.', 'error');
+    }
   };
+
   const handleEliminarEgreso = async (id, descripcion) => {
     if (!isValidFirestoreId(id)) return;
     if (
@@ -867,47 +1158,71 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     }
   };
 
-  // Notas (CD)
-  const handleGenerarNotaManual = async (notaDataFromForm) => {
-    setIsLoadingData(true);
+  // Notas de Crédito / Manuales
+  const handleCrearNotaCreditoSimple = async (notaData) => {
+    if (!sucursalActual) return;
+    const newId = await fsService.addNotaCDSimple(
+      currentUserId,
+      notaData,
+      sucursalActual.id,
+    );
+    if (isValidFirestoreId(newId)) {
+      mostrarMensaje('Nota registrada.', 'success');
+      return true;
+    } else {
+      mostrarMensaje('Error al registrar nota.', 'error');
+      return false;
+    }
+  };
+
+  const handleCrearNotaManual = async (notaData) => {
+    if (!sucursalActual) return;
     const { fecha, hora } = obtenerFechaHoraActual();
-    const cliente = notaDataFromForm.cliente;
-    const clienteIdFinal =
-      cliente && isValidFirestoreId(cliente.id)
-        ? cliente.id
-        : 'consumidor_final';
-    const clienteNombreFinal = cliente ? cliente.nombre : 'Consumidor Final';
+    // Extracción robusta del nombre del cliente
+    let clienteNombre = 'Consumidor Final';
+    if (notaData.cliente) {
+      if (typeof notaData.cliente === 'string') {
+        clienteNombre = notaData.cliente;
+      } else if (typeof notaData.cliente === 'object') {
+        clienteNombre =
+          notaData.cliente.nombre ||
+          notaData.cliente.razonSocial ||
+          notaData.cliente.name ||
+          'Cliente Sin Nombre';
+      }
+    }
 
     const notaCompleta = {
-      ...notaDataFromForm,
-      clienteId: clienteIdFinal,
-      clienteNombre: clienteNombreFinal,
+      ...notaData,
       fecha,
       hora,
-      userId: currentUserId,
+      clienteNombre,
+      clienteId: notaData.cliente?.id || null,
     };
-    delete notaCompleta.cliente;
 
-    const newNotaId = await fsService.addNotaManual(
+    const newId = await fsService.addNotaManual(
       currentUserId,
       notaCompleta,
+      sucursalActual.id,
     );
-    mostrarMensaje?.(
-      isValidFirestoreId(newNotaId)
-        ? `Nota de ${notaCompleta.tipo} generada con éxito.`
-        : `Error al generar nota de ${notaCompleta.tipo}.`,
-      isValidFirestoreId(newNotaId) ? 'success' : 'error',
-    );
-    setIsLoadingData(false);
+    if (isValidFirestoreId(newId)) {
+      mostrarMensaje('Nota creada y stock ajustado (si aplica).', 'success');
+      return true;
+    } else {
+      mostrarMensaje('Error al crear nota.', 'error');
+      return false;
+    }
   };
 
   const handleAnularVenta = async (ventaOriginal) => {
-    if (!isValidFirestoreId(ventaOriginal?.id)) {
-      return mostrarMensaje?.('ID de venta inválido.', 'error');
+    if (!ventaOriginal || !isValidFirestoreId(ventaOriginal.id)) {
+      mostrarMensaje?.('Venta inválida para anular.', 'error');
+      return;
     }
+
+    // Verificar si ya existe una nota de crédito para esta venta
     const yaExisteNota = notasCD.some(
-      (nota) =>
-        nota.ventaOriginalId === ventaOriginal.id && nota.tipo === 'credito',
+      (nota) => nota.ventaOriginalId === ventaOriginal.id,
     );
     if (yaExisteNota) {
       return mostrarMensaje?.(
@@ -991,113 +1306,528 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     }
   };
 
+  // Gestión de Sucursales
+  const handleCreateSucursal = async (
+    nombre,
+    direccion,
+    importarDePrincipal,
+  ) => {
+    if (!nombre.trim()) {
+      mostrarMensaje('El nombre de la sucursal es obligatorio.', 'warning');
+      return;
+    }
+
+    setIsLoadingData(true);
+    try {
+      const newSucursalData = {
+        nombre,
+        direccion,
+        esPrincipal: false,
+      };
+
+      const newSucursalId = await fsService.addSucursal(
+        currentUserId,
+        newSucursalData,
+      );
+
+      if (newSucursalId) {
+        if (importarDePrincipal) {
+          const sucursalPrincipal =
+            sucursales.find((s) => s.esPrincipal) || sucursales[0];
+
+          if (sucursalPrincipal) {
+            mostrarMensaje(
+              'Creando sucursal e importando productos...',
+              'info',
+            );
+            await fsService.importarProductosDesdeSucursal(
+              currentUserId,
+              sucursalPrincipal.id,
+              newSucursalId,
+            );
+          }
+        }
+
+        const sucursalesActualizadas =
+          await fsService.getSucursales(currentUserId);
+        setSucursales(sucursalesActualizadas);
+
+        const nuevaSucursal = sucursalesActualizadas.find(
+          (s) => s.id === newSucursalId,
+        );
+        setSucursalActual(nuevaSucursal);
+
+        mostrarMensaje('Sucursal creada con éxito.', 'success');
+      } else {
+        mostrarMensaje('Error al crear la sucursal.', 'error');
+      }
+    } catch (error) {
+      console.error('Error creando sucursal:', error);
+      mostrarMensaje('Ocurrió un error inesperado.', 'error');
+    } finally {
+      setIsLoadingData(false);
+    }
+  };
+
+  const handleChangeSucursal = (sucursalId) => {
+    const sucursal = sucursales.find((s) => s.id === sucursalId);
+    if (sucursal) {
+      setSucursalActual(sucursal);
+      mostrarMensaje(`Cambiado a sucursal: ${sucursal.nombre}`, 'success');
+    }
+  };
+
+  const handleDeleteSucursal = async (sucursalId) => {
+    if (sucursales.length <= 1) {
+      mostrarMensaje('No puedes eliminar la única sucursal.', 'warning');
+      return;
+    }
+
+    if (
+      await confirmarAccion(
+        '¿Eliminar Sucursal?',
+        'Esta acción no se puede deshacer. Los datos asociados podrían perderse o quedar inaccesibles.',
+        'warning',
+        'Sí, eliminar',
+      )
+    ) {
+      setIsLoadingData(true);
+      const success = await fsService.deleteSucursal(sucursalId);
+      if (success) {
+        const nuevasSucursales = sucursales.filter((s) => s.id !== sucursalId);
+        setSucursales(nuevasSucursales);
+        if (sucursalActual.id === sucursalId) {
+          setSucursalActual(nuevasSucursales[0]);
+        }
+        mostrarMensaje('Sucursal eliminada.', 'success');
+      } else {
+        mostrarMensaje('Error al eliminar sucursal.', 'error');
+      }
+      setIsLoadingData(false);
+    }
+  };
+
+  const handleMigrarDatosHuérfanos = async () => {
+    if (!sucursalActual) return;
+    setIsLoadingData(true);
+    mostrarMensaje('Buscando y migrando datos huérfanos...', 'info');
+
+    const collections = [
+      'productos',
+      'clientes',
+      'proveedores',
+      'ventas',
+      'pedidos',
+      'egresos',
+      'ingresos_manuales',
+      'notas_cd',
+      'presupuestos',
+    ];
+
+    for (const col of collections) {
+      await fsService.migrarDocumentosASucursal(
+        currentUserId,
+        sucursalActual.id,
+        col,
+      );
+    }
+
+    mostrarMensaje('Proceso de recuperación finalizado.', 'success');
+    setIsLoadingData(false);
+  };
+
+  const handleForzarRecuperacionTotal = async () => {
+    if (!sucursalActual) return;
+
+    if (
+      await confirmarAccion(
+        '¿Recuperación TOTAL de Emergencia?',
+        'ATENCIÓN: Esto tomará TODOS tus datos (productos, ventas, etc.) de TODAS las sucursales y los asignará a ESTA sucursal actual. Úsalo solo si no ves tus datos.',
+        'warning',
+        'Sí, traer TODO aquí',
+      )
+    ) {
+      setIsLoadingData(true);
+      mostrarMensaje('Iniciando recuperación forzada total...', 'info');
+
+      const collections = [
+        'productos',
+        'clientes',
+        'proveedores',
+        'ventas',
+        'pedidos',
+        'egresos',
+        'ingresos_manuales',
+        'notas_cd',
+        'turnos',
+      ];
+
+      let totalRecuperado = 0;
+
+      for (const col of collections) {
+        const count = await fsService.forceAssignAllDataToSucursal(
+          currentUserId,
+          sucursalActual.id,
+          col,
+        );
+        totalRecuperado += count;
+      }
+
+      mostrarMensaje(
+        `Recuperación completada. ${totalRecuperado} elementos reasignados.`,
+        'success',
+      );
+      setIsLoadingData(false);
+
+      // Recargar página para asegurar que todo se vea
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    }
+  };
+
+  // --- NUEVO: Eliminar selección masiva ---
+  const handleDeleteSelected = async (productIds) => {
+    if (!productIds || productIds.size === 0) return;
+
+    const confirm = await confirmarAccion(
+      '¿Estás seguro?',
+      `Se eliminarán ${productIds.size} productos seleccionados.`,
+    );
+    if (!confirm) return;
+
+    setIsLoadingData(true);
+    const idsArray = Array.from(productIds);
+    const success = await fsService.deleteProducts(idsArray);
+
+    if (success) {
+      mostrarMensaje('Productos eliminados correctamente.', 'success');
+      // No necesitamos actualizar estado manual si el listener funciona,
+      // pero para feedback inmediato podríamos filtrar.
+      // El listener lo hará.
+    } else {
+      mostrarMensaje('Error al eliminar productos.', 'error');
+    }
+    setIsLoadingData(false);
+    return success;
+  };
+
+  // --- NUEVO: Eliminar duplicados ---
+  const handleDeleteDuplicates = async () => {
+    // 1. Agrupar por código de barras
+    const grupos = {};
+    let duplicadosCount = 0;
+    let productosAEliminar = [];
+
+    productos.forEach((p) => {
+      if (p.codigoBarras) {
+        const codigo = String(p.codigoBarras).trim();
+        if (!grupos[codigo]) grupos[codigo] = [];
+        grupos[codigo].push(p);
+      }
+    });
+
+    // 2. Identificar duplicados
+    Object.values(grupos).forEach((grupo) => {
+      if (grupo.length > 1) {
+        // Ordenar: Mayor stock primero, luego fecha actualización más reciente
+        grupo.sort((a, b) => {
+          if (b.stock !== a.stock) return b.stock - a.stock;
+          // Si stock es igual, el más nuevo (timestamp)
+          const timeA = a.lastUpdated?.seconds || 0;
+          const timeB = b.lastUpdated?.seconds || 0;
+          return timeB - timeA;
+        });
+
+        // El primero (índice 0) es el "ganador", el resto se borran
+        const [ganador, ...perdedores] = grupo;
+        perdedores.forEach((p) => productosAEliminar.push(p.id));
+        duplicadosCount += perdedores.length;
+      }
+    });
+
+    if (duplicadosCount === 0) {
+      mostrarMensaje('No se encontraron productos duplicados.', 'info');
+      return;
+    }
+
+    const confirm = await confirmarAccion(
+      'Eliminar Duplicados',
+      `Se encontraron ${duplicadosCount} productos duplicados (mismo código de barras). Se conservará el que tenga mayor stock. ¿Deseas eliminarlos?`,
+    );
+
+    if (!confirm) return;
+
+    setIsLoadingData(true);
+    const success = await fsService.deleteProducts(productosAEliminar);
+    if (success) {
+      mostrarMensaje(
+        `Se eliminaron ${duplicadosCount} productos duplicados.`,
+        'success',
+      );
+    } else {
+      mostrarMensaje('Error al eliminar duplicados.', 'error');
+    }
+    setIsLoadingData(false);
+  };
+
+  const handleImportarProductos = async (targetSucursalId) => {
+    if (!targetSucursalId) return;
+
+    // Buscar sucursal principal
+    const sucursalPrincipal =
+      sucursales.find((s) => s.esPrincipal) || sucursales[0];
+    if (!sucursalPrincipal) {
+      mostrarMensaje(
+        'No se encontró una sucursal principal para importar.',
+        'error',
+      );
+      return;
+    }
+
+    if (sucursalPrincipal.id === targetSucursalId) {
+      mostrarMensaje(
+        'No puedes importar a la misma sucursal principal.',
+        'warning',
+      );
+      return;
+    }
+
+    if (
+      await confirmarAccion(
+        '¿Importar Productos?',
+        `Se copiarán todos los productos de "${sucursalPrincipal.nombre}" a esta sucursal con STOCK 0.`,
+        'info',
+        'Sí, importar',
+      )
+    ) {
+      setIsLoadingData(true);
+      mostrarMensaje('Importando productos...', 'info');
+
+      const success = await fsService.importarProductosDesdeSucursal(
+        currentUserId,
+        sucursalPrincipal.id,
+        targetSucursalId,
+      );
+
+      if (success) {
+        mostrarMensaje('Productos importados con éxito.', 'success');
+        // Si estamos en la sucursal destino, recargar productos podría ser necesario
+        // pero el listener de firestore debería encargarse.
+      } else {
+        mostrarMensaje('Error al importar productos.', 'error');
+      }
+      setIsLoadingData(false);
+    }
+  };
+
   const handleGuardarDatosNegocio = async (datosActualizados) => {
     const ok = await fsService.saveDatosNegocio(
       currentUserId,
       datosActualizados,
+      sucursalActual?.id, // Pasamos la sucursal actual
     );
-    mostrarMensaje?.(
-      ok ? 'Configuración guardada.' : 'Error al guardar la configuración.',
-      ok ? 'success' : 'error',
-    );
-    if (ok) setDatosNegocio((prev) => ({ ...prev, ...datosActualizados }));
+    if (ok) {
+      mostrarMensaje('Datos del negocio actualizados.', 'success');
+      setDatosNegocio((prev) => ({ ...prev, ...datosActualizados }));
+    } else {
+      mostrarMensaje('Error al actualizar datos.', 'error');
+    }
   };
 
-  const contextValue = {
-    // estado
+  const handleEliminarVenta = async (ventaId) => {
+    if (!isValidFirestoreId(ventaId)) {
+      mostrarMensaje?.('ID de venta inválido.', 'error');
+      return;
+    }
+    if (
+      await confirmarAccion?.(
+        '¿Eliminar Venta?',
+        'Esto restaurará el stock. ¿Continuar?',
+        'warning',
+        'Sí, eliminar',
+      )
+    ) {
+      const ok = await fsService.deleteVentaAndRestoreStock(
+        currentUserId,
+        ventaId,
+      );
+      mostrarMensaje?.(
+        ok
+          ? 'Venta eliminada y stock restaurado.'
+          : 'Error al eliminar la venta.',
+        ok ? 'success' : 'error',
+      );
+    }
+  };
+
+  // --- PRESUPUESTOS ---
+  const handleSaveBudget = async (itemsInCart, total, cliente) => {
+    if (!itemsInCart || itemsInCart.length === 0) {
+      mostrarMensaje('El carrito está vacío.', 'warning');
+      return;
+    }
+    if (!sucursalActual) return;
+
+    setIsLoadingData(true);
+    const { fecha, hora } = obtenerFechaHoraActual();
+    const clienteIdFinal =
+      cliente && isValidFirestoreId(cliente.id)
+        ? cliente.id
+        : 'consumidor_final';
+
+    const presupuestoData = {
+      fecha,
+      hora,
+      clienteId: clienteIdFinal,
+      clienteNombre: cliente?.nombre || 'Consumidor Final',
+      items: itemsInCart,
+      total,
+      userId: currentUserId,
+      sucursalId: sucursalActual.id,
+    };
+
+    const newId = await fsService.addPresupuesto(
+      currentUserId,
+      presupuestoData,
+      sucursalActual.id,
+    );
+
+    if (isValidFirestoreId(newId)) {
+      setCartItems([]); // Limpiar carrito
+      mostrarMensaje('Presupuesto guardado con éxito.', 'success');
+    } else {
+      mostrarMensaje('Error al guardar el presupuesto.', 'error');
+    }
+    setIsLoadingData(false);
+  };
+
+  const handleDeleteBudget = async (presupuestoId) => {
+    if (!isValidFirestoreId(presupuestoId)) return;
+    if (
+      await confirmarAccion?.(
+        '¿Eliminar Presupuesto?',
+        'Esta acción no se puede deshacer.',
+        'warning',
+        'Sí, eliminar',
+      )
+    ) {
+      setIsLoadingData(true);
+      const ok = await fsService.deletePresupuesto(presupuestoId);
+      mostrarMensaje?.(
+        ok ? 'Presupuesto eliminado.' : 'Error al eliminar.',
+        ok ? 'success' : 'error',
+      );
+      setIsLoadingData(false);
+    }
+  };
+
+  const value = {
+    // Auth & Estado
     isLoggedIn,
-    isLoadingData,
     currentUserId,
     isAdmin,
+    isLoading,
+    isLoadingData,
+    // Datos
     productos,
     clientes,
+    vendedores,
+    proveedores,
+    pedidos,
     cartItems,
     ventas,
     egresos,
     ingresosManuales,
     notasCD,
+    presupuestos,
     datosNegocio,
-    vendedores,
-    vendedorActivoId,
-    proveedores,
-    pedidos,
-    editingProduct,
-    editingClient,
     turnos,
     turnoActivo,
-    // setters
+    // Sucursales
+    sucursales,
+    sucursalActual,
+    isMigrating,
+    handleCreateSucursal,
+    handleChangeSucursal,
+    handleDeleteSucursal,
+    handleMigrarDatosHuérfanos,
+    handleForzarRecuperacionTotal,
+    handleImportarProductos,
+    // UI Edición
+    editingProduct,
+    editingClient,
+    vendedorActivoId,
     setVendedorActivoId,
-    setCartItems,
+    selectedClientId, // <--- Exportamos
+    setSelectedClientId, // <--- Exportamos
     setTurnoActivo,
-    // acciones
-    handleLogout,
+    // Handlers Productos
     handleSaveProduct,
     handleEditProduct,
     handleCancelEditProduct,
     handleDeleteProduct,
+    handleBulkPriceUpdate,
+    // Handlers Clientes
     handleSaveClient,
     handleEditClient,
     handleCancelEditClient,
     handleDeleteClient,
+    // Handlers Vendedores
     handleSaveVendedor,
     handleDeleteVendedor,
+    // Handlers Proveedores
     handleSaveProveedor,
     handleDeleteProveedor,
+    // Handlers Pedidos
     handleSavePedido,
     handleUpdatePedidoEstado,
     handleRecibirPedido,
     handleCancelarPedido,
     handleDeletePedido,
-    handleBulkPriceUpdate,
+    // Handlers Ventas / Carrito
+    handleAddToCart,
+    handleAddManualItemToCart,
+    setCartItems,
+    handleSaleConfirmed,
+    handleEliminarVenta,
+    handleSaveBudget,
+    handleDeleteBudget,
+    // Handlers Turnos
     handleAbrirTurno,
     handleCerrarTurno,
-    handleSaleConfirmed,
-    handleAddToCart,
-    handleEliminarVenta: async (ventaId) => {
-      if (!isValidFirestoreId(ventaId)) {
-        mostrarMensaje?.('ID de venta inválido.', 'error');
-        return;
-      }
-      if (
-        await confirmarAccion?.(
-          '¿Eliminar Venta?',
-          'Esto restaurará el stock. ¿Continuar?',
-          'warning',
-          'Sí, eliminar',
-        )
-      ) {
-        const ok = await fsService.deleteVentaAndRestoreStock(
-          currentUserId,
-          ventaId,
-        );
-        mostrarMensaje?.(
-          ok
-            ? 'Venta eliminada y stock restaurado.'
-            : 'Error al eliminar la venta.',
-          ok ? 'success' : 'error',
-        );
-      }
-    },
+    // Handlers Ingresos/Egresos/Notas
     handleRegistrarIngresoManual,
     handleEliminarIngresoManual,
     handleRegistrarEgreso,
     handleEliminarEgreso,
-    handleGenerarNotaManual,
+    handleCrearNotaCreditoSimple,
+    handleCrearNotaManual,
     handleEliminarNotaCD,
     handleAnularVenta,
-    handleGuardarDatosNegocio,
-    handleAddManualItemToCart,
-    handleNotifyPayment,
+    // Utils
     handleBackupData,
-    // utilidades
+    handleNotifyPayment,
+    handleLogout,
+    handleGuardarDatosNegocio,
+    // UI Utils
     mostrarMensaje,
+    handleDeleteSelected,
+    handleDeleteDuplicates,
     confirmarAccion,
-    isLoading,
+    // Theme
+    theme,
+    toggleTheme,
+    // Plan & Permissions
+    plan,
+    isPremium,
+    canAccessAfip,
+    canAccessMultisucursal,
+    canAccessDailyReport,
+    canAccessAI,
   };
 
-  return (
-    <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>
-  );
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
 
 export default AppProvider;

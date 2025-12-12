@@ -1,10 +1,16 @@
-// src/components/NotaDetailModal.jsx
 import React from 'react';
 import { motion } from 'framer-motion';
-import { X } from 'lucide-react';
+import { X, Download } from 'lucide-react';
 
 // Placeholder - DEBES DESARROLLAR ESTE COMPONENTE
-function NotaDetailModal({ isOpen, onClose, nota, formatCurrency, clientes }) {
+function NotaDetailModal({
+  isOpen,
+  onClose,
+  nota,
+  formatCurrency,
+  clientes,
+  onPrint,
+}) {
   if (!isOpen || !nota) return null;
 
   const clienteDeLaNota =
@@ -86,6 +92,11 @@ function NotaDetailModal({ isOpen, onClose, nota, formatCurrency, clientes }) {
                 ${formatCurrency(nota.monto)}
               </span>
             </p>
+            {nota.cae && (
+              <p className="col-span-2 mt-2 rounded border border-green-500/50 bg-green-900/20 p-2 text-center text-green-400">
+                <strong>CAE:</strong> {nota.cae}
+              </p>
+            )}
           </div>
 
           {nota.itemsDevueltos && nota.itemsDevueltos.length > 0 && (
@@ -104,7 +115,18 @@ function NotaDetailModal({ isOpen, onClose, nota, formatCurrency, clientes }) {
           )}
         </div>
 
-        <div className="mt-5 border-t border-zinc-700 pt-4 text-right">
+        <div className="mt-5 flex justify-end gap-3 border-t border-zinc-700 pt-4">
+          {onPrint && (
+            <motion.button
+              onClick={() => onPrint(nota.id, 'download')}
+              className="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 font-bold text-white transition hover:bg-blue-700"
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Descargar PDF
+            </motion.button>
+          )}
           <motion.button
             onClick={onClose}
             className="rounded-md bg-zinc-600 px-3 py-2 font-bold text-zinc-200 transition hover:bg-zinc-500"

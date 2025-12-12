@@ -116,7 +116,7 @@ const ForgotPasswordScreen = () => {
       </main>
 
       <div className="relative z-10">
-        <Footer />
+        <Footer simple={true} />
       </div>
     </div>
   );
