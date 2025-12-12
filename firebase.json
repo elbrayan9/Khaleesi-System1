@@ -27,7 +27,7 @@
         "headers": [
           {
             "key": "Content-Security-Policy",
-            "value": "script-src 'self' https://www.gstatic.com https://*.firebaseio.com https://www.googleapis.com https://www.googletagmanager.com https://*.mercadolibre.com.ar https://*.mercadopago.com.ar https://*.mercadolibre.com https://http2.mlstatic.com; object-src 'self'; frame-ancestors 'none'; base-uri 'self'"
+            "value": "script-src 'self' https://www.gstatic.com https://*.firebaseio.com https://www.googleapis.com https://www.googletagmanager.com https://*.mercadolibre.com.ar https://*.mercadopago.com.ar https://*.mercadolibre.com https://http2.mlstatic.com https://apis.google.com https://identitytoolkit.googleapis.com; object-src 'self'; frame-ancestors 'none'; base-uri 'self'"
           }
         ]
       }
