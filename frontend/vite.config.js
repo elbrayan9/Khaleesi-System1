@@ -24,4 +24,9 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/setupTests.js', // Opcional, pero buena práctica
   },
+  server: {
+    headers: {
+      'Cross-Origin-Opener-Policy': 'unsafe-none',
+    },
+  },
 });
