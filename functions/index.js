@@ -184,6 +184,10 @@ exports.updateUserSubscription = onCall(async (request) => {
         const newEndDate = new Date();
         newEndDate.setDate(newEndDate.getDate() + 30);
         updates.subscriptionEndDate = newEndDate;
+      } else if (newStatus === 'trial') {
+        const newEndDate = new Date();
+        newEndDate.setDate(newEndDate.getDate() + 7);
+        updates.subscriptionEndDate = newEndDate;
       }
     }
 
@@ -191,7 +195,7 @@ exports.updateUserSubscription = onCall(async (request) => {
       updates.plan = plan;
     }
 
-    await userDocRef.update(updates);
+    await userDocRef.set(updates, { merge: true });
     return {
       success: true,
       message: `Usuario actualizado a estado '${newStatus}'.`,
@@ -352,7 +356,7 @@ async function enforceDailyLimit(uid, maxPerDay = 10) {
 // =======================
 // Chat con Gemini (Gen2 + Secret + modelo vigente)
 // =======================
-const MODEL_NAME = 'gemini-2.0-flash';
+const MODEL_NAME = 'gemini-1.5-flash-001';
 const TOPIC_KEYWORDS = [
   'pago',
   'pagos',
@@ -380,22 +384,6 @@ const TOPIC_KEYWORDS = [
   'aprobado',
   'pendiente',
   'rechazado',
-  'proveedor',
-  'presupuesto',
-  'configuracion',
-  'configuración',
-  'reporte',
-  'estadistica',
-  'estadística',
-  'cliente',
-  'producto',
-  'afip',
-  'caja',
-  'stock',
-  'inventario',
-  'codigo de barras',
-  'código de barras',
-  'vencimiento',
 ];
 function isInScope(prompt = '') {
   const p = String(prompt).toLowerCase();
@@ -456,68 +444,30 @@ exports.askGemini = onCall({ secrets: [GEMINI_KEY] }, async (request) => {
         `[Usuario: ${userId}] Intención detectada: Consulta de Stock.`,
       );
 
-      // 1. Identificar el término de búsqueda
-      // Eliminamos palabras comunes para quedarnos con lo importante
-      const stopWords = [
-        'stock',
-        'inventario',
-        'cuanto',
-        'cuánto',
-        'hay',
-        'quedan',
-        'disponible',
-        'producto',
-        'de',
-        'el',
-        'la',
-        'los',
-        'las',
-        'un',
-        'una',
-      ];
-      const words = userPrompt.toLowerCase().split(/\s+/);
-      const searchTerms = words.filter((w) => !stopWords.includes(w));
-      const searchTerm = searchTerms.join(' ');
+      const words = userPrompt.split(' ');
+      const productNameIndex =
+        words.findIndex(
+          (w) => w.toLowerCase() === 'producto' || w.toLowerCase() === 'de',
+        ) + 1;
+      const productName = words
+        .slice(productNameIndex)
+        .join(' ')
+        .replace(/[?¿!¡]/g, '');
 
-      if (searchTerm.length > 0) {
-        // 2. Traer TODOS los productos del usuario (optimizando campos)
-        // Nota: Si el catálogo es gigante (>2000 productos), esto debería paginarse o usar Algolia/Elastic.
-        // Para PyMEs con <1000 productos, esto es rápido y barato.
+      if (productName) {
         const productsRef = db.collection('productos');
-        const snapshot = await productsRef
+        const query = productsRef
           .where('userId', '==', userId)
-          .select('nombre', 'stock') // Solo traemos lo necesario
-          .get();
+          .where('nombre', '==', productName);
+        const productSnapshot = await query.get();
 
-        if (snapshot.empty) {
-          context =
-            'Contexto de la base de datos: El usuario no tiene productos registrados en el sistema.';
+        if (!productSnapshot.empty) {
+          const productData = productSnapshot.docs[0].data();
+          context = `Contexto de la base de datos: El producto "${productData.nombre}" tiene un stock de ${productData.stock} unidades.`;
         } else {
-          // 3. Búsqueda difusa en memoria
-          const allProducts = snapshot.docs.map((doc) => doc.data());
-          const matches = allProducts.filter((p) => {
-            const pName = p.nombre.toLowerCase();
-            // Coincidencia simple: el nombre incluye el término de búsqueda
-            return pName.includes(searchTerm);
-          });
-
-          if (matches.length > 0) {
-            // Limitamos a 5 resultados para no saturar el contexto
-            const topMatches = matches.slice(0, 5);
-            const matchesText = topMatches
-              .map((p) => `- ${p.nombre}: ${p.stock} unidades`)
-              .join('\n');
-            context = `Contexto de la base de datos: Encontré estos productos que coinciden con "${searchTerm}":\n${matchesText}`;
-            if (matches.length > 5) {
-              context += `\n(Y otros ${matches.length - 5} productos más similares)`;
-            }
-          } else {
-            context = `Contexto de la base de datos: No encontré productos que contengan "${searchTerm}".`;
-          }
+          context = `Contexto de la base de datos: No se encontró un producto con el nombre exacto "${productName}".`;
         }
-      } else {
-        context =
-          'Contexto de la base de datos: No pude identificar qué producto estás buscando. Pide al usuario que especifique el nombre.';
+        console.log(`[Usuario: ${userId}] Contexto generado: ${context}`);
       }
     } else if (!isInScope(userPrompt)) {
       // Si NO es una consulta de stock, revisamos si está en el alcance general.
@@ -529,27 +479,14 @@ exports.askGemini = onCall({ secrets: [GEMINI_KEY] }, async (request) => {
     }
 
     const systemInstruction = `
-      Eres 'Asistente Khaleesi', un consultor experto, profesional y eficiente del sistema de punto de venta Khaleesi.
-      Tu objetivo es ayudar al usuario a operar el sistema, resolver dudas sobre funcionalidades y proveer información de stock cuando se te solicite.
-
-      CONOCIMIENTO DEL SISTEMA:
-      1. VENTAS: Se realizan en la pestaña 'Nueva Venta'. Soportan lectores de código de barras. Métodos de pago: Efectivo, Tarjeta, Transferencia, QR. Se pueden hacer descuentos globales o por producto.
-      2. PRODUCTOS: Gestión de inventario, alertas de bajo stock, importación/exportación masiva (Excel).
-      3. CLIENTES/PROVEEDORES: Base de datos para gestionar cuentas corrientes y datos de contacto.
-      4. CAJA Y REPORTES: Cierre de caja diario con desglose de medios de pago. Reportes de ganancias, ventas por vendedor, etc.
-      5. CONFIGURACIÓN: Datos del negocio, configuración de AFIP (certificados), gestión de suscripción (Basic/Premium).
-      6. PRESUPUESTOS: Generación de tickets no fiscales (Ticket X) para presupuestos.
-      7. NOTAS DE CRÉDITO/DÉBITO: Para devoluciones o ajustes fiscales. Requieren factura asociada.
-
-      REGLAS DE COMPORTAMIENTO:
-      - Si se te proporciona 'Contexto de la base de datos' (información de stock), ÚSALO como tu fuente principal de verdad para esa pregunta.
-      - Si el contexto dice que no existe el producto, dilo claramente.
-      - Si la pregunta NO está relacionada con el sistema Khaleesi (ej. deportes, clima, cultura general), recházala amablemente diciendo que solo puedes ayudar con el sistema.
-      - Mantén un tono profesional, breve y directo.
+      Eres 'Asistente Khaleesi', un experto en el sistema de punto de venta.
+      - Si se te proporciona un "Contexto de la base de datos", tu respuesta DEBE basarse estrictamente en esa información.
+      - No inventes datos. Si el contexto dice que no se encontró algo, informa al usuario que no encontraste el producto.
+      - Sé breve, amable y directo.
     `.trim();
 
     const model = genAI.getGenerativeModel({
-      model: MODEL_NAME,
+      model: 'gemini-pro',
     });
 
     // Prepend system instruction to the prompt since some models/API versions

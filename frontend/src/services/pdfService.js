@@ -223,8 +223,12 @@ export const generarPdfVenta = async (
   currentY = margin + 10;
 
   // Título
-  doc.setFontSize(18);
   doc.setFont(font, 'bold');
+  if (tituloComprobante.length > 25) {
+    doc.setFontSize(10); // Reduce font size for long titles
+  } else {
+    doc.setFontSize(18);
+  }
   doc.text(tituloComprobante, rightColX, currentY);
   currentY += 8;
 
@@ -236,11 +240,33 @@ export const generarPdfVenta = async (
     rightColX,
     currentY,
   );
-  doc.text(
-    `Comp. Nro: ${String(venta.afipData?.cbteNro || venta.id).padStart(8, '0')}`,
-    rightColX + 45,
-    currentY,
-  );
+
+  // Comp. Nro con ajuste de fuente si es necesario
+  // Si no hay cbteNro (es presupuesto/X), usamos los primeros 8 chars del ID
+  let nroMostrar = venta.afipData?.cbteNro;
+
+  if (!nroMostrar) {
+    // Es presupuesto o no tiene CAE
+    nroMostrar = venta.id
+      ? String(venta.id).substring(0, 8).toUpperCase()
+      : '00000000';
+  } else {
+    // Si tiene cbteNro, asegurarnos que sea string y pad
+    nroMostrar = String(nroMostrar).padStart(8, '0');
+  }
+
+  // FORCE TRUNCATION: Si por alguna razón sigue siendo largo (ej. ID muy largo que se coló), cortarlo a 15 chars max para visualización
+  if (String(nroMostrar).length > 15) {
+    nroMostrar = String(nroMostrar).substring(0, 15);
+  }
+
+  const compNroText = `Comp. Nro: ${nroMostrar}`;
+
+  if (compNroText.length > 20) {
+    doc.setFontSize(9);
+  }
+  doc.text(compNroText, rightColX + 45, currentY);
+  doc.setFontSize(10); // Restaurar tamaño
   currentY += 6;
 
   doc.text(`Fecha de Emisión: ${venta.fecha}`, rightColX, currentY);
@@ -419,7 +445,11 @@ export const generarPdfVenta = async (
   // Posición fija al fondo de la página
   const qrY = pageHeight - 50;
 
-  if (tipoUpper.includes('PRESUPUESTO')) {
+  if (
+    tipoUpper.includes('PRESUPUESTO') ||
+    tipoUpper.includes('TICKET X') ||
+    tipoUpper === 'X'
+  ) {
     doc.setFontSize(12);
     doc.setFont(font, 'bold');
     doc.setTextColor(colorBlack);

@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { formatCurrency } from '../utils/helpers';
 import PaymentMethodSelect from './PaymentMethodSelect';
+import ReceiptTypeSelect from './ReceiptTypeSelect';
 
 function PaymentModal({
   isOpen,
@@ -92,7 +93,7 @@ function PaymentModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4">
-      <div className="w-full max-w-lg rounded-lg bg-zinc-800 p-5 shadow-xl sm:p-6">
+      <div className="w-full max-w-2xl rounded-lg bg-zinc-800 p-5 shadow-xl sm:p-6">
         <h3 className="mb-4 text-xl font-semibold text-zinc-100">
           Registrar Pago
         </h3>
@@ -150,15 +151,10 @@ function PaymentModal({
                 <label className="mb-1 block text-sm font-medium text-zinc-300">
                   Tipo de Comprobante
                 </label>
-                <select
+                <ReceiptTypeSelect
                   value={tipoFactura}
-                  onChange={(e) => setTipoFactura(e.target.value)}
-                  className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2"
-                >
-                  <option value="B">Factura B (Consumidor Final)</option>
-                  <option value="A">Factura A (Resp. Inscripto)</option>
-                  <option value="C">Factura C (Monotributo)</option>
-                </select>
+                  onChange={setTipoFactura}
+                />
               </div>
 
               <div>

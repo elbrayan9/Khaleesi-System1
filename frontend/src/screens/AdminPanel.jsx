@@ -12,6 +12,10 @@ import {
 } from '@/components/ui/table';
 import { motion } from 'framer-motion';
 import { useAppContext } from '../context/AppContext';
+import {
+  forceAssignAllDataToSucursal,
+  getSucursales,
+} from '../services/firestoreService';
 
 const functions = getFunctions();
 const listAllUsers = httpsCallable(functions, 'listAllUsers');
@@ -102,6 +106,66 @@ function AdminPanel() {
       } catch (err) {
         mostrarMensaje('Error al actualizar el plan.', 'error');
         console.error(err);
+      }
+    }
+  };
+
+  const handleRepairData = async (userId, userEmail) => {
+    if (
+      await confirmarAccion(
+        '¿Reparar Datos?',
+        `Esto asignará FORZOSAMENTE todos los datos de ${userEmail} a su Sucursal Principal. Úsalo solo si el usuario no ve sus ventas antiguas.`,
+        'warning',
+        'Sí, Reparar',
+      )
+    ) {
+      try {
+        mostrarMensaje('Iniciando reparación...', 'info');
+        // 1. Obtener sucursales del usuario
+        const sucursales = await getSucursales(userId);
+        const sucursalPrincipal =
+          sucursales.find((s) => s.esPrincipal) || sucursales[0];
+
+        if (!sucursalPrincipal) {
+          mostrarMensaje(
+            'El usuario no tiene sucursales. No se puede reparar.',
+            'error',
+          );
+          return;
+        }
+
+        // 2. Ejecutar migración forzada para colecciones clave
+        const colecciones = [
+          'ventas',
+          'productos',
+          'clientes',
+          'proveedores',
+          'vendedores',
+          'egresos',
+          'ingresos_manuales',
+          'notas_cd',
+          'pedidos',
+          'presupuestos',
+          'turnos',
+        ];
+
+        let totalMigrados = 0;
+        for (const coll of colecciones) {
+          const count = await forceAssignAllDataToSucursal(
+            userId,
+            sucursalPrincipal.id,
+            coll,
+          );
+          totalMigrados += count;
+        }
+
+        mostrarMensaje(
+          `Reparación completada. Se actualizaron ${totalMigrados} documentos.`,
+          'success',
+        );
+      } catch (err) {
+        console.error(err);
+        mostrarMensaje('Error durante la reparación.', 'error');
       }
     }
   };
@@ -270,6 +334,12 @@ function AdminPanel() {
                     >
                       Ver
                     </Link>
+                    <button
+                      onClick={() => handleRepairData(user.uid, user.email)}
+                      className="text-sm text-orange-400 hover:underline"
+                    >
+                      Reparar
+                    </button>
                   </TableCell>
                 </TableRow>
               ))}
