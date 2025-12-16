@@ -4,6 +4,7 @@ import { useAppContext } from '../context/AppContext';
 import ProveedorForm from './ProveedorForm';
 import ProveedorTable from './ProveedorTable';
 import { motion } from 'framer-motion';
+import { Truck } from 'lucide-react';
 
 const ProveedoresTab = () => {
   const { proveedores, handleSaveProveedor, handleDeleteProveedor } =
@@ -29,6 +30,10 @@ const ProveedoresTab = () => {
       exit={{ opacity: 0 }}
       className="space-y-6"
     >
+      <h2 className="flex items-center gap-2 text-xl font-semibold text-white sm:text-2xl">
+        <Truck className="h-8 w-8 text-blue-500" />
+        Gestión de Proveedores
+      </h2>
       <ProveedorForm
         onSave={handleSaveProveedor}
         editingProveedor={editingProveedor}

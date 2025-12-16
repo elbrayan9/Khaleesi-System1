@@ -5,6 +5,7 @@ import PedidosTable from './PedidosTable';
 import PedidoForm from './PedidoForm';
 import { motion } from 'framer-motion';
 import { FiPlus } from 'react-icons/fi';
+import { ClipboardList } from 'lucide-react';
 import PedidoDetailModal from './PedidoDetailModal';
 // Opcional: Crearemos un modal de detalle simple también.
 // import PedidoDetailModal from './PedidoDetailModal';
@@ -30,7 +31,8 @@ const PedidosTab = () => {
       className="space-y-6"
     >
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-white">
+        <h2 className="flex items-center gap-2 text-2xl font-bold text-white">
+          <ClipboardList className="h-8 w-8 text-cyan-500" />
           Gestión de Pedidos a Proveedores
         </h2>
         <button

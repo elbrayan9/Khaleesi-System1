@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import ClientForm from './ClientForm.jsx';
 import ClientTable from './ClientTable.jsx';
 import PaginationControls from './PaginationControls.jsx';
-import { Search } from 'lucide-react';
+import { Search, Users } from 'lucide-react';
 import { useAppContext } from '../context/AppContext.jsx'; // Importar hook
 
 const ITEMS_PER_PAGE_CLIENTES = 10;
@@ -115,7 +115,8 @@ function ClientesTab() {
 
   return (
     <div id="clientes">
-      <h2 className="mb-4 text-xl font-semibold text-white sm:text-2xl">
+      <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold text-white sm:text-2xl">
+        <Users className="h-8 w-8 text-green-500" />
         Gestión de Clientes
       </h2>
       <ClientForm

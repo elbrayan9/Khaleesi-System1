@@ -7,6 +7,7 @@ import {
   XCircle,
   Eye,
   Printer,
+  FileDiff,
 } from 'lucide-react';
 import SearchBar from './SearchBar.jsx';
 import {
@@ -287,7 +288,8 @@ function NotasCDTab({ onViewDetailsNotaCD, onPrintNotaCD }) {
 
   return (
     <div id="notas_cd">
-      <h2 className="mb-4 text-xl font-semibold text-white sm:text-2xl">
+      <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold text-white sm:text-2xl">
+        <FileDiff className="h-8 w-8 text-pink-500" />
         Notas de Crédito / Débito
       </h2>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">

@@ -86,7 +86,8 @@ function ConfiguracionTab() {
   return (
     <div id="configuracion" className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-xl font-semibold text-white sm:text-2xl">
+        <h2 className="flex items-center gap-2 text-xl font-semibold text-white sm:text-2xl">
+          <Settings className="h-8 w-8 text-zinc-400" />
           Configuración
         </h2>
 
@@ -161,7 +162,7 @@ function ConfiguracionTab() {
               )}
               <h3 className="mb-2 text-xl font-bold text-white">Plan Básico</h3>
               <p className="mb-4 text-3xl font-bold text-white">
-                $15.000
+                $10.000
                 <span className="text-sm font-normal text-zinc-400">/mes</span>
               </p>
               <ul className="mb-6 space-y-3 text-sm text-zinc-300">
@@ -218,7 +219,7 @@ function ConfiguracionTab() {
                 Plan Completo
               </h3>
               <p className="mb-4 text-3xl font-bold text-white">
-                $30.000
+                $16.000
                 <span className="text-sm font-normal text-zinc-400">/mes</span>
               </p>
               <ul className="mb-6 space-y-3 text-sm text-zinc-300">

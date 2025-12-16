@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext.jsx';
 import VendedorForm from './VendedorForm.jsx';
 import { Button } from './ui/button.jsx';
-import { Edit, Trash2 } from 'lucide-react';
+import { Edit, Trash2, UserCheck } from 'lucide-react';
 
 function VendedoresTab() {
   const { vendedores, handleSaveVendedor, handleDeleteVendedor } =
@@ -25,7 +25,8 @@ function VendedoresTab() {
 
   return (
     <div>
-      <h2 className="mb-4 text-xl font-semibold text-white sm:text-2xl">
+      <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold text-white sm:text-2xl">
+        <UserCheck className="h-8 w-8 text-yellow-500" />
         Gestión de Vendedores
       </h2>
       <VendedorForm

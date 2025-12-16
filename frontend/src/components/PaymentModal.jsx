@@ -1,6 +1,7 @@
 // src/components/PaymentModal.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { formatCurrency } from '../utils/helpers';
+import PaymentMethodSelect from './PaymentMethodSelect';
 
 function PaymentModal({
   isOpen,
@@ -139,17 +140,10 @@ function PaymentModal({
                 <label className="mb-1 block text-sm font-medium text-zinc-300">
                   Método de Pago
                 </label>
-                <select
+                <PaymentMethodSelect
                   value={metodoPagoActual}
-                  onChange={(e) => setMetodoPagoActual(e.target.value)}
-                  className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2"
-                >
-                  <option value="efectivo">Efectivo</option>
-                  <option value="tarjeta">Tarjeta</option>
-                  <option value="transferencia">Transferencia</option>
-                  <option value="qr_banco">QR Banco</option>
-                  <option value="qr_billetera">QR Billetera</option>
-                </select>
+                  onChange={setMetodoPagoActual}
+                />
               </div>
 
               <div>
@@ -164,7 +158,6 @@ function PaymentModal({
                   <option value="B">Factura B (Consumidor Final)</option>
                   <option value="A">Factura A (Resp. Inscripto)</option>
                   <option value="C">Factura C (Monotributo)</option>
-                  <option value="X">Ticket X (Presupuesto)</option>
                 </select>
               </div>
 

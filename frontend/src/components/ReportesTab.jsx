@@ -16,6 +16,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CornerDownLeft,
+  FileBarChart,
 } from 'lucide-react';
 import Swal from 'sweetalert2'; // Se puede quitar si mostrarMensaje del contexto es suficiente
 import PaginationControls from './PaginationControls.jsx';
@@ -711,7 +712,8 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
     <div id="reportes">
       {/* --- FASE 1: Controles de Fecha --- */}
       <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-800 p-3">
-        <h2 className="mr-4 text-xl font-semibold text-white">
+        <h2 className="mr-4 flex items-center gap-2 text-xl font-semibold text-white">
+          <FileBarChart className="h-6 w-6 text-orange-500" />
           Caja y Reportes
         </h2>
         <div className="relative">

@@ -3,7 +3,13 @@ import React, { useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { motion } from 'framer-motion';
 import { formatCurrency } from '../utils/helpers';
-import { DollarSign, Archive, TrendingUp, Landmark } from 'lucide-react';
+import {
+  DollarSign,
+  Archive,
+  TrendingUp,
+  Landmark,
+  BarChart2,
+} from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -79,7 +85,8 @@ const EstadisticasTab = () => {
       exit={{ opacity: 0 }}
       className="space-y-6"
     >
-      <h2 className="text-2xl font-bold text-white">
+      <h2 className="flex items-center gap-2 text-2xl font-bold text-white">
+        <BarChart2 className="h-8 w-8 text-indigo-500" />
         Estadísticas del Negocio
       </h2>
 

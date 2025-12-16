@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { formatCurrency } from '../utils/helpers';
 import { generarPdfVenta } from '../services/pdfService';
-import { Trash2, Printer, FileText, Search } from 'lucide-react';
+import { Trash2, Printer, FileText, Search, Download } from 'lucide-react';
 
 function PresupuestosTab() {
   const { presupuestos, handleDeleteBudget, datosNegocio, mostrarMensaje } =
@@ -29,6 +29,26 @@ function PresupuestosTab() {
           id: presupuesto.clienteId,
         },
         'PRESUPUESTO',
+        'print',
+      );
+    } catch (error) {
+      console.error('Error al generar PDF:', error);
+      mostrarMensaje('Error al generar el PDF.', 'error');
+    }
+  };
+
+  const handleDownload = (presupuesto) => {
+    if (!presupuesto) return;
+    try {
+      generarPdfVenta(
+        presupuesto,
+        datosNegocio,
+        {
+          nombre: presupuesto.clienteNombre,
+          id: presupuesto.clienteId,
+        },
+        'PRESUPUESTO',
+        'download',
       );
     } catch (error) {
       console.error('Error al generar PDF:', error);
@@ -104,6 +124,13 @@ function PresupuestosTab() {
                           title="Imprimir PDF"
                         >
                           <Printer className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDownload(presupuesto)}
+                          className="rounded-lg bg-green-600/20 p-2 text-green-400 transition-colors hover:bg-green-600 hover:text-white"
+                          title="Descargar PDF"
+                        >
+                          <Download className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => handleDeleteBudget(presupuesto.id)}

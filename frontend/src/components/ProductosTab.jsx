@@ -24,6 +24,7 @@ import {
   Printer,
   TrendingUp,
   Trash2, // <--- AÑADIDO
+  Package,
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext.jsx';
 import { formatCurrency } from '../utils/helpers.js';
@@ -289,7 +290,8 @@ function ProductosTab() {
 
   return (
     <div id="productos">
-      <h2 className="mb-4 text-xl font-semibold text-white sm:text-2xl">
+      <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold text-white sm:text-2xl">
+        <Package className="h-8 w-8 text-purple-500" />
         Gestión de Productos
       </h2>
       {/* --- INICIO DEL NUEVO PANEL DE ALERTAS --- */}

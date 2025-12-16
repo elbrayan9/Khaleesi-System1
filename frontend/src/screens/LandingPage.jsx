@@ -608,7 +608,7 @@ const LandingPage = () => {
               >
                 Anual
                 <span className="rounded-full bg-green-500/20 px-2 py-0.5 text-xs text-green-400">
-                  -16%
+                  Ahorra meses
                 </span>
               </button>
             </div>
@@ -629,7 +629,7 @@ const LandingPage = () => {
               </p>
               <div className="mt-6 flex items-baseline justify-center gap-2">
                 <span className="text-4xl font-extrabold text-white">
-                  {billingCycle === 'monthly' ? '$15.000' : '$150.000'}
+                  {billingCycle === 'monthly' ? '$10.000' : '$90.000'}
                 </span>
                 <span className="text-zinc-400">
                   ARS / {billingCycle === 'monthly' ? 'mes' : 'año'}
@@ -687,7 +687,7 @@ const LandingPage = () => {
               </p>
               <div className="mt-6 flex items-baseline justify-center gap-2">
                 <span className="text-4xl font-extrabold text-white">
-                  {billingCycle === 'monthly' ? '$30.000' : '$300.000'}
+                  {billingCycle === 'monthly' ? '$16.000' : '$135.000'}
                 </span>
                 <span className="text-zinc-400">
                   ARS / {billingCycle === 'monthly' ? 'mes' : 'año'}
@@ -695,7 +695,7 @@ const LandingPage = () => {
               </div>
               {billingCycle === 'annual' && (
                 <p className="mt-2 text-sm text-green-400">
-                  ¡Ahorras $60.000 al año!
+                  ¡Ahorras $57.000 al año!
                 </p>
               )}
 

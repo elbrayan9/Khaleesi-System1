@@ -7,6 +7,7 @@ import { useAppContext } from '../context/AppContext.jsx';
 import SelectorVendedor from './SelectorVendedor';
 import ShiftManager from './ShiftManager';
 import { formatCurrency } from '../utils/helpers.js';
+import { ShoppingCart } from 'lucide-react';
 
 function VentaTab() {
   // --- OBTENER DATOS Y FUNCIONES DESDE EL CONTEXTO ---
@@ -259,7 +260,8 @@ function VentaTab() {
 
   return (
     <div id="venta">
-      <h2 className="mb-4 text-xl font-semibold text-white sm:text-2xl">
+      <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold text-white sm:text-2xl">
+        <ShoppingCart className="h-8 w-8 text-blue-500" />
         Nueva Venta
       </h2>
       <div className="mb-4 max-w-md rounded-lg border border-zinc-700 bg-zinc-800 p-4">
