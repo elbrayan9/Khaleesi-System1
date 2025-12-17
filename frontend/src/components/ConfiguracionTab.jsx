@@ -13,6 +13,10 @@ import {
 import ImportDataTab from './ImportDataTab';
 import Swal from 'sweetalert2';
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import {
+  forceAssignAllDataToSucursal,
+  getSucursales,
+} from '../services/firestoreService';
 
 function ConfiguracionTab() {
   const {
@@ -64,6 +68,103 @@ function ConfiguracionTab() {
         setFunction(event.target.result);
       };
       reader.readAsText(file);
+    }
+  };
+
+  const handleRepairData = async () => {
+    console.log('handleRepairData iniciado'); // DEBUG
+    if (!currentUser) {
+      console.error('No hay usuario logueado');
+      Swal.fire(
+        'Error',
+        'No se detectó un usuario activo. Recarga la página.',
+        'error',
+      );
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: '¿Reparar Datos?',
+      text: 'Esto asignará todos tus datos históricos a tu Sucursal Principal. Úsalo si no ves tus ventas antiguas.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, Reparar',
+      cancelButtonText: 'Cancelar',
+    });
+
+    if (result.isConfirmed) {
+      try {
+        Swal.fire({
+          title: 'Reparando...',
+          text: 'Por favor espera, esto puede tardar unos minutos.',
+          allowOutsideClick: false,
+          didOpen: () => {
+            Swal.showLoading();
+          },
+        });
+
+        // 1. Obtener sucursales del usuario
+        const sucursales = await getSucursales(currentUser.uid);
+        console.log('Sucursales encontradas:', sucursales); // DEBUG
+
+        if (!sucursales || sucursales.length === 0) {
+          Swal.fire(
+            'Error',
+            'No se encontraron sucursales para este usuario.',
+            'error',
+          );
+          return;
+        }
+
+        const sucursalPrincipal =
+          sucursales.find((s) => s.esPrincipal) || sucursales[0];
+
+        if (!sucursalPrincipal) {
+          Swal.fire(
+            'Error',
+            'No tienes una sucursal principal asignada.',
+            'error',
+          );
+          return;
+        }
+
+        // 2. Ejecutar migración forzada
+        const colecciones = [
+          'ventas',
+          'productos',
+          'clientes',
+          'proveedores',
+          'vendedores',
+          'egresos',
+          'ingresos_manuales',
+          'notas_cd',
+          'pedidos',
+          'presupuestos',
+          'turnos',
+          'datosNegocio', // Added this
+        ];
+
+        let totalMigrados = 0;
+        for (const coll of colecciones) {
+          // Swal.update({ text: `Procesando ${coll}...` }); // Opcional: mostrar progreso
+          const count = await forceAssignAllDataToSucursal(
+            currentUser.uid,
+            sucursalPrincipal.id,
+            coll,
+          );
+          console.log(`Colección ${coll}: ${count} migrados`); // DEBUG
+          totalMigrados += count;
+        }
+
+        Swal.fire(
+          '¡Reparación Completada!',
+          `Se han actualizado ${totalMigrados} registros. Recarga la página para ver los cambios.`,
+          'success',
+        );
+      } catch (err) {
+        console.error('Error en reparación:', err);
+        Swal.fire('Error', `Hubo un problema: ${err.message}`, 'error');
+      }
     }
   };
 
@@ -562,6 +663,27 @@ function ConfiguracionTab() {
               </motion.button>
             </div>
           </div>
+
+          <div className="mt-4 rounded-md bg-zinc-700/50 p-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-zinc-100">Reparar Datos</p>
+                <p className="text-xs text-zinc-400">
+                  Usa esto si no ves tus ventas o productos antiguos.
+                </p>
+              </div>
+              <motion.button
+                onClick={handleRepairData}
+                className="flex items-center gap-2 rounded-md bg-orange-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-orange-700"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Database size={14} />
+                Reparar
+              </motion.button>
+            </div>
+          </div>
+
           <div className="mt-4 flex items-center justify-between rounded-lg bg-zinc-700/50 p-4">
             <div>
               <label

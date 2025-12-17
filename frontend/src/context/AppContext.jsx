@@ -35,7 +35,7 @@ const ensureArray = (arr) => (Array.isArray(arr) ? arr : []);
 export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
   // --- Auth & carga ---
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null); // Changed from currentUserId to currentUser object
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
@@ -83,7 +83,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       if (user) {
         const tokenResult = await user.getIdTokenResult();
         setIsAdmin(tokenResult.claims.admin === true);
-        setCurrentUserId(user.uid);
+        setCurrentUser(user); // Store full user object
         setIsLoggedIn(true);
 
         // --- Lógica de Sucursales y Migración ---
@@ -152,7 +152,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
           );
         }
       } else {
-        setCurrentUserId(null);
+        setCurrentUser(null);
         setIsLoggedIn(false);
         setIsAdmin(false);
         setProductos([]);
@@ -292,7 +292,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
 
   // ---- Listeners en tiempo real (CON FILTRO DE SUCURSAL) ----
   useEffect(() => {
-    if (!currentUserId || !sucursalActual?.id) return;
+    if (!currentUser?.uid || !sucursalActual?.id) return;
 
     const collectionsToListen = [
       { name: 'productos', setter: setProductos },
@@ -309,7 +309,10 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     ];
 
     const unsubscribes = collectionsToListen.map(({ name, setter }) => {
-      let q = query(collection(db, name), where('userId', '==', currentUserId));
+      let q = query(
+        collection(db, name),
+        where('userId', '==', currentUser.uid),
+      );
 
       // Aplicamos filtro de sucursal
       // Nota: Si decidimos que clientes/proveedores son globales, excluirlos aquí.
@@ -343,7 +346,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     // Primero intentamos inicializar si no existe
     const initSettings = async () => {
       await fsService.initializeBranchSettings(
-        currentUserId,
+        currentUser.uid,
         sucursalActual.id,
       );
     };
@@ -375,7 +378,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     return () => {
       unsubscribes.forEach((u) => u && u());
     };
-  }, [currentUserId, sucursalActual]); // Dependencia clave: sucursalActual
+  }, [currentUser, sucursalActual]); // Dependencia clave: sucursalActual
 
   // ---- Handlers ----
   // frontend/src/context/AppContext.jsx
@@ -1725,7 +1728,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
   const value = {
     // Auth & Estado
     isLoggedIn,
-    currentUserId,
+    currentUser, // Now passing the full object
     isAdmin,
     isLoading,
     isLoadingData,

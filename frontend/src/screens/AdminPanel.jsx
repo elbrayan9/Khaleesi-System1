@@ -16,7 +16,6 @@ import {
   forceAssignAllDataToSucursal,
   getSucursales,
 } from '../services/firestoreService';
-
 const functions = getFunctions();
 const listAllUsers = httpsCallable(functions, 'listAllUsers');
 const updateUserSubscription = httpsCallable(
