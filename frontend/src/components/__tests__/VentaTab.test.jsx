@@ -41,6 +41,14 @@ vi.mock('../SearchBar', () => ({
   ),
 }));
 
+// Mock de Firebase Functions
+vi.mock('firebase/functions', () => ({
+  getFunctions: vi.fn(),
+  httpsCallable: vi.fn(() =>
+    vi.fn(() => Promise.resolve({ data: { success: true } })),
+  ),
+}));
+
 // Mock del contexto
 const mockHandleAddToCart = vi.fn();
 const mockHandleSaleConfirmed = vi.fn();
@@ -69,6 +77,8 @@ vi.mock('../../context/AppContext', () => ({
     handleAddManualItemToCart: mockHandleAddManualItemToCart,
     mostrarMensaje: mockMostrarMensaje,
     handleAddToCart: mockHandleAddToCart,
+    selectedClientId: null,
+    setSelectedClientId: vi.fn(),
   }),
 }));
 
