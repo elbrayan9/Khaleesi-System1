@@ -35,7 +35,7 @@ const ensureArray = (arr) => (Array.isArray(arr) ? arr : []);
 export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
   // --- Auth & carga ---
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null); // Changed from currentUserId to currentUser object
+  const [currentUser, setCurrentUser] = useState(null); // Changed from currentUser?.uid to currentUser object
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
@@ -380,6 +380,35 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     };
   }, [currentUser, sucursalActual]); // Dependencia clave: sucursalActual
 
+  // 3. Sincronizar Turno Activo con la lista de turnos (Fuente de verdad: Firestore)
+  useEffect(() => {
+    if (turnos.length > 0) {
+      // Buscamos si hay algún turno abierto en la lista de turnos cargada
+      const turnoAbierto = turnos.find((t) => t.estado === 'abierto');
+      if (turnoAbierto) {
+        // Si encontramos uno abierto, lo seteamos como activo
+        // Esto corrige el problema de que al recargar o cambiar pestaña se pierda si no estaba en localStorage
+        // O si localStorage estaba desactualizado.
+        // Solo actualizamos si es diferente para evitar loops
+        if (turnoActivo?.id !== turnoAbierto.id) {
+          setTurnoActivo(turnoAbierto);
+        }
+      } else {
+        // Si NO hay turnos abiertos en la lista, y tenemos uno activo, significa que se cerró remotamente o hubo error
+        if (turnoActivo) {
+          setTurnoActivo(null);
+        }
+      }
+    } else if (turnos.length === 0 && turnoActivo) {
+      // Si la lista de turnos se vació (ej. filtro) pero teniamos uno activo, validamos.
+      // En este caso, si la carga terminó y no hay turnos, deberíamos limpiar.
+      // Pero cuidado con el loading inicial.
+      if (!isLoadingData) {
+        setTurnoActivo(null);
+      }
+    }
+  }, [turnos, turnoActivo, isLoadingData]);
+
   // ---- Handlers ----
   // frontend/src/context/AppContext.jsx
   const handleBackupData = async () => {
@@ -541,7 +570,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     }
     const productDataFirebase = {
       ...productDataFromForm,
-      userId: currentUserId,
+      userId: currentUser?.uid,
       sucursalId: sucursalActual.id, // Asignar sucursal
     };
     const isEditing = isValidFirestoreId(productDataFromForm.id);
@@ -581,7 +610,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     } else {
       const { id, ...dataToAdd } = productDataFirebase;
       const newId = await fsService.addProducto(
-        currentUserId,
+        currentUser?.uid,
         dataToAdd,
         sucursalActual.id,
       );
@@ -669,7 +698,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     if (!sucursalActual) return;
     const clientDataFirebase = {
       ...clientDataFromForm,
-      userId: currentUserId,
+      userId: currentUser?.uid,
       sucursalId: sucursalActual.id,
     };
     const isEditing = isValidFirestoreId(clientDataFromForm.id);
@@ -684,7 +713,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     } else {
       const { id, ...dataToAdd } = clientDataFirebase;
       const newId = await fsService.addCliente(
-        currentUserId,
+        currentUser?.uid,
         dataToAdd,
         sucursalActual.id,
       );
@@ -738,7 +767,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       );
     } else {
       const newId = await fsService.addVendedor(
-        currentUserId,
+        currentUser?.uid,
         vendedorData,
         sucursalActual.id,
       );
@@ -789,7 +818,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       );
     } else {
       const newId = await fsService.addProveedor(
-        currentUserId,
+        currentUser?.uid,
         proveedorData,
         sucursalActual.id,
       );
@@ -831,7 +860,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     if (!sucursalActual) return false;
     setIsLoadingData(true);
     const newId = await fsService.addPedido(
-      currentUserId,
+      currentUser?.uid,
       pedidoData,
       sucursalActual.id,
     );
@@ -942,6 +971,15 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     // Usamos el override si existe, sino el del contexto (cajero)
     const vendedorIdFinal = overrideVendedorId || vendedorActivoId;
 
+    // VALIDACIÓN: Turno Abierto
+    if (!turnoActivo) {
+      mostrarMensaje?.(
+        'No hay un turno abierto. Debe abrir caja para realizar ventas.',
+        'error',
+      );
+      return;
+    }
+
     if (!vendedorIdFinal) {
       mostrarMensaje?.(
         'Debe seleccionar un vendedor para registrar la venta.',
@@ -998,7 +1036,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       vuelto: vueltoFinal,
       tipoFactura,
       afipData: afipData || null, // <--- Guardamos datos de AFIP si existen
-      userId: currentUserId,
+      userId: currentUser?.uid,
       vendedorId: vendedorSeleccionado.id,
       vendedorNombre: vendedorSeleccionado.nombre,
     };
@@ -1006,7 +1044,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     try {
       // 1. Primero, creamos la venta como siempre
       const ventaId = await fsService.addVenta(
-        currentUserId,
+        currentUser?.uid,
         newSaleData,
         sucursalActual.id,
       );
@@ -1038,7 +1076,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
 
     const { fecha, hora } = obtenerFechaHoraActual();
     const turnoData = {
-      userId: currentUserId,
+      userId: currentUser?.uid,
       vendedorId: vendedor.id,
       vendedorNombre: vendedor.nombre,
       montoInicial: Number(montoInicial) || 0,
@@ -1087,11 +1125,11 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       hora,
       descripcion,
       monto: Number(monto),
-      userId: currentUserId,
+      userId: currentUser?.uid,
       sucursalId: sucursalActual.id,
     };
     const newId = await fsService.addIngresoManual(
-      currentUserId,
+      currentUser?.uid,
       newIngresoData,
       sucursalActual.id,
     );
@@ -1128,11 +1166,11 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       hora,
       descripcion,
       monto: Number(monto),
-      userId: currentUserId,
+      userId: currentUser?.uid,
       sucursalId: sucursalActual.id,
     };
     const newId = await fsService.addEgreso(
-      currentUserId,
+      currentUser?.uid,
       newEgresoData,
       sucursalActual.id,
     );
@@ -1165,7 +1203,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
   const handleCrearNotaCreditoSimple = async (notaData) => {
     if (!sucursalActual) return;
     const newId = await fsService.addNotaCDSimple(
-      currentUserId,
+      currentUser?.uid,
       notaData,
       sucursalActual.id,
     );
@@ -1204,7 +1242,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     };
 
     const newId = await fsService.addNotaManual(
-      currentUserId,
+      currentUser?.uid,
       notaCompleta,
       sucursalActual.id,
     );
@@ -1247,7 +1285,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       const notaData = {
         fecha,
         hora,
-        userId: currentUserId,
+        userId: currentUser?.uid,
         tipo: 'credito',
         total: ventaOriginal.total,
         items: ventaOriginal.items,
@@ -1257,7 +1295,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
         motivo: `Anulación de venta #${ventaOriginal.id.substring(0, 6)}...`,
       };
       const success = await fsService.anularVentaConNotaCredito(
-        currentUserId,
+        currentUser?.uid,
         ventaOriginal,
         notaData,
       );
@@ -1329,7 +1367,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       };
 
       const newSucursalId = await fsService.addSucursal(
-        currentUserId,
+        currentUser?.uid,
         newSucursalData,
       );
 
@@ -1344,15 +1382,16 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
               'info',
             );
             await fsService.importarProductosDesdeSucursal(
-              currentUserId,
+              currentUser?.uid,
               sucursalPrincipal.id,
               newSucursalId,
             );
           }
         }
 
-        const sucursalesActualizadas =
-          await fsService.getSucursales(currentUserId);
+        const sucursalesActualizadas = await fsService.getSucursales(
+          currentUser?.uid,
+        );
         setSucursales(sucursalesActualizadas);
 
         const nuevaSucursal = sucursalesActualizadas.find(
@@ -1429,7 +1468,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
 
     for (const col of collections) {
       await fsService.migrarDocumentosASucursal(
-        currentUserId,
+        currentUser?.uid,
         sucursalActual.id,
         col,
       );
@@ -1469,7 +1508,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
 
       for (const col of collections) {
         const count = await fsService.forceAssignAllDataToSucursal(
-          currentUserId,
+          currentUser?.uid,
           sucursalActual.id,
           col,
         );
@@ -1608,7 +1647,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       mostrarMensaje('Importando productos...', 'info');
 
       const success = await fsService.importarProductosDesdeSucursal(
-        currentUserId,
+        currentUser?.uid,
         sucursalPrincipal.id,
         targetSucursalId,
       );
@@ -1626,7 +1665,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
 
   const handleGuardarDatosNegocio = async (datosActualizados) => {
     const ok = await fsService.saveDatosNegocio(
-      currentUserId,
+      currentUser?.uid,
       datosActualizados,
       sucursalActual?.id, // Pasamos la sucursal actual
     );
@@ -1652,7 +1691,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       )
     ) {
       const ok = await fsService.deleteVentaAndRestoreStock(
-        currentUserId,
+        currentUser?.uid,
         ventaId,
       );
       mostrarMensaje?.(
@@ -1686,12 +1725,12 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       clienteNombre: cliente?.nombre || 'Consumidor Final',
       items: itemsInCart,
       total,
-      userId: currentUserId,
+      userId: currentUser?.uid,
       sucursalId: sucursalActual.id,
     };
 
     const newId = await fsService.addPresupuesto(
-      currentUserId,
+      currentUser?.uid,
       presupuestoData,
       sucursalActual.id,
     );

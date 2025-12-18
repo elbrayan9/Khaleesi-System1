@@ -182,7 +182,7 @@ const CloseShiftModal = ({
 const ShiftManager = () => {
   const {
     vendedorActivoId,
-    currentUserId,
+    currentUser,
     turnoActivo,
     setTurnoActivo,
     handleAbrirTurno,
@@ -198,10 +198,10 @@ const ShiftManager = () => {
 
   useEffect(() => {
     const checkForOpenShift = async () => {
-      if (vendedorActivoId && currentUserId && sucursalActual) {
+      if (vendedorActivoId && currentUser?.uid && sucursalActual) {
         setIsLoading(true);
         const openShiftSnap = await getOpenShift(
-          currentUserId,
+          currentUser.uid,
           vendedorActivoId,
           sucursalActual.id,
         );
@@ -218,7 +218,7 @@ const ShiftManager = () => {
       }
     };
     checkForOpenShift();
-  }, [vendedorActivoId, currentUserId, setTurnoActivo, sucursalActual]);
+  }, [vendedorActivoId, currentUser, setTurnoActivo, sucursalActual]);
 
   // Validar que el vendedor seleccionado exista en la lista actual (por si cambió la sucursal)
   const vendedorValido = vendedores.find((v) => v.id === vendedorActivoId);

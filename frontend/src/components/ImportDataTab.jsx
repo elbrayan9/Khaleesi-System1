@@ -27,7 +27,7 @@ import {
 import { motion } from 'framer-motion';
 
 const ImportDataTab = () => {
-  const { currentUserId, sucursalActual, mostrarMensaje } = useAppContext();
+  const { currentUser, sucursalActual, mostrarMensaje } = useAppContext();
   const [importType, setImportType] = useState('productos');
   const [file, setFile] = useState(null);
   const [previewData, setPreviewData] = useState([]);
@@ -78,7 +78,7 @@ const ImportDataTab = () => {
   };
 
   const handleImport = async () => {
-    if (!file || !currentUserId || !sucursalActual) return;
+    if (!file || !currentUser?.uid || !sucursalActual) return;
 
     setIsUploading(true);
     setProgress(0);
@@ -88,7 +88,7 @@ const ImportDataTab = () => {
       const result = await processBatchImport(
         data,
         importType,
-        currentUserId,
+        currentUser.uid,
         sucursalActual.id,
         (percent) => setProgress(percent),
       );

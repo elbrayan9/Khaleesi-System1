@@ -17,7 +17,7 @@ const mockSetTurnoActivo = vi.fn();
 vi.mock('../../context/AppContext', () => ({
   useAppContext: () => ({
     vendedorActivoId: 'v1',
-    currentUserId: 'u1',
+    currentUser: { uid: 'u1' },
     turnoActivo: null, // Inicialmente sin turno
     setTurnoActivo: mockSetTurnoActivo,
     handleAbrirTurno: mockHandleAbrirTurno,
