@@ -28,23 +28,36 @@ import ParticleBackground from '../components/ParticleBackground';
 import profileImage from '../assets/profile.jpg';
 import dashboardDesktop from '../assets/dashboard-desktop.png';
 import dashboardMobile from '../assets/dashboard-mobile.png';
+import TypeAnimation from '../components/TypeAnimation';
+import { AnimatedButton } from '../components/AnimatedButton';
+import HoverEffectWrapper from '../components/HoverEffectWrapper';
 
-// Componente para cada tarjeta de característica (CON ALTURA FIJA)
-// Componente para cada tarjeta de característica (CON ANIMACIÓN DE ENTRADA AL SCROLL)
-const FeatureCard = ({ icon, title, description, delay }) => (
+// Componente para cada tarjeta de característica (CON EFECTO GLOW)
+const FeatureCard = ({
+  icon,
+  title,
+  description,
+  delay,
+  color = 'rgba(59, 130, 246, 0.5)',
+}) => (
   <motion.div
-    className="flex h-full flex-col items-center rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-6 text-center transition-colors hover:border-blue-500/30 hover:bg-zinc-800"
+    className="group relative flex h-full flex-col items-center overflow-hidden rounded-2xl border border-white/10 bg-zinc-800/50 p-6 text-center transition-colors"
     initial={{ opacity: 0 }}
     whileInView={{ opacity: 1 }}
     viewport={{ once: true, margin: '-50px' }}
     transition={{ duration: 0.4, delay }}
     style={{ willChange: 'opacity' }}
+    data-glow-color={color}
   >
-    <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600/10 text-blue-400 transition-colors hover:bg-blue-600 hover:text-white">
+    {/* Glow Effect Layer removed - handled by wrapper */}
+
+    <div className="relative z-10 mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600/10 text-blue-400 transition-colors group-hover:bg-blue-600 group-hover:text-white">
       {React.cloneElement(icon, { className: 'h-8 w-8' })}
     </div>
-    <h4 className="mb-3 text-xl font-bold text-white">{title}</h4>
-    <p className="text-sm leading-relaxed text-zinc-400">{description}</p>
+    <h4 className="relative z-10 mb-3 text-xl font-bold text-white">{title}</h4>
+    <p className="relative z-10 text-sm leading-relaxed text-zinc-400">
+      {description}
+    </p>
   </motion.div>
 );
 
@@ -58,72 +71,84 @@ const LandingPage = () => {
       title: 'Punto de Venta (POS)',
       description:
         'Procesa ventas con búsqueda por código de barras, descuentos y un carrito intuitivo.',
+      color: 'rgba(59, 130, 246, 0.5)', // Blue (Primary)
     },
     {
       icon: <FileText className="h-6 w-6 text-blue-400" />,
       title: 'Facturación AFIP',
       description:
         'Emite facturas A, B y C homologadas por AFIP en un clic. Olvídate de la página de AFIP.',
+      color: 'rgba(59, 130, 246, 0.5)', // Blue
     },
     {
       icon: <Bot className="h-6 w-6 text-blue-400" />,
       title: 'Asistente IA',
       description:
         'Tu copiloto inteligente. Pregúntale sobre ventas, stock o consejos para mejorar tu negocio.',
+      color: 'rgba(6, 182, 212, 0.5)', // Cyan (Tech/AI)
     },
     {
       icon: <Store className="h-6 w-6 text-blue-400" />,
       title: 'Multi-sucursal',
       description:
         'Gestiona múltiples locales desde una sola cuenta. Stock y reportes unificados o por sucursal.',
+      color: 'rgba(99, 102, 241, 0.5)', // Indigo (Management)
     },
     {
       icon: <Package className="h-6 w-6 text-blue-400" />,
       title: 'Gestión de Inventario',
       description:
         'Control total de stock, costos y precios. Recibe alertas automáticas de stock bajo.',
+      color: 'rgba(59, 130, 246, 0.5)', // Blue
     },
     {
       icon: <LineChart className="h-6 w-6 text-blue-400" />,
       title: 'Caja y Reportes',
       description:
         'Cierres de caja detallados y reportes de ganancias. Recibe un resumen diario por email.',
+      color: 'rgba(6, 182, 212, 0.5)', // Cyan
     },
     {
       icon: <Users className="h-6 w-6 text-blue-400" />,
       title: 'Clientes y Vendedores',
       description:
         'Base de datos de clientes con CUIT automático y gestión de comisiones para vendedores.',
+      color: 'rgba(99, 102, 241, 0.5)', // Indigo
     },
     {
       icon: <FileText className="h-6 w-6 text-blue-400" />,
       title: 'Presupuestos y Notas',
       description:
         'Crea presupuestos profesionales y emite notas de crédito/débito fácilmente.',
+      color: 'rgba(59, 130, 246, 0.5)', // Blue
     },
     {
       icon: <Truck className="h-6 w-6 text-blue-400" />,
       title: 'Proveedores y Pedidos',
       description:
         'Gestiona proveedores, registra pedidos y actualiza tu stock automáticamente al recibir mercancía.',
+      color: 'rgba(99, 102, 241, 0.5)', // Indigo
     },
     {
       icon: <DollarSign className="h-6 w-6 text-blue-400" />,
       title: 'Estadísticas Financieras',
       description:
         'Analiza ingresos brutos, costos, ganancias y el valor total de tu inventario en tiempo real.',
+      color: 'rgba(6, 182, 212, 0.5)', // Cyan
     },
     {
       icon: <QrCode className="h-6 w-6 text-blue-400" />,
       title: 'Etiquetas QR',
       description:
         'Imprime etiquetas con códigos QR para precios dinámicos y ofrece un verificador de precios.',
+      color: 'rgba(59, 130, 246, 0.5)', // Blue
     },
     {
       icon: <Moon className="h-6 w-6 text-blue-400" />,
       title: 'Modo Oscuro/Claro',
       description:
         'Interfaz adaptable a tu preferencia visual. Trabaja cómodo de día o de noche.',
+      color: 'rgba(255, 255, 255, 0.3)', // White/Neutral
     },
   ];
 
@@ -234,13 +259,20 @@ const LandingPage = () => {
                 La Gestión Definitiva
               </motion.span>
               <br />
-              <motion.span
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.6 }}
-              >
-                Para tu Negocio
-              </motion.span>
+              <TypeAnimation
+                words={[
+                  'Para tu Negocio',
+                  'Para tu Kiosco',
+                  'Para tu Almacén',
+                  'Para tu Éxito',
+                ]}
+                typingSpeed={80}
+                deletingSpeed={50}
+                pauseDuration={2000}
+                gradientFrom="blue-400"
+                gradientTo="cyan-400"
+                className="block"
+              />
             </h2>
             <motion.p
               className="mx-auto mt-6 max-w-2xl text-lg text-zinc-400"
@@ -252,16 +284,16 @@ const LandingPage = () => {
               que necesitas para crecer, en una plataforma simple y potente.
             </motion.p>
             <Link to="/signup?plan=basic">
-              <motion.button
-                className="mt-10 rounded-full bg-white px-8 py-4 font-semibold text-zinc-900 shadow-lg shadow-white/10 transition-transform duration-300 hover:bg-zinc-200"
-                whileHover={{
-                  scale: 1.05,
-                  boxShadow: '0px 0px 20px rgba(255,255,255,0.3)',
-                }}
-                whileTap={{ scale: 0.95 }}
+              <AnimatedButton
+                className="mt-10 inline-flex px-8 py-4 font-semibold text-zinc-900 shadow-lg shadow-white/10"
+                background="white"
+                shimmerColor="rgba(0,0,0,0.05)"
+                shimmerDuration="3s"
+                borderRadius="9999px"
+                glow={true}
               >
                 Comienza tu prueba gratis de 7 días
-              </motion.button>
+              </AnimatedButton>
             </Link>
           </motion.div>
         </section>
@@ -383,7 +415,7 @@ const LandingPage = () => {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <HoverEffectWrapper className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {[
                 {
                   title: 'Kioscos y Drugstores',
@@ -418,16 +450,18 @@ const LandingPage = () => {
               ].map((item, index) => (
                 <motion.div
                   key={index}
-                  className="group relative flex items-start gap-4 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 transition-all hover:border-blue-500/30 hover:bg-zinc-800"
+                  className="group relative flex items-start gap-4 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900/50 p-6 transition-colors"
                   initial={{ opacity: 0, scale: 0.95 }}
                   whileInView={{ opacity: 1, scale: 1 }}
                   viewport={{ once: true }}
                   transition={{ delay: index * 0.05 }}
                 >
-                  <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-zinc-800 text-blue-400 transition-colors group-hover:bg-blue-500 group-hover:text-white">
+                  {/* Glow Effect Layer removed - handled by wrapper */}
+
+                  <div className="relative z-10 flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-zinc-800 text-blue-400 transition-colors group-hover:bg-blue-500 group-hover:text-white">
                     {item.icon}
                   </div>
-                  <div>
+                  <div className="relative z-10">
                     <h4 className="text-lg font-bold text-white">
                       {item.title}
                     </h4>
@@ -437,7 +471,7 @@ const LandingPage = () => {
                   </div>
                 </motion.div>
               ))}
-            </div>
+            </HoverEffectWrapper>
           </div>
         </section>
 
@@ -466,7 +500,7 @@ const LandingPage = () => {
                 negocio desde el día uno.
               </motion.p>
             </div>
-            <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
+            <HoverEffectWrapper className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
               {features.map((feature, index) => (
                 <FeatureCard
                   key={index}
@@ -474,9 +508,10 @@ const LandingPage = () => {
                   title={feature.title}
                   description={feature.description}
                   delay={index * 0.1}
+                  color={feature.color}
                 />
               ))}
-            </div>
+            </HoverEffectWrapper>
           </div>
         </section>
 
@@ -614,133 +649,148 @@ const LandingPage = () => {
             </div>
           </div>
 
-          <div className="mx-auto mt-12 grid max-w-5xl grid-cols-1 gap-8 md:grid-cols-2">
+          <HoverEffectWrapper className="mx-auto mt-12 grid max-w-5xl grid-cols-1 gap-8 md:grid-cols-2">
             {/* PLAN BÁSICO */}
             <motion.div
-              className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-8 shadow-xl transition-transform hover:scale-105"
+              className="group relative overflow-hidden rounded-xl border border-white/10 bg-zinc-800/50 p-8 shadow-xl transition-transform hover:scale-105"
               initial={{ opacity: 0, x: -20 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5 }}
             >
-              <h4 className="text-xl font-bold text-white">Plan Básico</h4>
-              <p className="mt-2 text-zinc-400">
-                Ideal para pequeños comercios que recién comienzan.
-              </p>
-              <div className="mt-6 flex items-baseline justify-center gap-2">
-                <span className="text-4xl font-extrabold text-white">
-                  {billingCycle === 'monthly' ? '$10.000' : '$90.000'}
-                </span>
-                <span className="text-zinc-400">
-                  ARS / {billingCycle === 'monthly' ? 'mes' : 'año'}
-                </span>
+              {/* Glow Effect Layer removed - handled by wrapper */}
+
+              <div className="relative z-10">
+                <h4 className="text-xl font-bold text-white">Plan B ásico</h4>
+
+                <p className="mt-2 text-zinc-400">
+                  Ideal para pequeños comercios que recién comienzan.
+                </p>
+                <div className="mt-6 flex items-baseline justify-center gap-2">
+                  <span className="text-4xl font-extrabold text-white">
+                    {billingCycle === 'monthly' ? '$10.000' : '$90.000'}
+                  </span>
+                  <span className="text-zinc-400">
+                    ARS / {billingCycle === 'monthly' ? 'mes' : 'año'}
+                  </span>
+                </div>
+
+                <ul className="mt-6 space-y-3 text-left text-sm">
+                  <li className="flex items-center gap-2 text-zinc-300">
+                    <CheckCircle className="h-5 w-5 flex-shrink-0 text-green-500" />
+                    Punto de Venta (POS)
+                  </li>
+                  <li className="flex items-center gap-2 text-zinc-300">
+                    <CheckCircle className="h-5 w-5 flex-shrink-0 text-green-500" />
+                    Control de Stock y Caja
+                  </li>
+                  <li className="flex items-center gap-2 text-zinc-300">
+                    <CheckCircle className="h-5 w-5 flex-shrink-0 text-green-500" />
+                    Reportes Básicos
+                  </li>
+                  <li className="flex items-center gap-2 text-zinc-500">
+                    <XCircle className="h-5 w-5 flex-shrink-0 text-zinc-600" />
+                    Facturación AFIP
+                  </li>
+                  <li className="flex items-center gap-2 text-zinc-500">
+                    <XCircle className="h-5 w-5 flex-shrink-0 text-zinc-600" />
+                    Multi-sucursal
+                  </li>
+                </ul>
+
+                <Link to="/signup?plan=basic" className="w-full">
+                  <AnimatedButton
+                    className="mt-8 w-full border border-blue-600 py-3 font-semibold text-blue-500"
+                    variant="outline"
+                    shimmerColor="rgba(0,0,0,0.1)"
+                    shimmerDuration="3s"
+                    borderRadius="6px"
+                  >
+                    Elegir Plan Básico
+                  </AnimatedButton>
+                </Link>
               </div>
-
-              <ul className="mt-6 space-y-3 text-left text-sm">
-                <li className="flex items-center gap-2 text-zinc-300">
-                  <CheckCircle className="h-5 w-5 flex-shrink-0 text-green-500" />
-                  Punto de Venta (POS)
-                </li>
-                <li className="flex items-center gap-2 text-zinc-300">
-                  <CheckCircle className="h-5 w-5 flex-shrink-0 text-green-500" />
-                  Control de Stock y Caja
-                </li>
-                <li className="flex items-center gap-2 text-zinc-300">
-                  <CheckCircle className="h-5 w-5 flex-shrink-0 text-green-500" />
-                  Reportes Básicos
-                </li>
-                <li className="flex items-center gap-2 text-zinc-500">
-                  <XCircle className="h-5 w-5 flex-shrink-0 text-zinc-600" />
-                  Facturación AFIP
-                </li>
-                <li className="flex items-center gap-2 text-zinc-500">
-                  <XCircle className="h-5 w-5 flex-shrink-0 text-zinc-600" />
-                  Multi-sucursal
-                </li>
-              </ul>
-
-              <Link to="/signup?plan=basic" className="w-full">
-                <motion.button
-                  className="mt-8 w-full rounded-md border border-blue-600 bg-transparent py-3 font-semibold text-blue-500 transition-colors hover:bg-blue-600/10"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  Elegir Plan Básico
-                </motion.button>
-              </Link>
             </motion.div>
 
             {/* PLAN COMPLETO */}
             <motion.div
-              className="relative rounded-xl border border-blue-500 bg-zinc-800 p-8 shadow-2xl shadow-blue-500/20 transition-transform hover:scale-105"
+              className="group relative overflow-hidden rounded-xl border border-blue-500/50 bg-zinc-800 p-8 shadow-2xl shadow-blue-500/20 transition-transform hover:scale-105"
               initial={{ opacity: 0, x: 20 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5 }}
             >
-              <div className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-1 text-sm font-bold text-white shadow-lg">
-                MÁS POPULAR
-              </div>
-              <h4 className="text-xl font-bold text-white">Plan Completo</h4>
-              <p className="mt-2 text-zinc-400">
-                La solución definitiva sin límites.
-              </p>
-              <div className="mt-6 flex items-baseline justify-center gap-2">
-                <span className="text-4xl font-extrabold text-white">
-                  {billingCycle === 'monthly' ? '$16.000' : '$135.000'}
-                </span>
-                <span className="text-zinc-400">
-                  ARS / {billingCycle === 'monthly' ? 'mes' : 'año'}
-                </span>
-              </div>
-              {billingCycle === 'annual' && (
-                <p className="mt-2 text-sm text-green-400">
-                  ¡Ahorras $57.000 al año!
+              {/* Glow Effect Layer removed - handled by wrapper */}
+
+              <div className="relative z-10">
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-1 text-sm font-bold text-white shadow-lg">
+                  MÁS POPULAR
+                </div>
+                <h4 className="text-xl font-bold text-white">Plan C ompleto</h4>
+
+                <p className="mt-2 text-zinc-400">
+                  La solución definitiva sin límites.
                 </p>
-              )}
+                <div className="mt-6 flex items-baseline justify-center gap-2">
+                  <span className="text-4xl font-extrabold text-white">
+                    {billingCycle === 'monthly' ? '$16.000' : '$135.000'}
+                  </span>
+                  <span className="text-zinc-400">
+                    ARS / {billingCycle === 'monthly' ? 'mes' : 'año'}
+                  </span>
+                </div>
+                {billingCycle === 'annual' && (
+                  <p className="mt-2 text-sm text-green-400">
+                    ¡Ahorras $57.000 al año!
+                  </p>
+                )}
 
-              <ul className="mt-6 space-y-3 text-left text-sm">
-                <li className="flex items-center gap-2 text-zinc-300">
-                  <CheckCircle className="h-5 w-5 flex-shrink-0 text-green-500" />
-                  Todo lo del Plan Básico
-                </li>
-                <li className="flex items-center gap-2 font-medium text-white">
-                  <CheckCircle className="h-5 w-5 flex-shrink-0 text-blue-400" />
-                  Facturación Electrónica AFIP
-                </li>
-                <li className="flex items-center gap-2 font-medium text-white">
-                  <CheckCircle className="h-5 w-5 flex-shrink-0 text-blue-400" />
-                  Gestión Multi-sucursal
-                </li>
-                <li className="flex items-center gap-2 text-zinc-300">
-                  <CheckCircle className="h-5 w-5 flex-shrink-0 text-green-500" />
-                  Soporte Prioritario
-                </li>
-                <li className="flex items-center gap-2 font-medium text-white">
-                  <CheckCircle className="h-5 w-5 flex-shrink-0 text-blue-400" />
-                  Reporte Diario Automático
-                </li>
-                <li className="flex items-center gap-2 font-medium text-white">
-                  <CheckCircle className="h-5 w-5 flex-shrink-0 text-blue-400" />
-                  Asistente de IA Avanzado
-                </li>
-                <li className="flex items-center gap-2 text-zinc-300">
-                  <CheckCircle className="h-5 w-5 flex-shrink-0 text-green-500" />
-                  Actualizaciones Continuas
-                </li>
-              </ul>
+                <ul className="mt-6 space-y-3 text-left text-sm">
+                  <li className="flex items-center gap-2 text-zinc-300">
+                    <CheckCircle className="h-5 w-5 flex-shrink-0 text-green-500" />
+                    Todo lo del Plan Básico
+                  </li>
+                  <li className="flex items-center gap-2 font-medium text-white">
+                    <CheckCircle className="h-5 w-5 flex-shrink-0 text-blue-400" />
+                    Facturación Electrónica AFIP
+                  </li>
+                  <li className="flex items-center gap-2 font-medium text-white">
+                    <CheckCircle className="h-5 w-5 flex-shrink-0 text-blue-400" />
+                    Gestión Multi-sucursal
+                  </li>
+                  <li className="flex items-center gap-2 text-zinc-300">
+                    <CheckCircle className="h-5 w-5 flex-shrink-0 text-green-500" />
+                    Soporte Prioritario
+                  </li>
+                  <li className="flex items-center gap-2 font-medium text-white">
+                    <CheckCircle className="h-5 w-5 flex-shrink-0 text-blue-400" />
+                    Reporte Diario Automático
+                  </li>
+                  <li className="flex items-center gap-2 font-medium text-white">
+                    <CheckCircle className="h-5 w-5 flex-shrink-0 text-blue-400" />
+                    Asistente de IA Avanzado
+                  </li>
+                  <li className="flex items-center gap-2 text-zinc-300">
+                    <CheckCircle className="h-5 w-5 flex-shrink-0 text-green-500" />
+                    Actualizaciones Continuas
+                  </li>
+                </ul>
 
-              <Link to="/signup?plan=premium" className="w-full">
-                <motion.button
-                  className="mt-8 w-full rounded-md bg-gradient-to-r from-blue-600 to-cyan-600 py-3 font-semibold text-white shadow-lg transition-all hover:from-blue-700 hover:to-cyan-700"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  Elegir Plan Completo
-                </motion.button>
-              </Link>
+                <Link to="/signup?plan=premium" className="w-full">
+                  <AnimatedButton
+                    className="mt-8 w-full py-3 font-semibold text-white shadow-lg"
+                    background="linear-gradient(to right, #2563eb, #0891b2)"
+                    shimmerColor="rgba(255,255,255,0.2)"
+                    shimmerDuration="3s"
+                    borderRadius="6px"
+                    glow={true}
+                  >
+                    Elegir Plan Completo
+                  </AnimatedButton>
+                </Link>
+              </div>
             </motion.div>
-          </div>
+          </HoverEffectWrapper>
         </section>
 
         {/* Contact Section */}
@@ -751,19 +801,28 @@ const LandingPage = () => {
               <div>
                 <h3 className="text-3xl font-bold text-white sm:text-4xl">
                   ¿Tienes preguntas? <br />
-                  <span className="text-blue-500">Hablemos.</span>
+                  <TypeAnimation
+                    words={['Hablemos.', 'Conectemos.', 'Crezcamos.']}
+                    typingSpeed={100}
+                    deletingSpeed={50}
+                    pauseDuration={2000}
+                    gradientFrom="blue-500"
+                    gradientTo="cyan-500"
+                    className="block text-blue-500"
+                  />
                 </h3>
                 <p className="mt-4 text-lg text-zinc-400">
                   Estamos aquí para ayudarte a transformar tu negocio.
                   Contáctanos por cualquiera de nuestros canales.
                 </p>
 
-                <div className="mt-8 space-y-6">
+                <HoverEffectWrapper className="mt-8 space-y-6">
                   <a
                     href="https://wa.me/5493541215803"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-4 rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 transition-colors hover:border-green-500/50 hover:bg-zinc-800"
+                    data-glow-color="rgba(34, 197, 94, 0.5)"
                   >
                     <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500/10 text-green-500">
                       <svg
@@ -781,7 +840,8 @@ const LandingPage = () => {
                       </svg>
                     </div>
                     <div>
-                      <h4 className="font-semibold text-white">WhatsApp</h4>
+                      <h4 className="font-semibold text-white">WhatsA pp</h4>
+
                       <p className="text-sm text-zinc-400">
                         +54 9 3541 21-5803
                       </p>
@@ -791,6 +851,7 @@ const LandingPage = () => {
                   <a
                     href="mailto:khaleesisystempos@gmail.com"
                     className="flex items-center gap-4 rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 transition-colors hover:border-blue-500/50 hover:bg-zinc-800"
+                    data-glow-color="rgba(59, 130, 246, 0.5)"
                   >
                     <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/10 text-blue-500">
                       <svg
@@ -815,7 +876,7 @@ const LandingPage = () => {
                       </p>
                     </div>
                   </a>
-                </div>
+                </HoverEffectWrapper>
               </div>
 
               {/* Contact Form (Visual) */}
@@ -854,9 +915,15 @@ const LandingPage = () => {
                       placeholder="¿En qué podemos ayudarte?"
                     />
                   </div>
-                  <button className="w-full rounded-lg bg-white py-3 font-semibold text-zinc-900 transition-colors hover:bg-zinc-200">
+                  <AnimatedButton
+                    className="w-full py-3 font-semibold text-zinc-900"
+                    background="white"
+                    shimmerColor="rgba(0,0,0,0.05)"
+                    shimmerDuration="3s"
+                    borderRadius="8px"
+                  >
                     Enviar Mensaje
-                  </button>
+                  </AnimatedButton>
                 </form>
               </div>
             </div>

@@ -6,6 +6,9 @@ import { sendPasswordReset } from '../services/authService';
 import AppLogo from '../components/AppLogo';
 import Footer from '../components/Footer';
 import ParticleBackground from '../components/ParticleBackground';
+import HoverEffectWrapper from '../components/HoverEffectWrapper';
+import TypeAnimation from '../components/TypeAnimation';
+import { AnimatedButton } from '../components/AnimatedButton';
 
 const ForgotPasswordScreen = () => {
   const [email, setEmail] = useState('');
@@ -53,65 +56,83 @@ const ForgotPasswordScreen = () => {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7 }}
-          className="w-full max-w-md space-y-6 rounded-lg border border-zinc-700/50 bg-zinc-800/50 p-8 shadow-2xl backdrop-blur-sm"
+          className="w-full max-w-md"
         >
-          <div className="text-center">
-            <AppLogo width="80" height="80" className="mx-auto" />
-            <h2 className="mt-4 text-2xl font-bold text-white">
-              Recuperar Contraseña
-            </h2>
-            <p className="mt-2 text-zinc-400">
-              Ingresa tu email y te enviaremos un enlace para restablecerla.
-            </p>
-          </div>
+          <HoverEffectWrapper className="space-y-6 rounded-lg border border-zinc-700/50 bg-zinc-800/50 p-8 shadow-2xl backdrop-blur-sm">
+            <div data-glow-color="rgba(59, 130, 246, 0.15)">
+              <div className="text-center">
+                <AppLogo width="80" height="80" className="mx-auto" />
+                <h2 className="mt-4 text-2xl font-bold text-white">
+                  Recuperar Contraseña
+                </h2>
+                <TypeAnimation
+                  words={[
+                    '¿Olvidaste tu clave?',
+                    'Recupérala fácil.',
+                    'Te ayudamos.',
+                  ]}
+                  typingSpeed={80}
+                  deletingSpeed={50}
+                  pauseDuration={2000}
+                  gradientFrom="zinc-400"
+                  gradientTo="zinc-200"
+                  className="mt-2 block text-zinc-400"
+                />
+              </div>
 
-          {message && (
-            <p className="rounded-md bg-green-900/50 p-3 text-center text-green-400">
-              {message}
-            </p>
-          )}
-          {error && (
-            <p className="rounded-md bg-red-900/50 p-3 text-center text-red-400">
-              {error}
-            </p>
-          )}
+              {message && (
+                <p className="mt-4 rounded-md bg-green-900/50 p-3 text-center text-green-400">
+                  {message}
+                </p>
+              )}
+              {error && (
+                <p className="mt-4 rounded-md bg-red-900/50 p-3 text-center text-red-400">
+                  {error}
+                </p>
+              )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label htmlFor="email" className="sr-only">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Tu dirección de email"
-                className={inputClasses}
-                required
-                autoComplete="email"
-              />
+              <form onSubmit={handleSubmit} className="mt-6 space-y-6">
+                <div>
+                  <label htmlFor="email" className="sr-only">
+                    Email
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Tu dirección de email"
+                    className={inputClasses}
+                    required
+                    autoComplete="email"
+                  />
+                </div>
+
+                <div className="flex justify-center">
+                  <AnimatedButton
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full font-bold text-white"
+                    background="#2563eb"
+                    shimmerColor="rgba(255,255,255,0.4)"
+                    shimmerDuration="2s"
+                    glow={true}
+                  >
+                    {isLoading ? 'Enviando...' : 'Enviar Correo'}
+                  </AnimatedButton>
+                </div>
+              </form>
+
+              <div className="mt-6 text-center text-sm">
+                <Link
+                  to="/login"
+                  className="font-medium text-blue-400 hover:underline"
+                >
+                  &larr; Volver a Iniciar Sesión
+                </Link>
+              </div>
             </div>
-
-            <motion.button
-              type="submit"
-              disabled={isLoading}
-              className={buttonClasses}
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              {isLoading ? 'Enviando...' : 'Enviar Correo'}
-            </motion.button>
-          </form>
-
-          <div className="text-center text-sm">
-            <Link
-              to="/login"
-              className="font-medium text-blue-400 hover:underline"
-            >
-              &larr; Volver a Iniciar Sesión
-            </Link>
-          </div>
+          </HoverEffectWrapper>
         </motion.div>
       </main>
 
