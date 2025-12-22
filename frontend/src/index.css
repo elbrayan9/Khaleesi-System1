@@ -88,3 +88,18 @@ body {
 .monto-negativo {
   color: #ef4444;
 } /* red-500 */
+
+/* --- View Transitions (Dragon Effect) --- */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+/* Ensure the NEW view is always on top so we can expand it */
+::view-transition-new(root) {
+  z-index: 9999;
+}
+::view-transition-old(root) {
+  z-index: 1;
+}

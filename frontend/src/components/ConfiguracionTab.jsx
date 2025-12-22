@@ -465,26 +465,6 @@ function ConfiguracionTab() {
                   Certificado Digital (.crt)
                 </label>
                 <div className="flex items-center gap-2">
-                  <input
-                    type="file"
-                    accept=".crt"
-                    onChange={(e) => handleFileUpload(e, setAfipCert)}
-                    className="block w-full text-sm text-zinc-400 file:mr-4 file:rounded-md file:border-0 file:bg-zinc-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-zinc-500"
-                  />
-                  {afipCert && (
-                    <span className="text-green-500">✓ Cargado</span>
-                  )}
-                </div>
-                <p className="mt-1 text-xs text-zinc-500">
-                  Sube tu archivo .crt generado en AFIP.
-                </p>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-300">
-                  Certificado Digital (.crt)
-                </label>
-                <div className="flex items-center gap-2">
                   {afipCert ? (
                     <div className="flex w-full items-center justify-between rounded-md border border-zinc-600 bg-zinc-700/50 p-2">
                       <span className="flex items-center gap-2 text-sm text-green-400">

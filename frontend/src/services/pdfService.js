@@ -428,15 +428,47 @@ export const generarPdfVenta = async (
   // Para simplificar, lo ponemos justo debajo de la tabla
   let totalY = finalY + 5;
 
-  doc.setFont(font, 'bold');
-  doc.text('Subtotal: $', 140, totalY, { align: 'right' });
-  doc.text(formatCurrency(venta.total), 190, totalY, { align: 'right' });
+  // Obtener valores de AFIP o calcular defaults
+  const impNeto = venta.afipData?.impNeto
+    ? parseFloat(venta.afipData.impNeto)
+    : 0;
+  const impIva = venta.afipData?.impIva ? parseFloat(venta.afipData.impIva) : 0;
+  const esFacturaA = letra === 'A';
 
-  totalY += 6;
+  doc.setFont(font, 'bold');
+
+  if (esFacturaA && impIva > 0) {
+    // --- CASO FACTURA A (Con IVA discriminado) ---
+
+    // 1. Neto Gravado
+    doc.text('Importe Neto Gravado: $', 140, totalY, { align: 'right' });
+    doc.setFont(font, 'normal');
+    doc.text(formatCurrency(impNeto), 190, totalY, { align: 'right' });
+    totalY += 5;
+
+    // 2. IVA (Mostramos genérico o 21% si no hay desglose múltiple)
+    doc.setFont(font, 'bold');
+    doc.text('IVA: $', 140, totalY, { align: 'right' });
+    doc.setFont(font, 'normal');
+    doc.text(formatCurrency(impIva), 190, totalY, { align: 'right' });
+    totalY += 5;
+  } else {
+    // --- CASO FACTURA B/C (Sin discriminar o Monotributo) ---
+    doc.text('Subtotal: $', 140, totalY, { align: 'right' });
+    doc.setFont(font, 'normal');
+    doc.text(formatCurrency(venta.total), 190, totalY, { align: 'right' });
+    totalY += 5;
+  }
+
+  // 3. Otros Tributos (Mantener si existe)
+  doc.setFont(font, 'bold');
   doc.text('Importe Otros Tributos: $', 140, totalY, { align: 'right' });
+  doc.setFont(font, 'normal');
   doc.text('0,00', 190, totalY, { align: 'right' });
 
+  // 4. TOTAL FINAL (Grande)
   totalY += 6;
+  doc.setFont(font, 'bold');
   doc.setFontSize(11);
   doc.text('Importe Total: $', 140, totalY, { align: 'right' });
   doc.text(formatCurrency(venta.total), 190, totalY, { align: 'right' });

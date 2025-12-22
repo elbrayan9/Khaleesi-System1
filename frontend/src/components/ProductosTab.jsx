@@ -307,10 +307,10 @@ function ProductosTab() {
               Alertas de Stock Bajo
             </h3>
           </div>
-          <div className="overflow-x-auto">
+          <div className="max-h-[400px] overflow-x-auto overflow-y-auto rounded-md border border-yellow-500/20">
             <Table className="min-w-full">
-              <TableHeader>
-                <TableRow className="border-b-yellow-500/30">
+              <TableHeader className="sticky top-0 z-10 bg-yellow-900/95 backdrop-blur-sm">
+                <TableRow className="border-b-yellow-500/30 hover:bg-transparent">
                   <TableHead className="text-yellow-200">Producto</TableHead>
                   <TableHead className="text-center text-yellow-200">
                     Stock Actual
@@ -324,7 +324,7 @@ function ProductosTab() {
                 {productosConStockBajo.map((producto) => (
                   <TableRow
                     key={producto.id}
-                    className="border-b-yellow-500/20"
+                    className="border-b-yellow-500/20 hover:bg-yellow-500/10"
                   >
                     <TableCell className="font-medium text-zinc-200">
                       {producto.nombre}

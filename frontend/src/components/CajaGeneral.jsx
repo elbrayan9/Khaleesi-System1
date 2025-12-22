@@ -33,19 +33,32 @@ const CajaGeneral = () => {
   }, [ventas, egresos, ingresosManuales]);
 
   return (
-    <div className="rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 p-6 text-white shadow-lg">
-      <div className="flex items-center gap-4">
-        <PiggyBank size={40} />
+    <div className="relative overflow-hidden rounded-xl border border-zinc-700 bg-gradient-to-br from-zinc-800 to-zinc-900 p-6 text-white shadow-lg shadow-black/20">
+      {/* Icono de fondo decorativo */}
+      <PiggyBank
+        className="absolute -bottom-4 -right-4 text-zinc-700/20"
+        size={120}
+      />
+
+      <div className="relative z-10 flex items-center gap-4">
+        <div className="rounded-full bg-blue-500/20 p-3 text-blue-400">
+          <PiggyBank size={32} />
+        </div>
         <div>
-          <p className="text-lg font-semibold">Total en Caja General</p>
-          <p className="text-sm opacity-80">
-            Saldo acumulado de todos los movimientos
+          <p className="text-lg font-medium text-zinc-200">
+            Total en Caja General
+          </p>
+          <p className="text-sm text-zinc-400">
+            Saldo acumulado (Efectivo + Ingresos - Egresos)
           </p>
         </div>
       </div>
-      <p className="mt-4 text-right text-4xl font-extrabold">
-        {formatCurrency(totalCajaGeneral)}
-      </p>
+
+      <div className="relative z-10 mt-6 text-right">
+        <p className="font-mono text-4xl font-bold tabular-nums tracking-tight text-white">
+          {formatCurrency(totalCajaGeneral)}
+        </p>
+      </div>
     </div>
   );
 };

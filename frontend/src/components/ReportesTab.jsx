@@ -17,8 +17,12 @@ import {
   ChevronRight,
   CornerDownLeft,
   FileBarChart,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Wallet,
 } from 'lucide-react';
-import Swal from 'sweetalert2'; // Se puede quitar si mostrarMensaje del contexto es suficiente
+import Swal from 'sweetalert2';
 import PaginationControls from './PaginationControls.jsx';
 import SalesChart from './SalesChart.jsx';
 import {
@@ -29,8 +33,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useAppContext } from '../context/AppContext.jsx'; // Importar hook
-import { formatCurrency, obtenerNombreMes } from '../utils/helpers.js'; // Importar helpers directamente
+import { useAppContext } from '../context/AppContext.jsx';
+import { formatCurrency, obtenerNombreMes } from '../utils/helpers.js';
 import * as XLSX from 'xlsx';
 import SalesHeatmap from './SalesHeatmap.jsx';
 import HistorialTurnos from './HistorialTurnos.jsx';
@@ -39,41 +43,32 @@ import CajaGeneral from './CajaGeneral.jsx';
 const ITEMS_PER_PAGE_REPORTE = 10;
 
 function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
-  // Solo recibe props para modales/impresión
   const {
     ventas,
     egresos,
     ingresosManuales,
     clientes,
-    // datosNegocio, // Se obtiene del contexto
-    handleRegistrarIngresoManual, // Renombrado
-    handleEliminarIngresoManual, // Renombrado
-    handleRegistrarEgreso, // Renombrado
-    handleEliminarEgreso, // Renombrado
-    handleEliminarVenta, // Renombrado
+    handleRegistrarIngresoManual,
+    handleEliminarIngresoManual,
+    handleRegistrarEgreso,
+    handleEliminarEgreso,
+    handleEliminarVenta,
     mostrarMensaje,
-    // confirmarAccion // Si se usa directamente aquí, o a través de los handlers del contexto
   } = useAppContext();
-  const { datosNegocio } = useAppContext(); // Obtener datosNegocio específicamente si no se desestructuró antes
+  const { datosNegocio } = useAppContext();
+
   if (!ventas || !egresos || !ingresosManuales) {
-    console.log('Context missing arrays:', {
-      ventas,
-      egresos,
-      ingresosManuales,
-    });
     return null;
   }
-  // Versión corregida
+
   const getCleanToday = () => {
     const today = new Date();
-    // Esto toma el año, mes y día de TU calendario local y crea una fecha UTC
-    // a la medianoche. Elimina el problema de la zona horaria.
     return new Date(
       Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()),
     );
   };
+
   const [selectedDate, setSelectedDate] = useState(getCleanToday());
-  // Estados locales para los formularios de esta pestaña se mantienen
   const [formIngresoDesc, setFormIngresoDesc] = useState('');
   const [formIngresoMonto, setFormIngresoMonto] = useState('');
   const [formEgresoDesc, setFormEgresoDesc] = useState('');
@@ -92,22 +87,18 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
   });
   const [currentPageMes, setCurrentPageMes] = useState(1);
 
-  // --- FASE 2: La lógica ahora se basa en 'selectedDate' en lugar de 'new Date()' ---
-  // Creamos un formateador de fecha que siempre respete la fecha UTC.
   const dateFormatter = new Intl.DateTimeFormat('es-AR', {
     year: 'numeric',
     month: 'numeric',
     day: 'numeric',
-    timeZone: 'UTC', // Le decimos que la fecha que le damos ya está en UTC
+    timeZone: 'UTC',
   });
 
   const diaSeleccionadoStr = dateFormatter.format(selectedDate);
   const mesSeleccionado = selectedDate.getUTCMonth();
   const anioSeleccionado = selectedDate.getFullYear();
-  // Versión corregida
   const nombreMesSeleccionado = obtenerNombreMes(selectedDate.getUTCMonth());
 
-  // Filtramos los datos basados en la fecha seleccionada
   const safeVentas = Array.isArray(ventas) ? ventas : [];
   const safeEgresos = Array.isArray(egresos) ? egresos : [];
   const safeIngresos = Array.isArray(ingresosManuales) ? ingresosManuales : [];
@@ -121,7 +112,6 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
   );
 
   const filterByMonthAndYear = (item) => {
-    // Usamos una forma más robusta de obtener la fecha del item
     const itemDate = new Date(
       item.timestamp || item.fecha.split('/').reverse().join('-'),
     );
@@ -135,7 +125,6 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
   const egresosMes = safeEgresos.filter(filterByMonthAndYear);
   const ingresosManualesMes = safeIngresos.filter(filterByMonthAndYear);
 
-  // --- Lógica de cálculo (CORREGIDA) ---
   const totalVentasDia = ventasDelDia.reduce(
     (s, v) => s + (Number(v.total) || 0),
     0,
@@ -179,25 +168,18 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
     }, {});
   }, [ventasDelDia]);
 
-  // --- FUNCIÓN DE ORDENAMIENTO CORREGIDA ---
   const defaultSort = (a, b) => {
-    // Esta función convierte la fecha de Firestore a un número para poder comparar.
     const getTime = (item) => {
-      // Primero busca 'createdAt', si no lo encuentra, busca 'timestamp' como respaldo.
       const timestamp = item.createdAt || item.timestamp;
       if (!timestamp) return 0;
-      // El método .toDate() es la forma correcta de manejar Timestamps de Firestore.
       if (typeof timestamp.toDate === 'function') {
         return timestamp.toDate().getTime();
       }
-      // Si es un texto, lo convierte a fecha.
       return new Date(timestamp).getTime();
     };
-    return getTime(b) - getTime(a); // Ordena del más reciente al más antiguo
+    return getTime(b) - getTime(a);
   };
 
-  // Lógica de agrupación de movimientos (sin cambios, ahora usa el defaultSort corregido)
-  // Reemplaza esto en ReportesTab.jsx
   const todosMovimientosDia = useMemo(() => {
     const getMetodosPagoString = (venta) => {
       if (venta.pagos && Array.isArray(venta.pagos)) {
@@ -208,7 +190,6 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
       return venta.metodoPago || 'N/A';
     };
 
-    // CORRECCIÓN: Usamos un nuevo nombre de variable 'ventasMapeadas'
     const ventasMapeadas = ventasDelDia.map((v) => ({
       ...v,
       tipo: 'Venta',
@@ -217,7 +198,7 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
     }));
 
     return [
-      ...ventasMapeadas, // Y la usamos aquí
+      ...ventasMapeadas,
       ...ingresosManualesDelDia.map((i) => ({
         ...i,
         tipo: 'Ingreso Manual',
@@ -282,43 +263,34 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
       .map(([dia, total]) => ({ dia, total }))
       .sort((a, b) => parseInt(a.dia, 10) - parseInt(b.dia, 10));
   }, [ventasMes]);
-  // frontend/src/components/ReportesTab.jsx
 
   const productosMasVendidosMes = useMemo(() => {
     const productCounts = ventasMes.reduce((acc, venta) => {
       venta.items.forEach((item) => {
-        // Usamos el ID del producto como clave única
         const key = item.id || item.nombre;
 
         if (acc[key]) {
-          // Si ya existe, simplemente sumamos la cantidad y el precio final
           acc[key].cantidad += item.cantidad;
-          acc[key].totalVendido += item.precioFinal; // <-- CORREGIDO
+          acc[key].totalVendido += item.precioFinal;
         } else {
-          // Si es nuevo, lo creamos con el precio final ya calculado
           acc[key] = {
             nombre: item.nombre,
             cantidad: item.cantidad,
-            totalVendido: item.precioFinal, // <-- CORREGIDO
+            totalVendido: item.precioFinal,
           };
         }
       });
       return acc;
     }, {});
 
-    // 4. Convertimos el objeto a un array, lo ordenamos de mayor a menor
-    //    y nos quedamos con los 5 primeros (el Top 5).
     return Object.values(productCounts)
       .sort((a, b) => b.cantidad - a.cantidad)
       .slice(0, 5);
-  }, [ventasMes]); // Esta lógica se recalcula solo si las ventas del mes cambian
-
-  // frontend/src/components/ReportesTab.jsx
+  }, [ventasMes]);
 
   const rankingVendedoresMes = useMemo(() => {
-    // 1. Usamos reduce para agrupar las ventas por el nombre del vendedor
     const statsPorVendedor = ventasMes.reduce((acc, venta) => {
-      const vendedor = venta.vendedorNombre || 'N/A'; // Usamos 'N/A' si no hay vendedor
+      const vendedor = venta.vendedorNombre || 'N/A';
 
       if (!acc[vendedor]) {
         acc[vendedor] = {
@@ -328,23 +300,18 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
         };
       }
 
-      // 2. Acumulamos el total vendido y la cantidad de ventas
       acc[vendedor].totalVendido += venta.total;
       acc[vendedor].cantidadVentas += 1;
 
       return acc;
     }, {});
 
-    // 3. Convertimos el objeto a un array y lo ordenamos por el total vendido
     return Object.values(statsPorVendedor).sort(
       (a, b) => b.totalVendido - a.totalVendido,
     );
-  }, [ventasMes]); // Esta lógica se recalcula solo si las ventas del mes cambian
-
-  // frontend/src/components/ReportesTab.jsx
+  }, [ventasMes]);
 
   const datosMapaDeCalor = useMemo(() => {
-    // Creamos una estructura para contar las ventas: un objeto para cada día de la semana.
     const dias = [
       'Domingo',
       'Lunes',
@@ -354,14 +321,14 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
       'Viernes',
       'Sábado',
     ];
-    const ventasPorHoraYDia = {}; // Ej: { Lunes: { '09': 5, '10': 12 }, Martes: { ... } }
+    const ventasPorHoraYDia = {};
 
     ventasMes.forEach((venta) => {
       const fechaVenta = venta.createdAt?.toDate() || new Date(venta.timestamp);
       if (!fechaVenta) return;
 
       const diaSemana = dias[fechaVenta.getDay()];
-      const hora = fechaVenta.getHours().toString().padStart(2, '0'); // Formato "09", "10", etc.
+      const hora = fechaVenta.getHours().toString().padStart(2, '0');
 
       if (!ventasPorHoraYDia[diaSemana]) {
         ventasPorHoraYDia[diaSemana] = {};
@@ -370,7 +337,7 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
         ventasPorHoraYDia[diaSemana][hora] = 0;
       }
 
-      ventasPorHoraYDia[diaSemana][hora] += 1; // Contamos una venta más
+      ventasPorHoraYDia[diaSemana][hora] += 1;
     });
 
     return ventasPorHoraYDia;
@@ -482,7 +449,7 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
       mostrarMensaje('Ingrese descripción y monto válido.', 'warning');
       return;
     }
-    handleRegistrarIngresoManual(formIngresoDesc.trim(), montoNum); // Llama al handler del contexto
+    handleRegistrarIngresoManual(formIngresoDesc.trim(), montoNum);
     setFormIngresoDesc('');
     setFormIngresoMonto('');
   };
@@ -492,7 +459,7 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
       mostrarMensaje('Ingrese descripción y monto válido.', 'warning');
       return;
     }
-    handleRegistrarEgreso(formEgresoDesc.trim(), montoNum); // Llama al handler del contexto
+    handleRegistrarEgreso(formEgresoDesc.trim(), montoNum);
     setFormEgresoDesc('');
     setFormEgresoMonto('');
   };
@@ -530,10 +497,6 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
       return;
     }
     const ventaToPrintObj = ventas.find((v) => v.id === ventaId);
-    const clienteInfoObj =
-      ventaToPrintObj && clientes
-        ? clientes.find((c) => c.id === ventaToPrintObj.clienteId)
-        : null;
     if (ventaToPrintObj && onPrintRequest)
       onPrintRequest(ventaToPrintObj, 'print');
     else mostrarMensaje('Venta no encontrada.', 'error');
@@ -570,7 +533,6 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
                </div>`,
       icon: 'info',
       confirmButtonText: 'Entendido',
-      // Asegúrate de mantener el resto de tu configuración de Swal aquí...
       heightAuto: false,
       background: '#27272a',
       color: '#d4d4d8',
@@ -597,7 +559,7 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
   };
   const headerButtonClasses =
     'flex items-center text-left text-xs font-medium text-zinc-300 uppercase tracking-wider hover:text-white focus:outline-none';
-  // --- FASE 1: Funciones para cambiar la fecha ---
+
   const changeDate = (amount) => {
     setSelectedDate((prevDate) => {
       const newDate = new Date(prevDate);
@@ -608,11 +570,9 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
 
   const handleDateChange = (e) => {
     const [year, month, day] = e.target.value.split('-').map(Number);
-    // Creamos la fecha en UTC para evitar que la zona horaria la cambie al día anterior.
     setSelectedDate(new Date(Date.UTC(year, month - 1, day)));
   };
 
-  // --- FASE 3: Función para exportar el reporte del mes ---
   const handleExportarMes = () => {
     if (
       ventasMes.length === 0 &&
@@ -677,14 +637,12 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
       Monto: formatCurrency(m.montoDisplay),
     }));
 
-    // Creamos hojas de cálculo separadas
     const wsResumen = XLSX.utils.json_to_sheet(resumenData, {
       skipHeader: true,
     });
     const wsVendedores = XLSX.utils.json_to_sheet(desgloseVendedorData);
     const wsMovimientos = XLSX.utils.json_to_sheet(movimientosData);
 
-    // Nombramos las hojas
     XLSX.utils.sheet_add_aoa(wsResumen, [['Resumen del Mes']], {
       origin: 'A1',
     });
@@ -709,724 +667,573 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
   };
 
   return (
-    <div id="reportes">
-      {/* --- FASE 1: Controles de Fecha --- */}
-      <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-800 p-3">
-        <h2 className="mr-4 flex items-center gap-2 text-xl font-semibold text-white">
-          <FileBarChart className="h-6 w-6 text-orange-500" />
-          Caja y Reportes
-        </h2>
-        <div className="relative">
-          <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-          <input
-            type="date"
-            value={selectedDate.toISOString().split('T')[0]}
-            onChange={handleDateChange}
-            className="rounded-md border border-zinc-600 bg-zinc-700 py-1.5 pl-9 pr-2 text-sm text-zinc-200 focus:border-blue-500 focus:ring-blue-500"
-          />
+    <div id="reportes" className="space-y-6">
+      {/* --- HEADER: Título y Controles --- */}
+      <div className="flex flex-col gap-4 rounded-xl border border-zinc-700 bg-zinc-800/50 p-4 backdrop-blur-md md:flex-row md:items-center md:justify-between">
+        <div className="flex items-center gap-3">
+          <div className="rounded-lg bg-orange-500/10 p-2 text-orange-500">
+            <FileBarChart className="h-6 w-6" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-white">Caja y Reportes</h2>
+            <p className="text-xs text-zinc-400">
+              Gestión diaria y métricas clave
+            </p>
+          </div>
         </div>
-        <motion.button
-          onClick={() => changeDate(-1)}
-          className="rounded-md bg-zinc-700 p-2 hover:bg-zinc-600"
-          title="Día Anterior"
-          whileTap={{ scale: 0.9 }}
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </motion.button>
-        <motion.button
-          onClick={() => changeDate(1)}
-          className="rounded-md bg-zinc-700 p-2 hover:bg-zinc-600"
-          title="Día Siguiente"
-          whileTap={{ scale: 0.9 }}
-        >
-          <ChevronRight className="h-4 w-4" />
-        </motion.button>
-        <motion.button
-          onClick={() => setSelectedDate(getCleanToday())}
-          className="flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm hover:bg-blue-700"
-          whileTap={{ scale: 0.95 }}
-        >
-          <CornerDownLeft className="h-4 w-4" /> Volver a Hoy
-        </motion.button>
-        {/* --- FASE 3: Botón de Exportar --- */}
-        <motion.button
-          onClick={handleExportarMes}
-          className="ml-auto flex items-center gap-1.5 rounded-md bg-green-600 px-3 py-1.5 text-sm hover:bg-green-700"
-          whileTap={{ scale: 0.95 }}
-        >
-          <Download className="h-4 w-4" /> Exportar Mes
-        </motion.button>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative">
+            <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+            <input
+              type="date"
+              value={selectedDate.toISOString().split('T')[0]}
+              onChange={handleDateChange}
+              className="rounded-lg border border-zinc-600 bg-zinc-900 py-2 pl-9 pr-3 text-sm text-zinc-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+
+          <div className="flex items-center rounded-lg border border-zinc-700 bg-zinc-900 p-1">
+            <motion.button
+              onClick={() => changeDate(-1)}
+              className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-800 hover:text-white"
+              title="Día Anterior"
+              whileTap={{ scale: 0.9 }}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </motion.button>
+            <div className="mx-1 h-4 w-px bg-zinc-700"></div>
+            <motion.button
+              onClick={() => changeDate(1)}
+              className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-800 hover:text-white"
+              title="Día Siguiente"
+              whileTap={{ scale: 0.9 }}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </motion.button>
+          </div>
+
+          <motion.button
+            onClick={() => setSelectedDate(getCleanToday())}
+            className="flex items-center gap-1.5 rounded-lg bg-blue-600/10 px-3 py-2 text-sm font-medium text-blue-400 hover:bg-blue-600/20"
+            whileTap={{ scale: 0.95 }}
+          >
+            <CornerDownLeft className="h-4 w-4" /> Hoy
+          </motion.button>
+
+          <motion.button
+            onClick={handleExportarMes}
+            className="ml-2 flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white shadow-lg shadow-green-900/20 hover:bg-green-700"
+          >
+            <Download className="h-4 w-4" /> Exportar Mes
+          </motion.button>
+        </div>
       </div>
-      <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-3">
-        <div className="space-y-5 lg:col-span-1">
-          <CajaGeneral />
-          <div className="rounded-lg bg-zinc-800 p-4 shadow-md sm:p-5">
-            <h3 className="mb-3 border-b border-zinc-700 pb-2 text-lg font-medium text-white sm:text-xl">
-              Registrar Ingreso Manual
-            </h3>
-            <div className="space-y-3">
-              <div>
-                <label
-                  htmlFor="ingreso-descripcion-rep"
-                  className="mb-1 block text-sm font-medium text-zinc-300"
-                >
-                  Descripción:
-                </label>
-                <input
-                  type="text"
-                  id="ingreso-descripcion-rep"
-                  value={formIngresoDesc}
-                  onChange={(e) => setFormIngresoDesc(e.target.value)}
-                  placeholder="Ej: Fondo inicial"
-                  className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100 placeholder-zinc-400"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="ingreso-monto-rep"
-                  className="mb-1 block text-sm font-medium text-zinc-300"
-                >
-                  Monto ($):
-                </label>
-                <input
-                  type="number"
-                  id="ingreso-monto-rep"
-                  value={formIngresoMonto}
-                  onChange={(e) => setFormIngresoMonto(e.target.value)}
-                  step="0.01"
-                  min="0"
-                  placeholder="Ej: 1000.00"
-                  className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100"
-                />
-              </div>
-              <div className="text-right">
-                <motion.button
-                  onClick={handleLocalRegistrarIngreso}
-                  className="inline-flex w-full items-center rounded-md bg-green-600 px-3 py-2 font-bold text-white hover:bg-green-700 sm:w-auto"
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
-                >
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Registrar Ingreso
-                </motion.button>
-              </div>
-            </div>
+
+      {/* --- TOP ROW: KPI Cards --- */}
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {/* KPI 1: Caja General (Prominent) */}
+        <CajaGeneral />
+
+        {/* KPI 2: Ventas del Día */}
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-zinc-400">Ventas del Día</p>
+            <DollarSign className="h-4 w-4 text-emerald-500" />
           </div>
-          <div className="rounded-lg bg-zinc-800 p-4 shadow-md sm:p-5">
-            <h3 className="mb-3 border-b border-zinc-700 pb-2 text-lg font-medium text-white sm:text-xl">
-              Registrar Egreso
-            </h3>
-            <div className="space-y-3">
-              <div>
-                <label
-                  htmlFor="egreso-descripcion-rep"
-                  className="mb-1 block text-sm font-medium text-zinc-300"
-                >
-                  Descripción:
-                </label>
-                <input
-                  type="text"
-                  id="egreso-descripcion-rep"
-                  value={formEgresoDesc}
-                  onChange={(e) => setFormEgresoDesc(e.target.value)}
-                  placeholder="Ej: Pago a proveedor"
-                  className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100 placeholder-zinc-400"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="egreso-monto-rep"
-                  className="mb-1 block text-sm font-medium text-zinc-300"
-                >
-                  Monto ($):
-                </label>
-                <input
-                  type="number"
-                  id="egreso-monto-rep"
-                  value={formEgresoMonto}
-                  onChange={(e) => setFormEgresoMonto(e.target.value)}
-                  step="0.01"
-                  min="0"
-                  placeholder="Ej: 500.50"
-                  className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100"
-                />
-              </div>
-              <div className="text-right">
-                <motion.button
-                  onClick={handleLocalRegistrarEgreso}
-                  className="inline-flex w-full items-center rounded-md bg-red-600 px-3 py-2 font-bold text-white hover:bg-red-700 sm:w-auto"
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
-                >
-                  <MinusCircle className="mr-2 h-4 w-4" />
-                  Registrar Gasto
-                </motion.button>
-              </div>
+          <p className="mt-2 text-2xl font-bold text-emerald-400">
+            {formatCurrency(totalVentasDia)}
+          </p>
+          <p className="text-xs text-zinc-500">
+            {ventasDelDia.length} transacciones
+          </p>
+        </div>
+
+        {/* KPI 3: Ingresos & Egresos (Combined) */}
+        {/* KPI 3: Ingresos & Egresos (Combined with Forms) */}
+        <div className="flex flex-col gap-2 rounded-xl border border-zinc-800 bg-zinc-900/50 p-3">
+          {/* Ingresos Section */}
+          <div className="flex flex-col gap-1 border-b border-zinc-800 pb-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-zinc-400">
+                Ingresos Extra
+              </p>
+              <p className="text-sm font-bold text-blue-400">
+                {formatCurrency(totalIngresosManualesDia)}
+              </p>
             </div>
-          </div>
-          <div className="rounded-lg bg-zinc-800 p-4 shadow-md sm:p-5">
-            <h3 className="mb-3 border-b border-zinc-700 pb-2 text-lg font-medium text-white sm:text-xl">
-              Resumen del Día ({diaSeleccionadoStr})
-            </h3>
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-zinc-400">Total Ventas (Todos):</span>
-                <span className="font-semibold text-zinc-100">
-                  ${formatCurrency(totalVentasDia)}
-                </span>
-              </div>
-              <hr className="my-1 border-zinc-700" />
-              <h4 className="pt-1 font-semibold text-zinc-200">
-                Desglose Ventas:
-              </h4>
-              <div className="space-y-1 pl-4">
-                {[
-                  'efectivo',
-                  'tarjeta',
-                  'qr_banco',
-                  'qr_billetera',
-                  'transferencia',
-                ].map((medio) => (
-                  <div
-                    key={medio}
-                    className="flex items-center justify-between"
-                  >
-                    <span className="capitalize text-zinc-400">
-                      {medio.replace('_', ' ')}:
-                    </span>
-                    <span className="font-medium text-zinc-200">
-                      ${formatCurrency(ventasPorMedioDia[medio] || 0)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <hr className="my-1 border-zinc-700" />
-              <h4 className="pt-1 font-semibold text-zinc-200">
-                Movimientos Efectivo:
-              </h4>
-              <div className="space-y-1 pl-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-zinc-400">Ingresos Manuales:</span>
-                  <span className="monto-positivo font-medium">
-                    ${formatCurrency(totalIngresosManualesDia)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-zinc-400">Egresos Efectivo:</span>
-                  <span className="monto-negativo font-medium">
-                    -${formatCurrency(totalEgresosDia)}
-                  </span>
-                </div>
-              </div>
-              <hr className="my-1 border-zinc-700" />
-              <div className="flex items-center justify-between pt-2">
-                <span className="font-bold text-zinc-100">
-                  Saldo Efectivo Esperado:
-                </span>
-                <span className="text-lg font-bold text-blue-400">
-                  ${formatCurrency(saldoEfectivoEsperado)}
-                </span>
-              </div>
-              {/* --- AÑADIDO: Resumen por vendedor en pantalla --- */}
-              {Object.keys(ventasPorVendedorDia).length > 0 && (
-                <div className="mt-3 border-t border-zinc-700 pt-3">
-                  <h4 className="mb-1 font-semibold text-zinc-200">
-                    Desglose por Vendedor:
-                  </h4>
-                  <div className="space-y-1 pl-4">
-                    {Object.entries(ventasPorVendedorDia).map(
-                      ([vendedor, data]) => (
-                        <div
-                          key={vendedor}
-                          className="flex items-center justify-between"
-                        >
-                          <span className="text-zinc-400">{vendedor}:</span>
-                          <span className="font-medium text-zinc-200">
-                            ${formatCurrency(data.total)}
-                            <span className="ml-2 text-xs text-zinc-500">
-                              ({data.cantidadVentas} v.)
-                            </span>
-                          </span>
-                        </div>
-                      ),
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="mt-4 text-right">
-              <motion.button
-                onClick={handleCerrarCaja}
-                className="inline-flex w-full items-center rounded-md bg-orange-500 px-3 py-2 font-bold text-white hover:bg-orange-600 sm:w-auto"
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
+            {/* Ingreso Form */}
+            <div className="flex gap-1">
+              <input
+                type="text"
+                value={formIngresoDesc}
+                onChange={(e) => setFormIngresoDesc(e.target.value)}
+                placeholder="Desc"
+                className="h-7 w-full min-w-0 rounded border border-zinc-700 bg-zinc-800 px-2 text-[10px] text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              />
+              <input
+                type="number"
+                value={formIngresoMonto}
+                onChange={(e) => setFormIngresoMonto(e.target.value)}
+                placeholder="$"
+                className="h-7 w-16 rounded border border-zinc-700 bg-zinc-800 px-2 text-[10px] text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              />
+              <button
+                onClick={handleLocalRegistrarIngreso}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-blue-600 text-white hover:bg-blue-700"
               >
-                <Archive className="mr-2 h-4 w-4" />
-                Simular Cierre
-              </motion.button>
+                <PlusCircle className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Egresos Section */}
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-zinc-400">Egresos</p>
+              <p className="text-sm font-bold text-red-400">
+                {formatCurrency(totalEgresosDia)}
+              </p>
+            </div>
+            {/* Egreso Form */}
+            <div className="flex gap-1">
+              <input
+                type="text"
+                value={formEgresoDesc}
+                onChange={(e) => setFormEgresoDesc(e.target.value)}
+                placeholder="Desc"
+                className="h-7 w-full min-w-0 rounded border border-zinc-700 bg-zinc-800 px-2 text-[10px] text-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
+              />
+              <input
+                type="number"
+                value={formEgresoMonto}
+                onChange={(e) => setFormEgresoMonto(e.target.value)}
+                placeholder="$"
+                className="h-7 w-16 rounded border border-zinc-700 bg-zinc-800 px-2 text-[10px] text-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
+              />
+              <button
+                onClick={handleLocalRegistrarEgreso}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-red-600 text-white hover:bg-red-700"
+              >
+                <MinusCircle className="h-4 w-4" />
+              </button>
             </div>
           </div>
         </div>
-        <div className="space-y-5 lg:col-span-2">
-          <div className="rounded-lg bg-zinc-800 p-4 shadow-md sm:p-5">
-            <h3 className="mb-3 border-b border-zinc-700 pb-2 text-lg font-medium text-white sm:text-xl">
-              Ventas Diarias del Mes ({nombreMesSeleccionado})
-            </h3>
+      </div>
+
+      {/* --- MAIN CONTENT GRID (Zero-Gap) --- */}
+      <div className="grid h-[calc(100vh-220px)] min-h-[800px] grid-cols-1 gap-6 lg:grid-cols-12">
+        {/* --- LEFT COLUMN: Chart + Tables (65-70%) --- */}
+        <div className="flex h-full flex-col gap-4 lg:col-span-8 xl:col-span-9">
+          {/* 1. Chart Section (Fixed Height) */}
+          <div className="h-[300px] w-full shrink-0">
             <SalesChart data={salesDataForChart} />
           </div>
-          <div className="overflow-hidden rounded-lg bg-zinc-800 p-4 shadow-md sm:p-5">
-            <div className="mb-3 flex flex-col items-center justify-between gap-2 border-b border-zinc-700 pb-2 sm:flex-row">
-              <h3 className="whitespace-nowrap text-lg font-medium text-white sm:text-xl">
-                Movimientos Caja del Día ({diaSeleccionadoStr})
-              </h3>
-              <div className="relative w-full sm:w-auto">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 transform text-zinc-400">
-                  <Search className="h-4 w-4" />
-                </span>
-                <input
-                  type="text"
-                  placeholder="Buscar..."
-                  value={searchTermDia}
-                  onChange={(e) => {
-                    setSearchTermDia(e.target.value);
-                    setCurrentPageDia(1);
-                  }}
-                  className="w-full rounded-md border border-zinc-600 bg-zinc-700 py-2 pl-10 pr-4 text-sm text-zinc-100 placeholder-zinc-400 sm:w-64"
-                />
-              </div>
-            </div>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-b-zinc-700 hover:bg-transparent">
-                    <TableHead>
-                      <button
-                        onClick={() => requestSortDia('timestamp')}
-                        className={headerButtonClasses}
-                      >
-                        Hora {getSortIcon('timestamp', sortConfigDia)}
-                      </button>
-                    </TableHead>
-                    <TableHead>
-                      <button
-                        onClick={() => requestSortDia('tipo')}
-                        className={headerButtonClasses}
-                      >
-                        Tipo {getSortIcon('tipo', sortConfigDia)}
-                      </button>
-                    </TableHead>
-                    <TableHead>
-                      <button
-                        onClick={() => requestSortDia('desc')}
-                        className={headerButtonClasses}
-                      >
-                        Descripción {getSortIcon('desc', sortConfigDia)}
-                      </button>
-                    </TableHead>
-                    <TableHead className="text-right">
-                      <button
-                        onClick={() => requestSortDia('montoDisplay')}
-                        className={`${headerButtonClasses} w-full justify-end`}
-                      >
-                        Monto {getSortIcon('montoDisplay', sortConfigDia)}
-                      </button>
-                    </TableHead>
-                    <TableHead className="text-center">Acción</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedMovimientosDia.length === 0 ? (
-                    <TableRow className="border-b-zinc-700 hover:bg-transparent">
-                      <TableCell
-                        colSpan={5}
-                        className="h-24 text-center italic text-zinc-400"
-                      >
-                        No hay movimientos hoy.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    paginatedMovimientosDia.map((m) => (
-                      <TableRow
-                        key={m.id || `mov_dia_fb_${Date.now()}${Math.random()}`}
-                        className="border-b-zinc-700 hover:bg-zinc-700/50"
-                      >
-                        <TableCell className="whitespace-nowrap text-zinc-400">
-                          {m.hora || 'N/A'}
-                        </TableCell>
-                        <TableCell
-                          className={`whitespace-nowrap font-medium ${m.tipo === 'Venta' ? 'text-green-400' : m.tipo === 'Egreso' ? 'text-red-400' : 'text-blue-400'}`}
-                        >
-                          {m.tipo}
-                        </TableCell>
-                        <TableCell
-                          className="max-w-xs truncate text-zinc-300"
-                          title={m.desc}
-                        >
-                          {m.desc}
-                        </TableCell>
-                        <TableCell
-                          className={`whitespace-nowrap text-right font-semibold ${m.montoDisplay >= 0 ? 'monto-positivo' : 'monto-negativo'}`}
-                        >
-                          ${formatCurrency(m.montoDisplay)}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap text-center">
-                          {m.tipo === 'Venta' && (
-                            <motion.button
-                              onClick={() => handleLocalViewDetailsClick(m.id)}
-                              className="mr-2 rounded p-1 text-purple-400 hover:text-purple-300"
-                              title="Ver Detalles"
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.9 }}
-                              disabled={
-                                !m.id ||
-                                !!m._id_original_invalid ||
-                                (typeof m.id === 'string' &&
-                                  (m.id.startsWith('local_') ||
-                                    m.id.includes('_h_') ||
-                                    m.id.includes('_m_')))
-                              }
-                            >
-                              <Eye className="inline-block h-4 w-4" />
-                            </motion.button>
-                          )}
-                          {m.tipo === 'Venta' && (
-                            <motion.button
-                              onClick={() => handleLocalPrintClick(m.id)}
-                              className="mr-2 rounded p-1 text-blue-400 hover:text-blue-300"
-                              title="Imprimir"
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.9 }}
-                              disabled={
-                                !m.id ||
-                                !!m._id_original_invalid ||
-                                (typeof m.id === 'string' &&
-                                  (m.id.startsWith('local_') ||
-                                    m.id.includes('_h_') ||
-                                    m.id.includes('_m_')))
-                              }
-                            >
-                              <Printer className="inline-block h-4 w-4" />
-                            </motion.button>
-                          )}
-                          <motion.button
-                            onClick={() =>
-                              m.tipo === 'Venta'
-                                ? handleLocalEliminarVenta(m.id)
-                                : handleLocalEliminarMovimiento(
-                                    m.id,
-                                    m.tipo,
-                                    m.desc,
-                                  )
-                            }
-                            className="rounded p-1 text-red-500 hover:text-red-400"
-                            title={`Eliminar ${m.tipo}`}
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            disabled={
-                              !m.id ||
-                              !!m._id_original_invalid ||
-                              (typeof m.id === 'string' &&
-                                (m.id.startsWith('local_') ||
-                                  m.id.includes('_h_') ||
-                                  m.id.includes('_m_')))
-                            }
+
+          {/* 2. Tables Section (Flex Fill) */}
+          <div className="min-h-0 flex-1">
+            <div className="grid h-full grid-cols-1 gap-4 lg:grid-cols-2">
+              {/* Daily Movements Table */}
+              <div className="flex h-full flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/50 shadow-lg">
+                <div className="flex items-center justify-between border-b border-zinc-800 bg-zinc-900/80 p-3 backdrop-blur-sm">
+                  <h3 className="text-sm font-semibold text-white">
+                    Movimientos del Día
+                  </h3>
+                  <div className="relative w-32">
+                    <Search className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-zinc-500" />
+                    <input
+                      type="text"
+                      placeholder="Buscar..."
+                      value={searchTermDia}
+                      onChange={(e) => setSearchTermDia(e.target.value)}
+                      className="w-full rounded-md border border-zinc-700 bg-zinc-800 py-1 pl-7 pr-2 text-xs text-zinc-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-hidden">
+                  <div className="custom-scrollbar h-full overflow-y-auto">
+                    <Table>
+                      <TableHeader className="sticky top-0 z-10 bg-zinc-900 shadow-sm">
+                        <TableRow className="border-b border-zinc-800 hover:bg-transparent">
+                          <TableHead
+                            className="cursor-pointer text-zinc-400 hover:text-white"
+                            onClick={() => requestSortDia('hora')}
                           >
-                            <Trash2 className="inline-block h-4 w-4" />
-                          </motion.button>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-            <PaginationControls
-              currentPage={currentPageDia}
-              totalPages={totalPagesDia}
-              onPageChange={(page) => setCurrentPageDia(page)}
-              itemsPerPage={ITEMS_PER_PAGE_REPORTE}
-              totalItems={filteredSortedMovimientosDia.length}
-            />
-          </div>
-          <div className="overflow-hidden rounded-lg bg-zinc-800 p-4 shadow-md sm:p-5">
-            <div className="mb-3 flex flex-col items-center justify-between gap-2 border-b border-zinc-700 pb-2 sm:flex-row">
-              <h3 className="whitespace-nowrap text-lg font-medium text-white sm:text-xl">
-                Movimientos del Mes ({nombreMesSeleccionado})
-              </h3>
-              <div className="relative w-full sm:w-auto">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 transform text-zinc-400">
-                  <Search className="h-4 w-4" />
-                </span>
-                <input
-                  type="text"
-                  placeholder="Buscar..."
-                  value={searchTermMes}
-                  onChange={(e) => {
-                    setSearchTermMes(e.target.value);
-                    setCurrentPageMes(1);
-                  }}
-                  className="w-full rounded-md border border-zinc-600 bg-zinc-700 py-2 pl-10 pr-4 text-sm text-zinc-100 placeholder-zinc-400 sm:w-64"
-                />
-              </div>
-            </div>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-b-zinc-700 hover:bg-transparent">
-                    <TableHead>
-                      <button
-                        onClick={() => requestSortMes('timestamp')}
-                        className={headerButtonClasses}
-                      >
-                        Fecha/Hora {getSortIcon('timestamp', sortConfigMes)}
-                      </button>
-                    </TableHead>
-                    <TableHead>
-                      <button
-                        onClick={() => requestSortMes('tipo')}
-                        className={headerButtonClasses}
-                      >
-                        Tipo {getSortIcon('tipo', sortConfigMes)}
-                      </button>
-                    </TableHead>
-                    <TableHead>
-                      <button
-                        onClick={() => requestSortMes('desc')}
-                        className={headerButtonClasses}
-                      >
-                        Descripción {getSortIcon('desc', sortConfigMes)}
-                      </button>
-                    </TableHead>
-                    <TableHead className="text-right">
-                      <button
-                        onClick={() => requestSortMes('montoDisplay')}
-                        className={`${headerButtonClasses} w-full justify-end`}
-                      >
-                        Monto {getSortIcon('montoDisplay', sortConfigMes)}
-                      </button>
-                    </TableHead>
-                    <TableHead className="text-center">Acción</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedMovimientosMes.length === 0 ? (
-                    <TableRow className="border-b-zinc-700 hover:bg-transparent">
-                      <TableCell
-                        colSpan={5}
-                        className="h-24 text-center italic text-zinc-400"
-                      >
-                        No hay movimientos este mes.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    paginatedMovimientosMes.map((m) => (
-                      <TableRow
-                        key={m.id || `mov_mes_fb_${Date.now()}${Math.random()}`}
-                        className="border-b-zinc-700 hover:bg-zinc-700/50"
-                      >
-                        <TableCell className="whitespace-nowrap text-zinc-400">
-                          {`${m.fecha || ''} ${m.hora || ''}`.trim()}
-                        </TableCell>
-                        <TableCell
-                          className={`whitespace-nowrap font-medium ${m.tipo === 'Venta' ? 'text-green-400' : m.tipo === 'Egreso' ? 'text-red-400' : 'text-blue-400'}`}
-                        >
-                          {m.tipo}
-                        </TableCell>
-                        <TableCell
-                          className="max-w-xs truncate text-zinc-300"
-                          title={m.desc}
-                        >
-                          {m.desc}
-                        </TableCell>
-                        <TableCell
-                          className={`whitespace-nowrap text-right font-semibold ${m.montoDisplay >= 0 ? 'monto-positivo' : 'monto-negativo'}`}
-                        >
-                          ${formatCurrency(m.montoDisplay)}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap text-center">
-                          {m.tipo === 'Venta' && (
-                            <motion.button
-                              onClick={() => handleLocalViewDetailsClick(m.id)}
-                              className="mr-2 rounded p-1 text-purple-400 hover:text-purple-300"
-                              title="Ver Detalles"
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.9 }}
-                              disabled={
-                                !m.id ||
-                                !!m._id_original_invalid ||
-                                (typeof m.id === 'string' &&
-                                  (m.id.startsWith('local_') ||
-                                    m.id.includes('_h_') ||
-                                    m.id.includes('_m_')))
-                              }
-                            >
-                              <Eye className="inline-block h-4 w-4" />
-                            </motion.button>
-                          )}
-                          {m.tipo === 'Venta' && (
-                            <motion.button
-                              onClick={() => handleLocalPrintClick(m.id)}
-                              className="mr-2 rounded p-1 text-blue-400 hover:text-blue-300"
-                              title="Imprimir"
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.9 }}
-                              disabled={
-                                !m.id ||
-                                !!m._id_original_invalid ||
-                                (typeof m.id === 'string' &&
-                                  (m.id.startsWith('local_') ||
-                                    m.id.includes('_h_') ||
-                                    m.id.includes('_m_')))
-                              }
-                            >
-                              <Printer className="inline-block h-4 w-4" />
-                            </motion.button>
-                          )}
-                          <motion.button
-                            onClick={() =>
-                              m.tipo === 'Venta'
-                                ? handleLocalEliminarVenta(m.id)
-                                : handleLocalEliminarMovimiento(
-                                    m.id,
-                                    m.tipo,
-                                    m.desc,
-                                  )
-                            }
-                            className="rounded p-1 text-red-500 hover:text-red-400"
-                            title={`Eliminar ${m.tipo}`}
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            disabled={
-                              !m.id ||
-                              !!m._id_original_invalid ||
-                              (typeof m.id === 'string' &&
-                                (m.id.startsWith('local_') ||
-                                  m.id.includes('_h_') ||
-                                  m.id.includes('_m_')))
-                            }
+                            Hora {getSortIcon('hora', sortConfigDia)}
+                          </TableHead>
+                          <TableHead
+                            className="cursor-pointer text-zinc-400 hover:text-white"
+                            onClick={() => requestSortDia('tipo')}
                           >
-                            <Trash2 className="inline-block h-4 w-4" />
-                          </motion.button>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-            <PaginationControls
-              currentPage={currentPageMes}
-              totalPages={totalPagesMes}
-              onPageChange={(page) => setCurrentPageMes(page)}
-              itemsPerPage={ITEMS_PER_PAGE_REPORTE}
-              totalItems={filteredSortedMovimientosMes.length}
-            />
-            <div className="mt-3 text-right text-sm text-zinc-400">
-              Total Ventas del Mes: ${formatCurrency(totalVentasMes)}
-            </div>
-          </div>
-          {/* NUEVA SECCIÓN: PRODUCTOS MÁS VENDIDOS */}
-          <div className="rounded-lg bg-zinc-800 p-4 shadow-md sm:p-5">
-            <h3 className="mb-3 border-b border-zinc-700 pb-2 text-lg font-medium text-white sm:text-xl">
-              Top 5 Productos Más Vendidos ({nombreMesSeleccionado})
-            </h3>
-            {productosMasVendidosMes.length > 0 ? (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-b-zinc-700">
-                      <TableHead className="text-zinc-300">Producto</TableHead>
-                      <TableHead className="text-right text-zinc-300">
-                        Unidades Vendidas
-                      </TableHead>
-                      <TableHead className="text-right text-zinc-300">
-                        Monto Total
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {productosMasVendidosMes.map((producto, index) => (
-                      <TableRow key={index} className="border-b-zinc-700/50">
-                        <TableCell className="font-medium text-white">
-                          {producto.nombre}
-                        </TableCell>
-                        <TableCell className="text-right font-semibold text-blue-400">
-                          {producto.cantidad}
-                        </TableCell>
-                        <TableCell className="text-right font-semibold text-green-400">
-                          ${formatCurrency(producto.totalVendido)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                            Tipo {getSortIcon('tipo', sortConfigDia)}
+                          </TableHead>
+                          <TableHead
+                            className="cursor-pointer text-zinc-400 hover:text-white"
+                            onClick={() => requestSortDia('desc')}
+                          >
+                            Desc. {getSortIcon('desc', sortConfigDia)}
+                          </TableHead>
+                          <TableHead
+                            className="cursor-pointer text-right text-zinc-400 hover:text-white"
+                            onClick={() => requestSortDia('montoDisplay')}
+                          >
+                            Monto {getSortIcon('montoDisplay', sortConfigDia)}
+                          </TableHead>
+                          <TableHead className="text-right text-zinc-400"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {paginatedMovimientosDia.length > 0 ? (
+                          paginatedMovimientosDia.map((item, idx) => (
+                            <TableRow
+                              key={item.id || idx}
+                              className="border-b border-zinc-800/50 hover:bg-zinc-800/30"
+                            >
+                              <TableCell className="py-3 font-mono text-sm text-zinc-300">
+                                {item.hora}
+                              </TableCell>
+                              <TableCell className="py-3">
+                                <span
+                                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                                    item.tipo === 'Venta'
+                                      ? 'bg-emerald-500/10 text-emerald-400'
+                                      : item.tipo === 'Ingreso Manual'
+                                        ? 'bg-blue-500/10 text-blue-400'
+                                        : 'bg-red-500/10 text-red-400'
+                                  }`}
+                                >
+                                  {item.tipo}
+                                </span>
+                              </TableCell>
+                              <TableCell
+                                className="max-w-[120px] truncate py-3 text-sm text-zinc-300"
+                                title={item.desc}
+                              >
+                                {item.desc}
+                              </TableCell>
+                              <TableCell
+                                className={`py-3 text-right text-sm font-medium ${item.montoDisplay >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
+                              >
+                                {formatCurrency(item.montoDisplay)}
+                              </TableCell>
+                              <TableCell className="py-3 text-right">
+                                <div className="flex justify-end gap-1">
+                                  {item.tipo === 'Venta' && (
+                                    <>
+                                      <button
+                                        onClick={() =>
+                                          handleLocalViewDetailsClick(item.id)
+                                        }
+                                        className="rounded p-1 text-zinc-400 hover:bg-zinc-700 hover:text-blue-400"
+                                        title="Ver"
+                                      >
+                                        <Eye className="h-4 w-4" />
+                                      </button>
+                                      <button
+                                        onClick={() =>
+                                          handleLocalPrintClick(item.id)
+                                        }
+                                        className="rounded p-1 text-zinc-400 hover:bg-zinc-700 hover:text-purple-400"
+                                        title="Imprimir"
+                                      >
+                                        <Printer className="h-4 w-4" />
+                                      </button>
+                                      <button
+                                        onClick={() =>
+                                          handleLocalEliminarVenta(item.id)
+                                        }
+                                        className="rounded p-1 text-zinc-400 hover:bg-zinc-700 hover:text-red-400"
+                                        title="Eliminar"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </button>
+                                    </>
+                                  )}
+                                  {(item.tipo === 'Ingreso Manual' ||
+                                    item.tipo === 'Egreso') && (
+                                    <button
+                                      onClick={() =>
+                                        handleLocalEliminarMovimiento(
+                                          item.id,
+                                          item.tipo,
+                                          item.desc,
+                                        )
+                                      }
+                                      className="rounded p-1 text-zinc-400 hover:bg-zinc-700 hover:text-red-400"
+                                      title="Eliminar"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </button>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        ) : (
+                          <TableRow>
+                            <TableCell
+                              colSpan={5}
+                              className="py-8 text-center text-zinc-500"
+                            >
+                              Sin movimientos hoy.
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+                <div className="border-t border-zinc-800 bg-zinc-900/50 p-2">
+                  <PaginationControls
+                    currentPage={currentPageDia}
+                    totalPages={totalPagesDia}
+                    onPageChange={setCurrentPageDia}
+                  />
+                </div>
               </div>
-            ) : (
-              <p className="text-sm italic text-zinc-400">
-                No hay datos de ventas para generar un ranking este mes.
-              </p>
-            )}
-          </div>
-          {/* NUEVA SECCIÓN: RANKING DE VENDEDORES */}
-          <div className="rounded-lg bg-zinc-800 p-4 shadow-md sm:p-5">
-            <h3 className="mb-3 border-b border-zinc-700 pb-2 text-lg font-medium text-white sm:text-xl">
-              Ranking de Vendedores ({nombreMesSeleccionado})
-            </h3>
-            {rankingVendedoresMes.length > 0 ? (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-b-zinc-700">
-                      <TableHead className="text-zinc-300">Vendedor</TableHead>
-                      <TableHead className="text-right text-zinc-300">
-                        Ventas Realizadas
-                      </TableHead>
-                      <TableHead className="text-right text-zinc-300">
-                        Monto Total
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {rankingVendedoresMes.map((vendedor, index) => (
-                      <TableRow key={index} className="border-b-zinc-700/50">
-                        <TableCell className="font-medium text-white">
-                          {vendedor.nombre}
-                        </TableCell>
-                        <TableCell className="text-right font-semibold text-blue-400">
-                          {vendedor.cantidadVentas}
-                        </TableCell>
-                        <TableCell className="text-right font-semibold text-green-400">
-                          ${formatCurrency(vendedor.totalVendido)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+
+              {/* Monthly History Table */}
+              <div className="flex h-full flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/50 shadow-lg">
+                <div className="flex items-center justify-between border-b border-zinc-800 bg-zinc-900/80 p-3 backdrop-blur-sm">
+                  <h3 className="text-sm font-semibold text-white">
+                    Historial ({nombreMesSeleccionado})
+                  </h3>
+                  <div className="relative w-32">
+                    <Search className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-zinc-500" />
+                    <input
+                      type="text"
+                      placeholder="Buscar..."
+                      value={searchTermMes}
+                      onChange={(e) => setSearchTermMes(e.target.value)}
+                      className="w-full rounded-md border border-zinc-700 bg-zinc-800 py-1 pl-7 pr-2 text-xs text-zinc-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-hidden">
+                  <div className="custom-scrollbar h-full overflow-y-auto">
+                    <Table>
+                      <TableHeader className="sticky top-0 z-10 bg-zinc-900 shadow-sm">
+                        <TableRow className="border-b border-zinc-800 hover:bg-transparent">
+                          <TableHead
+                            className="cursor-pointer text-zinc-400 hover:text-white"
+                            onClick={() => requestSortMes('fecha')}
+                          >
+                            Fecha {getSortIcon('fecha', sortConfigMes)}
+                          </TableHead>
+                          <TableHead
+                            className="cursor-pointer text-zinc-400 hover:text-white"
+                            onClick={() => requestSortMes('tipo')}
+                          >
+                            Tipo {getSortIcon('tipo', sortConfigMes)}
+                          </TableHead>
+                          <TableHead
+                            className="cursor-pointer text-zinc-400 hover:text-white"
+                            onClick={() => requestSortMes('desc')}
+                          >
+                            Desc. {getSortIcon('desc', sortConfigMes)}
+                          </TableHead>
+                          <TableHead
+                            className="cursor-pointer text-right text-zinc-400 hover:text-white"
+                            onClick={() => requestSortMes('montoDisplay')}
+                          >
+                            Monto {getSortIcon('montoDisplay', sortConfigMes)}
+                          </TableHead>
+                          <TableHead className="text-right text-zinc-400"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {paginatedMovimientosMes.length > 0 ? (
+                          paginatedMovimientosMes.map((item, idx) => (
+                            <TableRow
+                              key={item.id || idx}
+                              className="border-b border-zinc-800/50 hover:bg-zinc-800/30"
+                            >
+                              <TableCell className="py-3 font-mono text-sm text-zinc-300">
+                                {item.fecha}
+                              </TableCell>
+                              <TableCell className="py-3">
+                                <span
+                                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                                    item.tipo === 'Venta'
+                                      ? 'bg-emerald-500/10 text-emerald-400'
+                                      : item.tipo === 'Ingreso Manual'
+                                        ? 'bg-blue-500/10 text-blue-400'
+                                        : 'bg-red-500/10 text-red-400'
+                                  }`}
+                                >
+                                  {item.tipo}
+                                </span>
+                              </TableCell>
+                              <TableCell
+                                className="max-w-[120px] truncate py-3 text-sm text-zinc-300"
+                                title={item.desc}
+                              >
+                                {item.desc}
+                              </TableCell>
+                              <TableCell
+                                className={`py-3 text-right text-sm font-medium ${item.montoDisplay >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
+                              >
+                                {formatCurrency(item.montoDisplay)}
+                              </TableCell>
+                              <TableCell className="py-3 text-right">
+                                <div className="flex justify-end gap-1">
+                                  {item.tipo === 'Venta' && (
+                                    <>
+                                      <button
+                                        onClick={() =>
+                                          handleLocalViewDetailsClick(item.id)
+                                        }
+                                        className="rounded p-1 text-zinc-400 hover:bg-zinc-700 hover:text-blue-400"
+                                        title="Ver"
+                                      >
+                                        <Eye className="h-4 w-4" />
+                                      </button>
+                                      <button
+                                        onClick={() =>
+                                          handleLocalPrintClick(item.id)
+                                        }
+                                        className="rounded p-1 text-zinc-400 hover:bg-zinc-700 hover:text-purple-400"
+                                        title="Imprimir"
+                                      >
+                                        <Printer className="h-4 w-4" />
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        ) : (
+                          <TableRow>
+                            <TableCell
+                              colSpan={5}
+                              className="py-8 text-center text-zinc-500"
+                            >
+                              Sin movimientos.
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+                <div className="border-t border-zinc-800 bg-zinc-900/50 p-2">
+                  <PaginationControls
+                    currentPage={currentPageMes}
+                    totalPages={totalPagesMes}
+                    onPageChange={setCurrentPageMes}
+                  />
+                </div>
               </div>
-            ) : (
-              <p className="text-sm italic text-zinc-400">
-                No hay datos de ventas para generar un ranking de vendedores
-                este mes.
-              </p>
-            )}
+            </div>
           </div>
-          {/* NUEVA SECCIÓN: MAPA DE CALOR DE VENTAS */}
-          <div className="rounded-lg bg-zinc-800 p-4 shadow-md sm:p-5">
-            <h3 className="sm-text-xl mb-4 border-b border-zinc-700 pb-2 text-lg font-medium text-white">
-              Días y Horarios Pico ({nombreMesSeleccionado})
-            </h3>
-            {ventasMes.length > 0 ? (
-              <SalesHeatmap data={datosMapaDeCalor} />
-            ) : (
-              <p className="text-sm italic text-zinc-400">
-                No hay datos de ventas para generar el mapa de calor este mes.
-              </p>
-            )}
+        </div>
+
+        {/* --- RIGHT COLUMN: Sidebar (Caja, Actions, Stack) (30-35%) --- */}
+        <div className="custom-scrollbar flex h-full flex-col gap-6 overflow-y-auto pr-1 lg:col-span-4 xl:col-span-3">
+          <motion.button
+            onClick={handleCerrarCaja}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 p-4 font-bold text-white shadow-lg shadow-purple-900/20 hover:from-purple-700 hover:to-indigo-700"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <Archive className="h-5 w-5" />
+            Simular Cierre
+          </motion.button>
+
+          {/* Stack Components */}
+          <div className="space-y-6">
+            <HistorialTurnos />
+            {/* Top Productos */}
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 shadow-lg">
+              <div className="border-b border-zinc-800 p-4">
+                <h3 className="text-sm font-semibold text-white">
+                  Top Productos
+                </h3>
+              </div>
+              <div className="custom-scrollbar max-h-[250px] overflow-y-auto">
+                {productosMasVendidosMes.length > 0 ? (
+                  <Table>
+                    <TableBody>
+                      {productosMasVendidosMes.map((producto, index) => (
+                        <TableRow
+                          key={index}
+                          className="border-b border-zinc-800/50 hover:bg-zinc-800/30"
+                        >
+                          <TableCell className="py-3 text-sm font-medium text-white">
+                            {producto.nombre}
+                          </TableCell>
+                          <TableCell className="py-3 text-right text-sm font-semibold text-blue-400">
+                            {producto.cantidad}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="p-6 text-center text-sm text-zinc-500">
+                    Sin datos.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Ranking Vendedores */}
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 shadow-lg">
+              <div className="border-b border-zinc-800 p-4">
+                <h3 className="text-sm font-semibold text-white">
+                  Ranking Vendedores
+                </h3>
+              </div>
+              <div className="custom-scrollbar max-h-[250px] overflow-y-auto">
+                {rankingVendedoresMes.length > 0 ? (
+                  <Table>
+                    <TableBody>
+                      {rankingVendedoresMes.map((vendedor, index) => (
+                        <TableRow
+                          key={index}
+                          className="border-b border-zinc-800/50 hover:bg-zinc-800/30"
+                        >
+                          <TableCell className="py-3 text-sm font-medium text-white">
+                            {vendedor.nombre}
+                          </TableCell>
+                          <TableCell className="py-3 text-right text-sm font-semibold text-green-400">
+                            ${formatCurrency(vendedor.totalVendido)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="p-6 text-center text-sm text-zinc-500">
+                    Sin datos.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 shadow-lg">
+              <h3 className="mb-4 text-sm font-semibold text-white">
+                Mapa de Calor
+              </h3>
+              {ventasMes.length > 0 ? (
+                <div className="h-[200px] overflow-hidden">
+                  <SalesHeatmap data={datosMapaDeCalor} />
+                </div>
+              ) : (
+                <p className="py-8 text-center text-sm text-zinc-500">
+                  Sin datos.
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>
-      <HistorialTurnos />
     </div>
   );
 }
+
 export default ReportesTab;
