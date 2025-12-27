@@ -371,7 +371,7 @@ const EstadisticasTab = () => {
                   <th className="px-4 py-3 text-right font-medium">
                     Total Generado
                   </th>
-                  <th className="px-4 py-3 text-center font-medium">
+                  <th className="hidden px-4 py-3 text-center font-medium md:table-cell">
                     Rendimiento
                   </th>
                 </tr>
@@ -391,7 +391,7 @@ const EstadisticasTab = () => {
                     <td className="px-4 py-3 text-right font-mono text-emerald-400">
                       {formatCurrency(prod.total)}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="hidden px-4 py-3 md:table-cell">
                       <div className="flex items-center justify-center">
                         <div className="h-1.5 w-24 overflow-hidden rounded-full bg-zinc-700">
                           <div

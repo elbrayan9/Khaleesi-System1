@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   ShoppingCart,
   Package,
@@ -20,7 +20,9 @@ import {
   Bot,
   Moon,
   FileText,
-  XCircle, // Importar XCircle para características no incluidas
+  XCircle,
+  Menu,
+  X,
 } from 'lucide-react';
 import AppLogo from '../components/AppLogo';
 import Footer from '../components/Footer';
@@ -63,6 +65,7 @@ const FeatureCard = ({
 
 const LandingPage = () => {
   const [billingCycle, setBillingCycle] = useState('monthly');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Lista COMPLETA de 12 características con texto ajustado
   const features = [
@@ -239,7 +242,66 @@ const LandingPage = () => {
             </motion.button>
           </Link>
         </div>
+
+        {/* Mobile Menu Button */}
+        <button
+          className="block rounded-md p-2 text-zinc-300 hover:bg-zinc-800 hover:text-white md:hidden"
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+        >
+          {isMobileMenuOpen ? (
+            <X className="h-6 w-6" />
+          ) : (
+            <Menu className="h-6 w-6" />
+          )}
+        </button>
       </header>
+
+      {/* Mobile Menu Overlay */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="fixed inset-x-0 top-[73px] z-40 border-b border-white/5 bg-zinc-900/95 backdrop-blur-md md:hidden"
+          >
+            <div className="flex flex-col space-y-4 p-4">
+              <a
+                href="#features"
+                className="text-sm font-medium text-zinc-300 hover:text-white"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Funcionalidades
+              </a>
+              <a
+                href="#pricing"
+                className="text-sm font-medium text-zinc-300 hover:text-white"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Precios
+              </a>
+              <a
+                href="#contact"
+                className="text-sm font-medium text-zinc-300 hover:text-white"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Contacto
+              </a>
+              <hr className="border-zinc-800" />
+              <Link to="/login" onClick={() => setIsMobileMenuOpen(false)}>
+                <button className="w-full rounded-md bg-zinc-800 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-zinc-700">
+                  Iniciar Sesión
+                </button>
+              </Link>
+              <Link to="/signup" onClick={() => setIsMobileMenuOpen(false)}>
+                <button className="w-full rounded-md bg-blue-600 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-blue-700">
+                  Registrarse
+                </button>
+              </Link>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <main className="relative z-10">
         {/* Hero Section */}
@@ -661,7 +723,7 @@ const LandingPage = () => {
               {/* Glow Effect Layer removed - handled by wrapper */}
 
               <div className="relative z-10">
-                <h4 className="text-xl font-bold text-white">Plan B ásico</h4>
+                <h4 className="text-xl font-bold text-white">Plan Básico</h4>
 
                 <p className="mt-2 text-zinc-400">
                   Ideal para pequeños comercios que recién comienzan.
@@ -726,7 +788,7 @@ const LandingPage = () => {
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-1 text-sm font-bold text-white shadow-lg">
                   MÁS POPULAR
                 </div>
-                <h4 className="text-xl font-bold text-white">Plan C ompleto</h4>
+                <h4 className="text-xl font-bold text-white">Plan Completo</h4>
 
                 <p className="mt-2 text-zinc-400">
                   La solución definitiva sin límites.
