@@ -730,7 +730,7 @@ const LandingPage = () => {
                 </p>
                 <div className="mt-6 flex items-baseline justify-center gap-2">
                   <span className="text-4xl font-extrabold text-white">
-                    {billingCycle === 'monthly' ? '$10.000' : '$90.000'}
+                    {billingCycle === 'monthly' ? '$15.000' : '$135.000'}
                   </span>
                   <span className="text-zinc-400">
                     ARS / {billingCycle === 'monthly' ? 'mes' : 'año'}
@@ -795,7 +795,7 @@ const LandingPage = () => {
                 </p>
                 <div className="mt-6 flex items-baseline justify-center gap-2">
                   <span className="text-4xl font-extrabold text-white">
-                    {billingCycle === 'monthly' ? '$16.000' : '$135.000'}
+                    {billingCycle === 'monthly' ? '$25.000' : '$250.000'}
                   </span>
                   <span className="text-zinc-400">
                     ARS / {billingCycle === 'monthly' ? 'mes' : 'año'}
