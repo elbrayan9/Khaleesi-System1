@@ -14,6 +14,8 @@ import {
   where,
   doc,
   increment,
+  deleteDoc,
+  getDocs,
 } from 'firebase/firestore';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import * as fsService from '../services/firestoreService';
@@ -401,6 +403,30 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
         },
       );
     });
+
+    // --- Limpieza automática: borrar alertas de días anteriores ---
+    const limpiarAlertasViejas = async () => {
+      try {
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        const qAlertas = query(
+          collection(db, 'alertas_borrados'),
+          where('userId', '==', currentUser.uid),
+          where('sucursalId', '==', sucursalActual.id),
+        );
+        const snapshot = await getDocs(qAlertas);
+        snapshot.docs.forEach((d) => {
+          const ts = d.data().timestamp;
+          const fechaAlerta = ts?.toDate ? ts.toDate() : new Date(ts);
+          if (fechaAlerta < hoy) {
+            deleteDoc(doc(db, 'alertas_borrados', d.id));
+          }
+        });
+      } catch (e) {
+        console.error('Error limpiando alertas viejas:', e);
+      }
+    };
+    limpiarAlertasViejas();
 
     // Listener de Datos de Negocio (POR SUCURSAL)
     // Primero intentamos inicializar si no existe
