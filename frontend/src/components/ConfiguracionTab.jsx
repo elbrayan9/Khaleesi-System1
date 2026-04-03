@@ -17,6 +17,7 @@ import {
   forceAssignAllDataToSucursal,
   getSucursales,
 } from '../services/firestoreService';
+import { withPinProtection } from './withPinProtection';
 
 function ConfiguracionTab() {
   const {
@@ -40,6 +41,7 @@ function ConfiguracionTab() {
   const [ventaRapidaHabilitada, setVentaRapidaHabilitada] = useState(false);
   const [umbralStockBajo, setUmbralStockBajo] = useState(10);
   const [recibirReporteDiario, setRecibirReporteDiario] = useState(false);
+  const [whatsappDueño, setWhatsappDueño] = useState('');
 
   const [afipCert, setAfipCert] = useState('');
   const [afipKey, setAfipKey] = useState('');
@@ -53,6 +55,7 @@ function ConfiguracionTab() {
       setVentaRapidaHabilitada(datosNegocio.habilitarVentaRapida || false);
       setUmbralStockBajo(datosNegocio.umbralStockBajo || 10);
       setRecibirReporteDiario(datosNegocio.recibirReporteDiario || false);
+      setWhatsappDueño(datosNegocio.whatsappDueño || '');
       // Cargar certificados si existen (no mostramos el contenido por seguridad, solo indicamos si hay)
       setAfipCert(datosNegocio.afipCert || '');
       setAfipKey(datosNegocio.afipKey || '');
@@ -176,6 +179,7 @@ function ConfiguracionTab() {
       habilitarVentaRapida: ventaRapidaHabilitada,
       umbralStockBajo: Number(umbralStockBajo) || 0,
       recibirReporteDiario: recibirReporteDiario,
+      whatsappDueño: whatsappDueño.trim(),
       email: currentUser?.email || datosNegocio?.email || '',
       afipCert: afipCert, // Guardamos el contenido del certificado
       afipKey: afipKey, // Guardamos el contenido de la clave
@@ -432,6 +436,25 @@ function ConfiguracionTab() {
               <p className="mt-1 text-xs text-zinc-400">
                 Recibirás alertas cuando el stock sea igual o menor a este
                 número.
+              </p>
+            </div>
+            <div>
+              <label
+                htmlFor="config-wsp-dueño"
+                className="mb-1 block text-sm font-medium text-zinc-300"
+              >
+                WhatsApp del Dueño/Supervisor (Para Cierres de Caja):
+              </label>
+              <input
+                type="text"
+                id="config-wsp-dueño"
+                value={whatsappDueño}
+                onChange={(e) => setWhatsappDueño(e.target.value)}
+                placeholder="Ej: +5491122334455"
+                className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100 placeholder-zinc-400"
+              />
+              <p className="mt-1 text-xs text-zinc-400">
+                Si configuras este número (con + y código de país), el reporte de Cierre de Caja armará un link listo para enviar a este contacto.
               </p>
             </div>
           </div>
@@ -748,4 +771,4 @@ function ConfiguracionTab() {
   );
 }
 
-export default ConfiguracionTab;
+export default withPinProtection(ConfiguracionTab);

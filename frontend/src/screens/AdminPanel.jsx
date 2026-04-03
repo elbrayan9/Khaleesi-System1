@@ -1,6 +1,7 @@
 // frontend/src/screens/AdminPanel.jsx
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import Swal from 'sweetalert2';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import {
   Table,
@@ -24,7 +25,9 @@ const updateUserSubscription = httpsCallable(
 );
 
 function AdminPanel() {
-  const { mostrarMensaje, confirmarAccion } = useAppContext();
+  const { mostrarMensaje, confirmarAccion, datosNegocio, handleGuardarDatosNegocio } = useAppContext();
+  const [nuevoPin, setNuevoPin] = useState('');
+  const [isSavingPin, setIsSavingPin] = useState(false);
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -169,6 +172,89 @@ function AdminPanel() {
     }
   };
 
+  const handleSavePin = async () => {
+    if (nuevoPin.length < 4) {
+      mostrarMensaje('El PIN debe tener al menos 4 caracteres.', 'error');
+      return;
+    }
+    setIsSavingPin(true);
+    try {
+      await handleGuardarDatosNegocio({
+        ...datosNegocio,
+        pinSeguridad: nuevoPin,
+      });
+      mostrarMensaje('PIN de seguridad activado con éxito.', 'success');
+      setNuevoPin('');
+    } catch (err) {
+      mostrarMensaje('Error al guardar el PIN.', 'error');
+    }
+    setIsSavingPin(false);
+  };
+
+  const handleRemovePin = async () => {
+    if (await confirmarAccion('¿Desactivar PIN?', 'Esto permitirá acceso libre a tu Panel.', 'warning', 'Sí, Desactivar')) {
+      setIsSavingPin(true);
+      try {
+        await handleGuardarDatosNegocio({
+          ...datosNegocio,
+          pinSeguridad: null,
+        });
+        mostrarMensaje('PIN de seguridad desactivado.', 'success');
+      } catch (err) {
+        mostrarMensaje('Error al quitar el PIN.', 'error');
+      }
+      setIsSavingPin(false);
+    }
+  };
+
+  const handleManageClientPin = async (userId, userEmail, currentPin = null) => {
+    const { value: newPin } = await Swal.fire({
+      title: `PIN de ${userEmail}`,
+      input: 'text',
+      inputValue: currentPin || '',
+      inputLabel: currentPin 
+        ? `Puedes ver el PIN actual arriba. Edítalo para cambiarlo, o déjalo vacío para desactivar la seguridad.` 
+        : 'Asignar PIN de bloqueo a este cliente (Ej: 1234):',
+      inputPlaceholder: 'Escribe el PIN aquí...',
+      showCancelButton: true,
+      confirmButtonText: 'Guardar',
+      cancelButtonText: 'Cancelar',
+      background: '#1f2937',
+      color: '#f9fafb',
+    });
+
+    if (newPin !== undefined) {
+      setIsLoading(true);
+      try {
+        const { doc, setDoc, getDoc } = await import('firebase/firestore');
+        const { db } = await import('../firebaseConfig');
+        
+        // 1. Guardar en Global
+        await setDoc(doc(db, 'datosNegocio', userId), { pinSeguridad: newPin || null }, { merge: true });
+        
+        // 2. Propagar a todas las sucursales (para que aplique inmediatamente al entrar al POS)
+        const sucursales = await getSucursales(userId);
+        for (const s of sucursales) {
+          const sucursalRef = doc(db, 'sucursales', s.id);
+          const snap = await getDoc(sucursalRef);
+          if (snap.exists()) {
+            const data = snap.data();
+            const updatedConfig = { ...(data.configuracion || {}), pinSeguridad: newPin || null };
+            if (!newPin) delete updatedConfig.pinSeguridad;
+            await setDoc(sucursalRef, { configuracion: updatedConfig }, { merge: true });
+          }
+        }
+
+        mostrarMensaje('PIN actualizado correctamente para ' + userEmail, 'success');
+        fetchUsers();
+      } catch (err) {
+        mostrarMensaje('Error al cambiar PIN al cliente.', 'error');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
   // --- FUNCIÓN CORREGIDA ---
   const formatDate = (dateValue) => {
     if (!dateValue) return 'N/A';
@@ -234,6 +320,56 @@ function AdminPanel() {
             className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
           />
         </div>
+      </div>
+
+      {/* Security settings for Device */}
+      <div className="rounded-lg bg-zinc-800 p-6 shadow-md border border-zinc-700">
+        <h3 className="text-lg font-bold text-white mb-2">Seguridad del Panel Administrador</h3>
+        <p className="text-sm text-zinc-400 mb-4">
+          Configura un PIN para bloquear tu sesión de Administrador en este navegador.
+        </p>
+        
+        {datosNegocio?.pinSeguridad ? (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-4">
+              <span className="inline-flex items-center gap-2 text-emerald-400 font-medium">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                PIN de Seguridad Activado
+              </span>
+              <button
+                onClick={handleRemovePin}
+                disabled={isSavingPin}
+                className="px-4 py-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-md text-sm font-medium transition-colors"
+              >
+                Desactivar PIN
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row gap-4 items-end">
+              <div className="w-full sm:w-1/3">
+                <label className="block text-xs font-medium text-zinc-400 mb-1">Nuevo PIN Numérico</label>
+                <input
+                  type="password"
+                  placeholder="Ej: 1234"
+                  value={nuevoPin}
+                  onChange={(e) => setNuevoPin(e.target.value)}
+                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+            </div>
+            <div>
+              <button
+                onClick={handleSavePin}
+                disabled={isSavingPin || !nuevoPin}
+                className="w-full sm:w-auto px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                Proteger con PIN
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -326,7 +462,7 @@ function AdminPanel() {
                   <TableCell className="text-zinc-400">
                     {formatDate(user.fechaCreacion)}
                   </TableCell>
-                  <TableCell className="space-x-2 text-center">
+                  <TableCell className="space-x-2 text-center whitespace-nowrap">
                     <Link
                       to={`/admin/user/${user.uid}`}
                       className="text-sm text-purple-400 hover:underline"
@@ -335,9 +471,16 @@ function AdminPanel() {
                     </Link>
                     <button
                       onClick={() => handleRepairData(user.uid, user.email)}
-                      className="text-sm text-orange-400 hover:underline"
+                      className="text-sm text-orange-400 hover:underline border-l border-zinc-700 pl-2"
                     >
                       Reparar
+                    </button>
+                    <button
+                      onClick={() => handleManageClientPin(user.uid, user.email, user.datosNegocio?.pinSeguridad)}
+                      className="text-sm text-blue-400 hover:underline border-l border-zinc-700 pl-2"
+                      title={user.datosNegocio?.pinSeguridad ? 'PIN Activado (Cambiar)' : 'Poner PIN'}
+                    >
+                      {user.datosNegocio?.pinSeguridad ? '🔒 PIN' : '🔑 PIN'}
                     </button>
                   </TableCell>
                 </TableRow>
@@ -435,4 +578,5 @@ function AdminPanel() {
   );
 }
 
-export default AdminPanel;
+import { withPinProtection } from '../components/withPinProtection';
+export default withPinProtection(AdminPanel);

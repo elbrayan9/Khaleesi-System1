@@ -79,7 +79,12 @@ const HistorialTurnos = () => {
     });
 
   const handleVerInfo = (turno) => {
-    const diferencia = (turno.montoReal || 0) - (turno.totalFinal || 0);
+    // Para cierres nuevos (o recientes de prueba) derivamos montoReal si es undefined
+    const montoCalculado = turno.montoReal !== undefined 
+      ? turno.montoReal 
+      : (turno.totalFinal + (turno.diferenciaEfectivo || 0));
+
+    const diferencia = montoCalculado - (turno.totalFinal || 0);
     const diferenciaClass =
       diferencia === 0
         ? 'text-zinc-400'
@@ -119,7 +124,7 @@ const HistorialTurnos = () => {
             </div>
             <div class="flex justify-between items-center mb-1">
               <span>Real (En Caja):</span>
-              <span class="font-bold text-white">${formatCurrency(turno.montoReal || 0)}</span>
+              <span class="font-bold text-white">${formatCurrency(montoCalculado)}</span>
             </div>
             <div class="flex justify-between items-center border-t border-zinc-700 pt-2 mt-2">
               <span>Diferencia:</span>
@@ -188,8 +193,11 @@ const HistorialTurnos = () => {
           <TableBody>
             {turnosCerrados.length > 0 ? (
               turnosCerrados.map((turno) => {
-                const diferencia =
-                  (turno.montoReal || 0) - (turno.totalFinal || 0);
+                const montoCalculado = turno.montoReal !== undefined 
+                  ? turno.montoReal 
+                  : (turno.totalFinal + (turno.diferenciaEfectivo || 0));
+
+                const diferencia = montoCalculado - (turno.totalFinal || 0);
                 const diferenciaClass =
                   diferencia === 0
                     ? 'text-zinc-500'
@@ -222,8 +230,8 @@ const HistorialTurnos = () => {
                       {formatCurrency(turno.totalFinal)}
                     </TableCell>
                     <TableCell className="py-3 text-right font-mono text-sm tabular-nums text-zinc-300">
-                      {turno.montoReal !== undefined
-                        ? formatCurrency(turno.montoReal)
+                      {(turno.montoReal !== undefined || turno.diferenciaEfectivo !== undefined)
+                        ? formatCurrency(montoCalculado)
                         : '---'}
                     </TableCell>
                     <TableCell

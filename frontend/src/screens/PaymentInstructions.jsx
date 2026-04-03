@@ -19,8 +19,8 @@ const PaymentInstructions = () => {
   };
 
   const endDate = datosNegocio?.subscriptionEndDate
-    ?.toDate()
-    .toLocaleDateString('es-AR');
+    ? new Date(datosNegocio.subscriptionEndDate).toLocaleDateString('es-AR')
+    : null;
 
   return (
     <div className="mx-auto max-w-2xl text-white">

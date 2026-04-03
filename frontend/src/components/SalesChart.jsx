@@ -18,12 +18,17 @@ import {
 function SalesChart({ data }) {
   // Recibe datos como [{ dia: 'DD', total: N }]
 
-  // Si no hay datos o son insuficientes, muestra un mensaje
-  if (!data || data.length === 0) {
+  // Calcula total general para evitar dibujar un gráfico vacío que crashee
+  const totalSales = data?.reduce((acc, curr) => acc + (Number(curr.total) || 0), 0) || 0;
+
+  // Si no hay datos, arreglo vacío, O si el total de todo el array es 0 (ej. cuenta nueva)
+  if (!data || data.length === 0 || totalSales === 0) {
     return (
-      <p className="py-6 text-center text-sm italic text-zinc-400">
-        No hay datos de ventas suficientes para el gráfico.
-      </p>
+      <div className="flex h-full w-full items-center justify-center">
+        <p className="py-6 text-center text-sm italic text-zinc-400">
+          No hay datos de ventas para mostrar en el gráfico (Total $0.00).
+        </p>
+      </div>
     );
   }
 

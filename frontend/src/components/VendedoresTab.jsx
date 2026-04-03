@@ -3,6 +3,7 @@ import { useAppContext } from '../context/AppContext.jsx';
 import VendedorForm from './VendedorForm.jsx';
 import { Button } from './ui/button.jsx';
 import { Edit, Trash2, UserCheck } from 'lucide-react';
+import { withPinProtection } from './withPinProtection.jsx';
 
 function VendedoresTab() {
   const { vendedores, handleSaveVendedor, handleDeleteVendedor } =
@@ -70,4 +71,4 @@ function VendedoresTab() {
     </div>
   );
 }
-export default VendedoresTab;
+export default withPinProtection(VendedoresTab);

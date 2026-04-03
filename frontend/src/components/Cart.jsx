@@ -12,17 +12,18 @@ function Cart({
   selectedClientId,
   onClientSelect,
 }) {
-  const { cartItems, setCartItems, productos, mostrarMensaje } =
+  const { cartItems, setCartItems, productos, mostrarMensaje, handleRemoveItemFromCart, handleClearCart, vendedores, vendedorActivoId } =
     useAppContext();
+
+  const vendedorActual = vendedores.find(v => v.id === vendedorActivoId) || {};
+  const puedeModificarPrecios = vendedorActual.puedeModificarPrecios !== false;
 
   // --- CÁLCULO CORREGIDO ---
   // Ahora simplemente sumamos el precioFinal de cada item, que ya es el total de la línea.
   const total = cartItems.reduce((acc, item) => acc + item.precioFinal, 0);
 
   const handleRemoveItem = (cartId) => {
-    setCartItems((prevItems) =>
-      prevItems.filter((item) => item.cartId !== cartId),
-    );
+    handleRemoveItemFromCart(cartId);
   };
 
   // La función de actualizar cantidad ahora debe recalcular el precio de la línea
@@ -76,9 +77,20 @@ function Cart({
 
   return (
     <div className="flex h-full flex-col rounded-lg bg-zinc-800 p-4 shadow-md sm:p-5 lg:col-span-1">
-      <h3 className="mb-3 border-b border-zinc-700 pb-2 text-lg font-medium text-white sm:text-xl">
-        Carrito
-      </h3>
+      <div className="mb-3 flex items-center justify-between border-b border-zinc-700 pb-2">
+        <h3 className="text-lg font-medium text-white sm:text-xl">
+          Carrito
+        </h3>
+        {cartItems.length > 0 && (
+          <motion.button
+            onClick={handleClearCart}
+            className="flex items-center gap-1 rounded bg-red-600/20 px-2 py-1 text-xs font-bold text-red-500 hover:bg-red-600 hover:text-white"
+            whileTap={{ scale: 0.95 }}
+          >
+            <Trash2 size={14} /> Vaciar
+          </motion.button>
+        )}
+      </div>
       <div
         id="carrito-items"
         className="mb-3 max-h-[28rem] flex-grow overflow-y-auto border-b border-zinc-700 pb-3 pr-2"
@@ -101,7 +113,8 @@ function Cart({
                     <div className="flex items-center rounded bg-zinc-700">
                       <button
                         onClick={() => handleUpdateQuantity(item.cartId, -1)}
-                        className="p-1 text-zinc-400 hover:text-white"
+                        disabled={!puedeModificarPrecios}
+                        className={`p-1 text-zinc-400 hover:text-white ${!puedeModificarPrecios && 'opacity-50 cursor-not-allowed'}`}
                       >
                         <MinusCircle size={16} />
                       </button>
@@ -110,7 +123,8 @@ function Cart({
                       </span>
                       <button
                         onClick={() => handleUpdateQuantity(item.cartId, 1)}
-                        className="p-1 text-zinc-400 hover:text-white"
+                        disabled={!puedeModificarPrecios}
+                        className={`p-1 text-zinc-400 hover:text-white ${!puedeModificarPrecios && 'opacity-50 cursor-not-allowed'}`}
                       >
                         <PlusCircle size={16} />
                       </button>

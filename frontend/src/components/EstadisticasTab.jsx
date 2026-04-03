@@ -27,6 +27,7 @@ import {
   Cell,
   Legend,
 } from 'recharts';
+import { withPinProtection } from './withPinProtection';
 
 // --- COLORES PARA GRÁFICOS ---
 const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444']; // Emerald, Blue, Violet, Amber, Red
@@ -241,8 +242,9 @@ const EstadisticasTab = () => {
             <BarChart2 className="h-5 w-5 text-emerald-500" />
             Rendimiento Financiero
           </h3>
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-[300px] w-full flex items-center justify-center">
+            {stats.ingresosBrutos > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData}>
                 <defs>
                   <linearGradient
@@ -311,6 +313,11 @@ const EstadisticasTab = () => {
                 />
               </AreaChart>
             </ResponsiveContainer>
+            ) : (
+              <div className="text-zinc-500 italic text-sm">
+                Sin datos de rendimiento
+              </div>
+            )}
           </div>
         </div>
 
@@ -320,38 +327,44 @@ const EstadisticasTab = () => {
             <CreditCard className="h-5 w-5 text-violet-500" />
             Métodos de Pago
           </h3>
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={stats.dataMetodos}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {stats.dataMetodos.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={COLORS[index % COLORS.length]}
-                      stroke="rgba(0,0,0,0)"
-                    />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-                <Legend
-                  layout="vertical"
-                  verticalAlign="middle"
-                  align="right"
-                  iconType="circle"
-                  formatter={(value, entry) => (
-                    <span className="ml-1 text-xs text-zinc-300">{value}</span>
-                  )}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+          <div className="h-[300px] w-full flex items-center justify-center">
+            {stats.ingresosBrutos > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={stats.dataMetodos}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {stats.dataMetodos.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={COLORS[index % COLORS.length]}
+                        stroke="rgba(0,0,0,0)"
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend
+                    layout="vertical"
+                    verticalAlign="middle"
+                    align="right"
+                    iconType="circle"
+                    formatter={(value, entry) => (
+                      <span className="ml-1 text-xs text-zinc-300">{value}</span>
+                    )}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="text-zinc-500 italic text-sm">
+                Sin datos de ventas
+              </div>
+            )}
           </div>
         </div>
 
@@ -424,4 +437,4 @@ const EstadisticasTab = () => {
   );
 };
 
-export default EstadisticasTab;
+export default withPinProtection(EstadisticasTab);

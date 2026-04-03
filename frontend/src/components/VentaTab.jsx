@@ -6,6 +6,7 @@ import SearchBar from './SearchBar.jsx';
 import { useAppContext } from '../context/AppContext.jsx';
 import SelectorVendedor from './SelectorVendedor';
 import ShiftManager from './ShiftManager';
+import PanelAlertas from './PanelAlertas';
 import { formatCurrency } from '../utils/helpers.js';
 import { ShoppingCart } from 'lucide-react';
 
@@ -36,6 +37,9 @@ function VentaTab() {
   // const [selectedClientId, setSelectedClientId] = useState(null); // <--- ELIMINADO (ahora es global)
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [descuentoVenta, setDescuentoVenta] = useState(0);
+
+  const vendedorActual = vendedores.find((v) => v.id === vendedorActivoId) || {};
+  const puedeModificarPrecios = vendedorActual.puedeModificarPrecios !== false;
 
   // Estado local para el vendedor DE LA VENTA (puede ser distinto al del turno)
   // const [saleSellerId, setSaleSellerId] = useState(vendedorActivoId); // ELIMINADO
@@ -260,10 +264,15 @@ function VentaTab() {
 
   return (
     <div id="venta">
-      <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold text-white sm:text-2xl">
-        <ShoppingCart className="h-8 w-8 text-blue-500" />
-        Nueva Venta
-      </h2>
+      <div className="mb-4 flex flex-col justify-between sm:flex-row sm:items-center gap-4">
+        <h2 className="flex items-center gap-2 text-xl font-semibold text-white sm:text-2xl">
+          <ShoppingCart className="h-8 w-8 text-blue-500" />
+          Nueva Venta
+        </h2>
+        <div>
+          <PanelAlertas />
+        </div>
+      </div>
       <div className="mb-4 max-w-md rounded-lg border border-zinc-700 bg-zinc-800 p-4">
         <label className="text-md mb-2 block font-medium text-zinc-200">
           Gestión de Turno y Venta
@@ -392,7 +401,10 @@ function VentaTab() {
                   min="0"
                   max="100"
                   placeholder="0"
-                  className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100"
+                  disabled={!puedeModificarPrecios}
+                  className={`w-full rounded-md border border-zinc-600 p-2 text-zinc-100 ${
+                    !puedeModificarPrecios ? 'bg-zinc-800 cursor-not-allowed opacity-50' : 'bg-zinc-700'
+                  }`}
                 />
               </div>
             </div>

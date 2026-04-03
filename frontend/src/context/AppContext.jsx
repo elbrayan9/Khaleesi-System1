@@ -17,7 +17,7 @@ import {
 } from 'firebase/firestore';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import * as fsService from '../services/firestoreService';
-import { obtenerFechaHoraActual } from '../utils/helpers';
+import { obtenerFechaHoraActual, formatCurrency } from '../utils/helpers';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import Swal from 'sweetalert2';
 
@@ -62,11 +62,25 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
   const [sucursalActual, setSucursalActual] = useState(null);
   const [isMigrating, setIsMigrating] = useState(false);
 
+  // --- Alertas ---
+  const [alertasBorrados, setAlertasBorrados] = useState([]);
+
   // --- UI edición ---
   const [editingProduct, setEditingProduct] = useState(null);
   const [editingClient, setEditingClient] = useState(null);
   const [vendedorActivoId, setVendedorActivoId] = useState(null);
   const [selectedClientId, setSelectedClientId] = useState(null); // <--- Nuevo estado persistente
+
+  // --- Seguridad PIN ---
+  const [isSessionUnlocked, setIsSessionUnlocked] = useState(false);
+
+  useEffect(() => {
+    // Si acaba de hacer login manual, entra con el PIN bypass
+    if (sessionStorage.getItem('freshLogin') === 'true') {
+      setIsSessionUnlocked(true);
+      sessionStorage.removeItem('freshLogin');
+    }
+  }, []);
 
   // --- TEMA ---
   const [theme, setTheme] = useState(() => {
@@ -209,9 +223,18 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       const savedCart = localStorage.getItem(cartKey);
       if (savedCart) {
         try {
-          setCartItems(JSON.parse(savedCart));
+          const parsed = JSON.parse(savedCart);
+          // Validar que sea un array y que cada item tenga los campos mínimos
+          if (Array.isArray(parsed) && parsed.every(item => item.cartId && item.nombre != null && item.precioFinal != null)) {
+            setCartItems(parsed);
+          } else {
+            console.warn('Carrito en localStorage con formato incompatible, descartando.');
+            localStorage.removeItem(cartKey);
+            setCartItems([]);
+          }
         } catch (e) {
           console.error('Error loading cart:', e);
+          localStorage.removeItem(cartKey);
           setCartItems([]);
         }
       } else {
@@ -230,9 +253,29 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       const savedShift = localStorage.getItem(shiftKey);
       if (savedShift) {
         try {
-          setTurnoActivo(JSON.parse(savedShift));
+          const parsed = JSON.parse(savedShift);
+          // Validar que el turno tenga los campos mínimos esperados
+          if (parsed && typeof parsed === 'object' && parsed.id && parsed.estado) {
+            // Sanitizar: convertir cualquier objeto anidado (ej. Timestamps viejos) a string
+            Object.keys(parsed).forEach((key) => {
+              if (parsed[key] && typeof parsed[key] === 'object' && !Array.isArray(parsed[key])) {
+                // Si parece un Timestamp serializado, convertir a ISO string
+                if (parsed[key].seconds != null) {
+                  parsed[key] = new Date(parsed[key].seconds * 1000).toISOString();
+                } else {
+                  delete parsed[key]; // Eliminar otros objetos inesperados
+                }
+              }
+            });
+            setTurnoActivo(parsed);
+          } else {
+            console.warn('Turno en localStorage con formato incompatible, descartando.');
+            localStorage.removeItem(shiftKey);
+            setTurnoActivo(null);
+          }
         } catch (e) {
           console.error('Error loading shift:', e);
+          localStorage.removeItem(shiftKey);
           setTurnoActivo(null);
         }
       } else {
@@ -242,7 +285,13 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       // --- CLIENTE SELECCIONADO ---
       const clientKey = `client_${sucursalId}`;
       const savedClient = localStorage.getItem(clientKey);
-      setSelectedClientId(savedClient || null);
+      // Validar que sea un string válido (ID), no un objeto serializado por error
+      if (savedClient && typeof savedClient === 'string' && !savedClient.startsWith('{')) {
+        setSelectedClientId(savedClient);
+      } else {
+        if (savedClient) localStorage.removeItem(clientKey);
+        setSelectedClientId(null);
+      }
     }
   }, [sucursalActual?.id]);
 
@@ -306,6 +355,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       { name: 'notas_cd', setter: setNotasCD },
       { name: 'presupuestos', setter: setPresupuestos },
       { name: 'turnos', setter: setTurnos },
+      { name: 'alertas_borrados', setter: setAlertasBorrados },
     ];
 
     const unsubscribes = collectionsToListen.map(({ name, setter }) => {
@@ -323,14 +373,24 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
         q,
         (querySnapshot) => {
           const data = querySnapshot.docs
-            .map((d) => ({ id: d.id, ...d.data() }))
+            .map((d) => {
+              const raw = { id: d.id, ...d.data() };
+              // Convertir Timestamps de Firestore a strings ISO (recursivo)
+              const sanitize = (obj) => {
+                if (!obj || typeof obj !== 'object') return obj;
+                if (typeof obj.toDate === 'function') return obj.toDate().toISOString();
+                if (Array.isArray(obj)) return obj.map(sanitize);
+                const result = {};
+                Object.keys(obj).forEach((key) => {
+                  result[key] = sanitize(obj[key]);
+                });
+                return result;
+              };
+              return sanitize(raw);
+            })
             .sort((a, b) => {
-              const ta = a?.timestamp?.toDate
-                ? a.timestamp.toDate().getTime()
-                : new Date(a.timestamp || 0).getTime();
-              const tb = b?.timestamp?.toDate
-                ? b.timestamp.toDate().getTime()
-                : new Date(b.timestamp || 0).getTime();
+              const ta = new Date(a.timestamp || 0).getTime();
+              const tb = new Date(b.timestamp || 0).getTime();
               return tb - ta;
             });
           setter(ensureArray(data));
@@ -358,10 +418,17 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       (snap) => {
         if (snap.exists()) {
           const data = snap.data();
-          // Si tiene configuracion, la usamos. Si no, podríamos necesitar cargar la global.
-          // Pero initializeBranchSettings ya debería haber copiado la global aquí.
+          // Convertir Timestamps de Firestore a strings ISO (recursivo)
           if (data.configuracion) {
-            setDatosNegocio({ id: sucursalActual.id, ...data.configuracion });
+            const sanitize = (obj) => {
+              if (!obj || typeof obj !== 'object') return obj;
+              if (typeof obj.toDate === 'function') return obj.toDate().toISOString();
+              if (Array.isArray(obj)) return obj.map(sanitize);
+              const result = {};
+              Object.keys(obj).forEach((key) => { result[key] = sanitize(obj[key]); });
+              return result;
+            };
+            setDatosNegocio(sanitize({ id: sucursalActual.id, ...data.configuracion }));
           } else {
             // Fallback: Si por alguna razón no tiene config, podríamos intentar leer la global
             // Pero para simplificar y evitar loops, esperamos a que initialize haga su trabajo.
@@ -560,6 +627,54 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     };
     setCartItems((prev) => [...prev, manualItem]);
     return true;
+  };
+
+  // --- ALERTAS Y GESTIÓN ABANZADA DEL CARRITO ---
+  const handleLogAlertaBorrado = async (accion, descripcion, itemsBorrados, montoTotal) => {
+    if (!currentUser?.uid || !sucursalActual?.id) return;
+    try {
+      const vendedorActual = vendedores.find((v) => v.id === vendedorActivoId) || { nombre: 'Desconocido' };
+      const alerta = {
+        userId: currentUser.uid,
+        sucursalId: sucursalActual.id,
+        vendedorId: vendedorActivoId || null,
+        vendedorNombre: vendedorActual.nombre,
+        accion,
+        descripcion,
+        itemsBorrados,
+        montoTotal,
+        timestamp: new Date().toISOString(),
+      };
+      // fsService.addDocument(userId, collectionName, data, sucursalId)
+      await fsService.addDocument(currentUser.uid, 'alertas_borrados', alerta, sucursalActual.id);
+    } catch (error) {
+      console.error('Error registrando alerta de borrado', error);
+    }
+  };
+
+  const handleRemoveItemFromCart = (cartId) => {
+    const itemToRemove = cartItems.find((item) => item.cartId === cartId);
+    if (itemToRemove) {
+      handleLogAlertaBorrado(
+        'Borrado de Artículo',
+        `Se eliminó el artículo: ${itemToRemove.nombre}`,
+        [itemToRemove],
+        itemToRemove.precioFinal
+      );
+    }
+    setCartItems((prevItems) => prevItems.filter((item) => item.cartId !== cartId));
+  };
+
+  const handleClearCart = () => {
+    if (cartItems.length === 0) return;
+    const totalMonto = cartItems.reduce((acc, item) => acc + item.precioFinal, 0);
+    handleLogAlertaBorrado(
+      'Vaciado de Carrito',
+      'Se vació el carrito completo',
+      [...cartItems],
+      totalMonto
+    );
+    setCartItems([]);
   };
 
   // Productos
@@ -1111,7 +1226,96 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
 
     if (success) {
       setTurnoActivo(null);
-      mostrarMensaje('Turno cerrado exitosamente.', 'success');
+      const dif = datosCierre.diferenciaEfectivo || 0;
+      let diffColor = dif === 0 ? '#4ade80' : dif > 0 ? '#60a5fa' : '#f87171';
+      let difText = dif === 0 ? 'Caja Cuadrada' : dif > 0 ? `Sobrante: $${formatCurrency(dif)}` : `Faltante: $${formatCurrency(Math.abs(dif))}`;
+
+      // 1. Armar Resumen Visual para la Alerta
+      const htmlNormal = !datosCierre.cierreCiego ? `
+        <div style="font-size: 1rem; color: #a1a1aa; margin-top: 15px;">
+        <p><strong>Total Ventas:</strong> $${formatCurrency(datosCierre.totalVentas)}</p>
+        <p><strong>Cierre Esperado:</strong> $${formatCurrency(datosCierre.totalFinal)}</p>
+        </div>` : '';
+
+      const htmlContent = `
+        <p>Se ha guardado tu cierre de caja.</p>
+        ${htmlNormal}
+        <p style="margin-top:10px; font-size:1.2rem; color:${diffColor}; font-weight:bold;">${difText}</p>
+      `;
+
+      // 2. Preparar el Mensaje de WhatsApp
+      const vendedorStr = turnoActivo.vendedorNombre || 'Admin';
+      const watsappText = `*🎫 CIERRE DE CAJA ${datosCierre.cierreCiego ? 'CIEGO ' : ''}*\n\n` +
+        `👤 *Vendedor:* ${vendedorStr}\n` +
+        `⏰ *Apertura:* ${turnoActivo.fechaApertura} ${turnoActivo.horaApertura}\n` +
+        `⏰ *Cierre:* ${fecha} ${hora}\n\n` +
+        `📊 *Total Ventas:* $${formatCurrency(datosCierre.totalVentas)}\n` +
+        `💵 *Esperado en Caja:* $${formatCurrency(datosCierre.totalFinal)}\n` +
+        `💰 *Efectivo Declarado:* $${formatCurrency(datosCierre.montoDeclaradoEfectivo)}\n\n` +
+        `${dif === 0 ? '✅ *CAJA CUADRADA*' : dif > 0 ? '🟢 *SOBRANTE:* $'+formatCurrency(dif) : '🔴 *FALTANTE:* $'+formatCurrency(Math.abs(dif))}`;
+      
+      const wsMsg = encodeURIComponent(watsappText);
+      const telefonoJefe = datosNegocio?.whatsappDueño ? datosNegocio.whatsappDueño.replace(/[^0-9]/g, '') : '';
+
+      // 3. Mostrar la alerta interactiva
+      const swalResult = await Swal.fire({
+        title: datosCierre.cierreCiego ? 'Cierre Ciego Guardado' : 'Turno Cerrado',
+        html: htmlContent,
+        icon: dif === 0 ? 'success' : 'warning',
+        background: '#27272a',
+        color: '#d4d4d8',
+        showCancelButton: true,
+        showDenyButton: true,
+        confirmButtonText: 'Aceptar',
+        denyButtonText: 'WhatsApp',
+        denyButtonColor: '#25D366',
+        cancelButtonText: 'Imprimir',
+        cancelButtonColor: '#52525b',
+        customClass: {
+          title: 'text-zinc-100',
+        }
+      });
+
+      // Manejar envío de WhatsApp
+      if (swalResult.isDenied) {
+        window.open(`https://wa.me/${telefonoJefe}?text=${wsMsg}`, '_blank');
+      }
+
+      // Manejar Impresión
+      if (swalResult.dismiss === Swal.DismissReason.cancel) {
+        // Guardamos el texto en sessionStorage temporalmente para abrir una paginita o window de impresion simple
+        sessionStorage.setItem('printTicketTurno', watsappText);
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+          <html>
+            <head>
+              <title>Ticket de Cierre</title>
+              <style>
+                body { font-family: monospace; width: 300px; padding: 20px; font-size: 14px; color: #000; }
+                hr { border-top: 1px dashed #000; }
+                .center { text-align: center; }
+                .bold { font-weight: bold; }
+              </style>
+            </head>
+            <body>
+              <h2 class="center">CIERRE DE CAJA ${datosCierre.cierreCiego ? 'CIEGO' : ''}</h2>
+              <p>Fecha Cierre: ${fecha} ${hora}</p>
+              <p>Vendedor: ${vendedorStr}</p>
+              <hr />
+              <p>Apertura: ${turnoActivo.fechaApertura} ${turnoActivo.horaApertura}</p>
+              <p>Total Ventas: $${formatCurrency(datosCierre.totalVentas)}</p>
+              <p>Esperado en Caja: $${formatCurrency(datosCierre.totalFinal)}</p>
+              <hr />
+              <p>Efectivo Declarado: $${formatCurrency(datosCierre.montoDeclaradoEfectivo)}</p>
+              <h3 class="center">${dif === 0 ? 'CAJA CUADRADA' : dif > 0 ? 'SOBRANTE: $'+formatCurrency(dif) : 'FALTANTE: $'+formatCurrency(Math.abs(dif))}</h3>
+              <br/><br/>
+            </body>
+          </html>
+        `);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => printWindow.print(), 500);
+      }
     } else {
       mostrarMensaje('Error al cerrar el turno.', 'error');
     }
@@ -1764,6 +1968,44 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     }
   };
 
+  const solicitarPin = async () => {
+    const { value: pinResult } = await Swal.fire({
+      title: 'Configuración Protegida',
+      input: 'password',
+      inputLabel: 'Ingresa tu PIN de Seguridad',
+      inputPlaceholder: '••••',
+      showCancelButton: true,
+      confirmButtonText: 'Desbloquear',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#3b82f6',
+      cancelButtonColor: '#ef4444',
+      background: '#1f2937',
+      color: '#f9fafb',
+      footer: '<p style="color: #9ca3af; font-size: 0.85rem;">¿Olviaste el PIN? Contactá al equipo de soporte para restablecerlo.</p>',
+      inputAttributes: {
+        autocapitalize: 'off',
+        autocorrect: 'off',
+      },
+    });
+
+    // Normal PIN Flow
+    if (pinResult && pinResult === datosNegocio?.pinSeguridad) {
+      setIsSessionUnlocked(true);
+      return true;
+    } else if (pinResult !== undefined) {
+      Swal.fire({
+        icon: 'error',
+        title: 'PIN Incorrecto',
+        text: 'El código ingresado no coincide.',
+        background: '#1f2937',
+        color: '#f9fafb',
+        confirmButtonColor: '#3b82f6',
+      });
+      return false;
+    }
+    return false; // Cancelled
+  };
+
   const value = {
     // Auth & Estado
     isLoggedIn,
@@ -1786,6 +2028,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     datosNegocio,
     turnos,
     turnoActivo,
+    alertasBorrados,
     // Sucursales
     sucursales,
     sucursalActual,
@@ -1831,6 +2074,8 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     handleAddToCart,
     handleAddManualItemToCart,
     setCartItems,
+    handleRemoveItemFromCart,
+    handleClearCart,
     handleSaleConfirmed,
     handleEliminarVenta,
     handleSaveBudget,
@@ -1857,6 +2102,9 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     handleDeleteSelected,
     handleDeleteDuplicates,
     confirmarAccion,
+    // Seguridad
+    isSessionUnlocked,
+    solicitarPin,
     // Theme
     theme,
     toggleTheme,

@@ -25,6 +25,7 @@ import {
 import Swal from 'sweetalert2';
 import PaginationControls from './PaginationControls.jsx';
 import SalesChart from './SalesChart.jsx';
+import ErrorBoundary from './ErrorBoundary.jsx';
 import {
   Table,
   TableBody,
@@ -55,7 +56,11 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
     handleEliminarVenta,
     mostrarMensaje,
   } = useAppContext();
-  const { datosNegocio } = useAppContext();
+  const { datosNegocio, vendedores, vendedorActivoId } = useAppContext();
+
+  const vendedorActual = vendedores?.find(v => v.id === vendedorActivoId) || {};
+  // El dueño de la tienda se rige por el vendedor seleccionado en el dropdown actual
+  const puedeVerEstadisticasCaja = vendedorActual.verEstadisticasCaja !== false;
 
   if (!ventas || !egresos || !ingresosManuales) {
     return null;
@@ -172,9 +177,6 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
     const getTime = (item) => {
       const timestamp = item.createdAt || item.timestamp;
       if (!timestamp) return 0;
-      if (typeof timestamp.toDate === 'function') {
-        return timestamp.toDate().getTime();
-      }
       return new Date(timestamp).getTime();
     };
     return getTime(b) - getTime(a);
@@ -324,7 +326,7 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
     const ventasPorHoraYDia = {};
 
     ventasMes.forEach((venta) => {
-      const fechaVenta = venta.createdAt?.toDate() || new Date(venta.timestamp);
+      const fechaVenta = new Date(venta.createdAt || venta.timestamp);
       if (!fechaVenta) return;
 
       const diaSemana = dias[fechaVenta.getDay()];
@@ -733,21 +735,25 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
       {/* --- TOP ROW: KPI Cards --- */}
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {/* KPI 1: Caja General (Prominent) */}
-        <CajaGeneral />
+        {puedeVerEstadisticasCaja && (
+          <CajaGeneral />
+        )}
 
         {/* KPI 2: Ventas del Día */}
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-zinc-400">Ventas del Día</p>
-            <DollarSign className="h-4 w-4 text-emerald-500" />
+        {puedeVerEstadisticasCaja && (
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-zinc-400">Ventas del Día</p>
+              <DollarSign className="h-4 w-4 text-emerald-500" />
+            </div>
+            <p className="mt-2 text-2xl font-bold text-emerald-400">
+              {formatCurrency(totalVentasDia)}
+            </p>
+            <p className="text-xs text-zinc-500">
+              {ventasDelDia.length} transacciones
+            </p>
           </div>
-          <p className="mt-2 text-2xl font-bold text-emerald-400">
-            {formatCurrency(totalVentasDia)}
-          </p>
-          <p className="text-xs text-zinc-500">
-            {ventasDelDia.length} transacciones
-          </p>
-        </div>
+        )}
 
         {/* KPI 3: Ingresos & Egresos (Combined) */}
         {/* KPI 3: Ingresos & Egresos (Combined with Forms) */}
@@ -827,8 +833,10 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
         {/* --- LEFT COLUMN: Chart + Tables (65-70%) --- */}
         <div className="flex h-full flex-col gap-4 lg:col-span-8 xl:col-span-9">
           {/* 1. Chart Section (Fixed Height) */}
-          <div className="h-[300px] w-full shrink-0">
-            <SalesChart data={salesDataForChart} />
+          <div className="h-[300px] w-full shrink-0 relative">
+            <ErrorBoundary>
+              <SalesChart data={salesDataForChart} />
+            </ErrorBoundary>
           </div>
 
           {/* 2. Tables Section (Flex Fill) */}
