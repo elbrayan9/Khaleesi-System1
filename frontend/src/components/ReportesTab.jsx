@@ -21,6 +21,8 @@ import {
   TrendingDown,
   DollarSign,
   Wallet,
+  Lock,
+  Unlock,
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import PaginationControls from './PaginationControls.jsx';
@@ -56,11 +58,26 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
     handleEliminarVenta,
     mostrarMensaje,
   } = useAppContext();
-  const { datosNegocio, vendedores, vendedorActivoId } = useAppContext();
+  const { datosNegocio, vendedores, vendedorActivoId, solicitarPin } = useAppContext();
 
   const vendedorActual = vendedores?.find(v => v.id === vendedorActivoId) || {};
-  // El dueño de la tienda se rige por el vendedor seleccionado en el dropdown actual
   const puedeVerEstadisticasCaja = vendedorActual.verEstadisticasCaja !== false;
+
+  // PIN lock: si el vendedor no puede ver estadísticas, la caja arranca bloqueada
+  const [cajaDesbloqueada, setCajaDesbloqueada] = useState(false);
+  const mostrarTodo = puedeVerEstadisticasCaja || cajaDesbloqueada;
+
+  const handleTogglePinLock = async () => {
+    if (mostrarTodo && !puedeVerEstadisticasCaja) {
+      // Ya está desbloqueado por PIN → volver a bloquear
+      setCajaDesbloqueada(false);
+      return;
+    }
+    if (!mostrarTodo) {
+      const ok = await solicitarPin();
+      if (ok) setCajaDesbloqueada(true);
+    }
+  };
 
   if (!ventas || !egresos || !ingresosManuales) {
     return null;
@@ -723,37 +740,52 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
             <CornerDownLeft className="h-4 w-4" /> Hoy
           </motion.button>
 
-          <motion.button
-            onClick={handleExportarMes}
-            className="ml-2 flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white shadow-lg shadow-green-900/20 hover:bg-green-700"
-          >
-            <Download className="h-4 w-4" /> Exportar Mes
-          </motion.button>
+          {mostrarTodo && (
+            <motion.button
+              onClick={handleExportarMes}
+              className="ml-2 flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white shadow-lg shadow-green-900/20 hover:bg-green-700"
+            >
+              <Download className="h-4 w-4" /> Exportar Mes
+            </motion.button>
+          )}
+
+          {!puedeVerEstadisticasCaja && (
+            <motion.button
+              onClick={handleTogglePinLock}
+              className={`ml-2 flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium shadow-lg ${
+                mostrarTodo
+                  ? 'bg-green-600 text-white shadow-green-900/20 hover:bg-green-700'
+                  : 'bg-amber-600 text-white shadow-amber-900/20 hover:bg-amber-700'
+              }`}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              {mostrarTodo ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+              {mostrarTodo ? 'Bloquear' : 'Desbloquear'}
+            </motion.button>
+          )}
         </div>
       </div>
 
-      {/* --- TOP ROW: KPI Cards --- */}
+      {/* --- TOP ROW: KPI Cards (solo si desbloqueado) --- */}
+      {mostrarTodo && (
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {/* KPI 1: Caja General (Prominent) */}
-        {puedeVerEstadisticasCaja && (
-          <CajaGeneral />
-        )}
+        <CajaGeneral />
 
         {/* KPI 2: Ventas del Día */}
-        {puedeVerEstadisticasCaja && (
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-zinc-400">Ventas del Día</p>
-              <DollarSign className="h-4 w-4 text-emerald-500" />
-            </div>
-            <p className="mt-2 text-2xl font-bold text-emerald-400">
-              {formatCurrency(totalVentasDia)}
-            </p>
-            <p className="text-xs text-zinc-500">
-              {ventasDelDia.length} transacciones
-            </p>
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-zinc-400">Ventas del Día</p>
+            <DollarSign className="h-4 w-4 text-emerald-500" />
           </div>
-        )}
+          <p className="mt-2 text-2xl font-bold text-emerald-400">
+            {formatCurrency(totalVentasDia)}
+          </p>
+          <p className="text-xs text-zinc-500">
+            {ventasDelDia.length} transacciones
+          </p>
+        </div>
 
         {/* KPI 3: Ingresos & Egresos (Combined) */}
         {/* KPI 3: Ingresos & Egresos (Combined with Forms) */}
@@ -827,17 +859,20 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
           </div>
         </div>
       </div>
+      )}
 
       {/* --- MAIN CONTENT GRID (Zero-Gap) --- */}
       <div className="grid h-[calc(100vh-220px)] min-h-[800px] grid-cols-1 gap-6 lg:grid-cols-12">
         {/* --- LEFT COLUMN: Chart + Tables (65-70%) --- */}
         <div className="flex h-full flex-col gap-4 lg:col-span-8 xl:col-span-9">
-          {/* 1. Chart Section (Fixed Height) */}
+          {/* 1. Chart Section (Fixed Height) - solo si desbloqueado */}
+          {mostrarTodo && (
           <div className="h-[300px] w-full shrink-0 relative">
             <ErrorBoundary>
               <SalesChart data={salesDataForChart} />
             </ErrorBoundary>
           </div>
+          )}
 
           {/* 2. Tables Section (Flex Fill) */}
           <div className="min-h-0 flex-1">
@@ -883,12 +918,14 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
                           >
                             Desc. {getSortIcon('desc', sortConfigDia)}
                           </TableHead>
+                          {mostrarTodo && (
                           <TableHead
                             className="cursor-pointer text-right text-zinc-400 hover:text-white"
                             onClick={() => requestSortDia('montoDisplay')}
                           >
                             Monto {getSortIcon('montoDisplay', sortConfigDia)}
                           </TableHead>
+                          )}
                           <TableHead className="text-right text-zinc-400"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -921,15 +958,18 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
                               >
                                 {item.desc}
                               </TableCell>
+                              {mostrarTodo && (
                               <TableCell
                                 className={`py-3 text-right text-sm font-medium ${item.montoDisplay >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
                               >
                                 {formatCurrency(item.montoDisplay)}
                               </TableCell>
+                              )}
                               <TableCell className="py-3 text-right">
                                 <div className="flex justify-end gap-1">
                                   {item.tipo === 'Venta' && (
                                     <>
+                                      {mostrarTodo && (
                                       <button
                                         onClick={() =>
                                           handleLocalViewDetailsClick(item.id)
@@ -939,6 +979,7 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
                                       >
                                         <Eye className="h-4 w-4" />
                                       </button>
+                                      )}
                                       <button
                                         onClick={() =>
                                           handleLocalPrintClick(item.id)
@@ -948,6 +989,7 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
                                       >
                                         <Printer className="h-4 w-4" />
                                       </button>
+                                      {mostrarTodo && (
                                       <button
                                         onClick={() =>
                                           handleLocalEliminarVenta(item.id)
@@ -957,9 +999,10 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
                                       >
                                         <Trash2 className="h-4 w-4" />
                                       </button>
+                                      )}
                                     </>
                                   )}
-                                  {(item.tipo === 'Ingreso Manual' ||
+                                  {mostrarTodo && (item.tipo === 'Ingreso Manual' ||
                                     item.tipo === 'Egreso') && (
                                     <button
                                       onClick={() =>
@@ -982,7 +1025,7 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
                         ) : (
                           <TableRow>
                             <TableCell
-                              colSpan={5}
+                              colSpan={mostrarTodo ? 5 : 4}
                               className="py-8 text-center text-zinc-500"
                             >
                               Sin movimientos hoy.
@@ -1043,12 +1086,14 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
                           >
                             Desc. {getSortIcon('desc', sortConfigMes)}
                           </TableHead>
+                          {mostrarTodo && (
                           <TableHead
                             className="cursor-pointer text-right text-zinc-400 hover:text-white"
                             onClick={() => requestSortMes('montoDisplay')}
                           >
                             Monto {getSortIcon('montoDisplay', sortConfigMes)}
                           </TableHead>
+                          )}
                           <TableHead className="text-right text-zinc-400"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -1081,15 +1126,18 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
                               >
                                 {item.desc}
                               </TableCell>
+                              {mostrarTodo && (
                               <TableCell
                                 className={`py-3 text-right text-sm font-medium ${item.montoDisplay >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
                               >
                                 {formatCurrency(item.montoDisplay)}
                               </TableCell>
+                              )}
                               <TableCell className="py-3 text-right">
                                 <div className="flex justify-end gap-1">
                                   {item.tipo === 'Venta' && (
                                     <>
+                                      {mostrarTodo && (
                                       <button
                                         onClick={() =>
                                           handleLocalViewDetailsClick(item.id)
@@ -1099,6 +1147,7 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
                                       >
                                         <Eye className="h-4 w-4" />
                                       </button>
+                                      )}
                                       <button
                                         onClick={() =>
                                           handleLocalPrintClick(item.id)
@@ -1117,7 +1166,7 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
                         ) : (
                           <TableRow>
                             <TableCell
-                              colSpan={5}
+                              colSpan={mostrarTodo ? 5 : 4}
                               className="py-8 text-center text-zinc-500"
                             >
                               Sin movimientos.
@@ -1142,19 +1191,21 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
 
         {/* --- RIGHT COLUMN: Sidebar (Caja, Actions, Stack) (30-35%) --- */}
         <div className="custom-scrollbar flex h-full flex-col gap-6 overflow-y-auto pr-1 lg:col-span-4 xl:col-span-3">
-          <motion.button
-            onClick={handleCerrarCaja}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 p-4 font-bold text-white shadow-lg shadow-purple-900/20 hover:from-purple-700 hover:to-indigo-700"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <Archive className="h-5 w-5" />
-            Simular Cierre
-          </motion.button>
+          {mostrarTodo && (
+            <motion.button
+              onClick={handleCerrarCaja}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 p-4 font-bold text-white shadow-lg shadow-purple-900/20 hover:from-purple-700 hover:to-indigo-700"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Archive className="h-5 w-5" />
+              Simular Cierre
+            </motion.button>
+          )}
 
           {/* Stack Components */}
           <div className="space-y-6">
-            <HistorialTurnos />
+            {mostrarTodo && <HistorialTurnos />}
             {/* Top Productos */}
             <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 shadow-lg">
               <div className="border-b border-zinc-800 p-4">
@@ -1190,6 +1241,7 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
             </div>
 
             {/* Ranking Vendedores */}
+            {mostrarTodo && (
             <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 shadow-lg">
               <div className="border-b border-zinc-800 p-4">
                 <h3 className="text-sm font-semibold text-white">
@@ -1222,6 +1274,7 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
                 )}
               </div>
             </div>
+            )}
 
             <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 shadow-lg">
               <h3 className="mb-4 text-sm font-semibold text-white">
