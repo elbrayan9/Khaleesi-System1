@@ -11,6 +11,10 @@ import {
   getAnalytics,
   isSupported as analyticsIsSupported,
 } from 'firebase/analytics';
+import {
+  initializeAppCheck,
+  ReCaptchaV3Provider,
+} from 'firebase/app-check';
 
 // Config desde Vite (.env)
 const firebaseConfig = {
@@ -24,6 +28,29 @@ const firebaseConfig = {
 };
 
 export const app = initializeApp(firebaseConfig);
+
+/**
+ * 🛡️ Firebase App Check:
+ * Verifica que las solicitudes a Firebase vengan de tu app real,
+ * no de scripts o bots externos. Usa reCAPTCHA v3 (invisible, sin captcha visible).
+ *
+ * En modo desarrollo (localhost), se activa el debug token para que
+ * puedas seguir probando sin problemas.
+ */
+if (typeof window !== 'undefined') {
+  // En desarrollo: habilitar debug token (aparecerá en la consola del navegador)
+  if (import.meta.env.DEV) {
+    self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+  }
+
+  const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+  if (recaptchaSiteKey) {
+    initializeAppCheck(app, {
+      provider: new ReCaptchaV3Provider(recaptchaSiteKey),
+      isTokenAutoRefreshEnabled: true,
+    });
+  }
+}
 
 /**
  * 🔧 Resiliencia de transporte y caché:
