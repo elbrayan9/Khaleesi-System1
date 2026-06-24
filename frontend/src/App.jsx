@@ -30,6 +30,7 @@ import SaleDetailModal from './components/SaleDetailModal.jsx';
 import NotaDetailModal from './components/NotaDetailModal.jsx';
 import { formatCurrency } from './utils/helpers.js';
 import { generarPdfVenta } from './services/pdfService'; // Importar servicio PDF
+import { printVentaTicket } from './services/thermalPrinterService';
 import AdminPanel from './screens/AdminPanel.jsx';
 import UserDetailAdmin from './screens/UserDetailAdmin.jsx';
 import LandingPage from './screens/LandingPage.jsx';
@@ -107,6 +108,23 @@ function App() {
     } catch (error) {
       console.error('Error generando PDF de venta:', error);
       mostrarMensaje('Error al generar PDF.', 'error');
+    }
+  };
+
+  const handlePrintTermico = async (ventaObjeto) => {
+    if (!ventaObjeto || !ventaObjeto.id) {
+      mostrarMensaje('Datos de venta inválidos para imprimir.', 'error');
+      return;
+    }
+    try {
+      const cliente = clientes.find((c) => c.id === ventaObjeto.clienteId) || {
+        nombre: ventaObjeto.clienteNombre || 'Consumidor Final',
+        cuit: ventaObjeto.clienteCuit || '',
+      };
+      await printVentaTicket(ventaObjeto, datosNegocio, cliente);
+    } catch (error) {
+      console.error('Error imprimiendo ticket térmico:', error);
+      mostrarMensaje(`No se pudo imprimir el ticket: ${error.message}`, 'error');
     }
   };
 
@@ -381,6 +399,7 @@ function App() {
             formatCurrency={formatCurrency}
             datosNegocio={datosNegocio}
             onPrint={handlePrintRequest}
+            onPrintTermico={handlePrintTermico}
           />
         )}
         {notaDetailModalOpen && (

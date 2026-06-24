@@ -19,6 +19,7 @@ import {
 } from 'firebase/firestore';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import * as fsService from '../services/firestoreService';
+import * as thermalPrinter from '../services/thermalPrinterService';
 import { obtenerFechaHoraActual, formatCurrency } from '../utils/helpers';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import Swal from 'sweetalert2';
@@ -642,8 +643,10 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       return false;
     }
     const montoNum = Number(monto);
+    const manualId = generateLocalId('manual_');
     const manualItem = {
-      id: generateLocalId('manual_'),
+      id: manualId,
+      cartId: manualId, // cartId único: permite quitar/editar solo esta línea
       nombre: descripcion.trim(),
       cantidad: 1,
       precioOriginal: montoNum,
@@ -689,6 +692,60 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       );
     }
     setCartItems((prevItems) => prevItems.filter((item) => item.cartId !== cartId));
+  };
+
+  // Ajusta la cantidad de una línea del carrito (botones - / +).
+  // El permiso "modificar precios" NO bloquea esto: ajustar cantidad es una
+  // corrección de cajero, no un cambio de precio. Cada unidad QUITADA se
+  // registra en las alertas anti-robo (igual que un borrado).
+  const handleUpdateCartQuantity = (cartId, change) => {
+    const item = cartItems.find((i) => i.cartId === cartId);
+    if (!item || item.vendidoPor === 'ticketBalanza') return;
+
+    const newQuantity = item.cantidad + change;
+
+    // Al aumentar, validar stock (solo productos por unidad).
+    if (change > 0) {
+      const productoInfo = productos.find((p) => p.id === item.id);
+      if (
+        productoInfo?.vendidoPor === 'unidad' &&
+        newQuantity > productoInfo?.stock
+      ) {
+        mostrarMensaje?.(`Stock insuficiente para ${item.nombre}.`, 'warning');
+        return;
+      }
+    }
+
+    // Anti-robo: registrar la/s unidad/es quitada/s al reducir cantidad.
+    if (change < 0) {
+      const unidadesQuitadas = Math.min(Math.abs(change), item.cantidad);
+      const precioUnitario =
+        item.cantidad > 0 ? item.precioFinal / item.cantidad : item.precioFinal;
+      handleLogAlertaBorrado(
+        'Reducción de Cantidad',
+        `Se quitó ${unidadesQuitadas} unidad(es) de: ${item.nombre}`,
+        [{ ...item, cantidad: unidadesQuitadas }],
+        precioUnitario * unidadesQuitadas,
+      );
+    }
+
+    // Si llega a 0, se elimina la línea (ya quedó registrada arriba).
+    if (newQuantity <= 0) {
+      setCartItems((prev) => prev.filter((i) => i.cartId !== cartId));
+      return;
+    }
+
+    const newPrecioTotal = item.precioOriginal * newQuantity;
+    const newPrecioFinal =
+      newPrecioTotal - (newPrecioTotal * item.descuentoPorcentaje) / 100;
+
+    setCartItems((prev) =>
+      prev.map((i) =>
+        i.cartId === cartId
+          ? { ...i, cantidad: newQuantity, precioFinal: newPrecioFinal }
+          : i,
+      ),
+    );
   };
 
   const handleClearCart = () => {
@@ -1200,6 +1257,20 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
         // 3. Limpiamos el carrito y mostramos el mensaje de éxito
         setCartItems([]);
         await mostrarMensaje?.('Venta registrada con éxito.', 'success');
+
+        // 4. Impresión automática del ticket térmico (si está habilitada)
+        if (thermalPrinter.isAutoPrintEnabled()) {
+          const ventaParaTicket = { id: ventaId, ...newSaleData };
+          thermalPrinter
+            .printVentaTicket(ventaParaTicket, datosNegocio, cliente)
+            .catch((error) => {
+              console.error('Error imprimiendo ticket térmico:', error);
+              mostrarMensaje?.(
+                `No se pudo imprimir el ticket: ${error.message}`,
+                'warning',
+              );
+            });
+        }
       }
     } catch (error) {
       await mostrarMensaje?.(
@@ -2101,6 +2172,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     handleAddManualItemToCart,
     setCartItems,
     handleRemoveItemFromCart,
+    handleUpdateCartQuantity,
     handleClearCart,
     handleSaleConfirmed,
     handleEliminarVenta,

@@ -2,7 +2,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { X } from 'lucide-react';
-import { Download } from 'lucide-react';
+import { Download, Printer } from 'lucide-react';
 
 function SaleDetailModal({
   isOpen,
@@ -12,6 +12,7 @@ function SaleDetailModal({
   clienteInfo,
   datosNegocio,
   onPrint,
+  onPrintTermico,
 }) {
   if (!isOpen || !venta) return null;
 
@@ -195,6 +196,17 @@ function SaleDetailModal({
         </div>
 
         <div className="mt-5 flex justify-end gap-3 border-t border-zinc-700 pt-4">
+          {onPrintTermico && (
+            <motion.button
+              onClick={() => onPrintTermico(venta)}
+              className="inline-flex items-center rounded-md bg-green-600 px-4 py-2 font-bold text-white transition duration-150 ease-in-out hover:bg-green-700"
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+            >
+              <Printer className="mr-2 h-4 w-4" />
+              Imprimir ticket
+            </motion.button>
+          )}
           {onPrint && (
             <motion.button
               onClick={() => onPrint(venta, 'download')}

@@ -11,6 +11,7 @@ import {
   CreditCard,
 } from 'lucide-react';
 import ImportDataTab from './ImportDataTab';
+import ImpresoraTermicaConfig from './ImpresoraTermicaConfig';
 import Swal from 'sweetalert2';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import {
@@ -751,6 +752,8 @@ function ConfiguracionTab() {
               <div className="peer h-6 w-11 rounded-full bg-zinc-600 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:border after:bg-white after:transition-all after:content-[''] peer-checked:bg-blue-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:ring-2 peer-focus:ring-blue-500"></div>
             </label>
           </div>
+
+          <ImpresoraTermicaConfig />
 
           <div className="pt-5 text-right">
             <motion.button

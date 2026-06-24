@@ -12,11 +12,12 @@ function Cart({
   selectedClientId,
   onClientSelect,
 }) {
-  const { cartItems, setCartItems, productos, mostrarMensaje, handleRemoveItemFromCart, handleClearCart, vendedores, vendedorActivoId } =
-    useAppContext();
-
-  const vendedorActual = vendedores.find(v => v.id === vendedorActivoId) || {};
-  const puedeModificarPrecios = vendedorActual.puedeModificarPrecios !== false;
+  const {
+    cartItems,
+    handleRemoveItemFromCart,
+    handleUpdateCartQuantity,
+    handleClearCart,
+  } = useAppContext();
 
   // --- CÁLCULO CORREGIDO ---
   // Ahora simplemente sumamos el precioFinal de cada item, que ya es el total de la línea.
@@ -26,46 +27,10 @@ function Cart({
     handleRemoveItemFromCart(cartId);
   };
 
-  // La función de actualizar cantidad ahora debe recalcular el precio de la línea
+  // El ajuste de cantidad (- / +) lo maneja el contexto: valida stock al
+  // sumar y registra en anti-robo cada unidad quitada al restar.
   const handleUpdateQuantity = (cartId, change) => {
-    setCartItems(
-      (prev) =>
-        prev
-          .map((item) => {
-            if (item.cartId !== cartId || item.vendidoPor === 'ticketBalanza')
-              return item;
-
-            const newQuantity = item.cantidad + change;
-            if (newQuantity <= 0) {
-              return null; // Marcar para eliminar
-            }
-
-            const productoInfo = productos.find((p) => p.id === item.id);
-            if (
-              newQuantity > productoInfo?.stock &&
-              productoInfo?.vendidoPor === 'unidad'
-            ) {
-              mostrarMensaje(
-                `Stock insuficiente para ${item.nombre}.`,
-                'warning',
-              );
-              return item; // No hacer cambios si no hay stock
-            }
-
-            // Recalcular precio final de la línea
-            const newPrecioTotal = item.precioOriginal * newQuantity;
-            const newPrecioFinal =
-              newPrecioTotal -
-              (newPrecioTotal * item.descuentoPorcentaje) / 100;
-
-            return {
-              ...item,
-              cantidad: newQuantity,
-              precioFinal: newPrecioFinal,
-            };
-          })
-          .filter(Boolean), // Eliminar los items marcados como null
-    );
+    handleUpdateCartQuantity(cartId, change);
   };
 
   const clientObject = selectedClientId
@@ -113,8 +78,7 @@ function Cart({
                     <div className="flex items-center rounded bg-zinc-700">
                       <button
                         onClick={() => handleUpdateQuantity(item.cartId, -1)}
-                        disabled={!puedeModificarPrecios}
-                        className={`p-1 text-zinc-400 hover:text-white ${!puedeModificarPrecios && 'opacity-50 cursor-not-allowed'}`}
+                        className="p-1 text-zinc-400 hover:text-white"
                       >
                         <MinusCircle size={16} />
                       </button>
@@ -123,8 +87,7 @@ function Cart({
                       </span>
                       <button
                         onClick={() => handleUpdateQuantity(item.cartId, 1)}
-                        disabled={!puedeModificarPrecios}
-                        className={`p-1 text-zinc-400 hover:text-white ${!puedeModificarPrecios && 'opacity-50 cursor-not-allowed'}`}
+                        className="p-1 text-zinc-400 hover:text-white"
                       >
                         <PlusCircle size={16} />
                       </button>
