@@ -341,6 +341,7 @@ function App() {
                   <ReportesTab
                     onPrintRequest={handlePrintRequest}
                     onViewDetailsRequest={openSaleDetailModal}
+                    onPrintTermicoRequest={handlePrintTermico}
                   />
                 }
               />

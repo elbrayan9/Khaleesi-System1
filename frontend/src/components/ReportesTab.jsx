@@ -23,6 +23,7 @@ import {
   Wallet,
   Lock,
   Unlock,
+  Receipt,
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import PaginationControls from './PaginationControls.jsx';
@@ -45,7 +46,11 @@ import CajaGeneral from './CajaGeneral.jsx';
 
 const ITEMS_PER_PAGE_REPORTE = 10;
 
-function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
+function ReportesTab({
+  onPrintRequest,
+  onViewDetailsRequest,
+  onPrintTermicoRequest,
+}) {
   const {
     ventas,
     egresos,
@@ -527,6 +532,15 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
     }
     if (onViewDetailsRequest) onViewDetailsRequest(itemId);
   };
+  const handleLocalPrintTermicoClick = (ventaId) => {
+    if (!checkIdValidityForAction(ventaId, 'Venta')) {
+      mostrarMensaje('ID de venta inválido.', 'error');
+      return;
+    }
+    const ventaObj = ventas.find((v) => v.id === ventaId);
+    if (ventaObj && onPrintTermicoRequest) onPrintTermicoRequest(ventaObj);
+    else mostrarMensaje('Venta no encontrada.', 'error');
+  };
 
   const handleCerrarCaja = () => {
     let resumenVendedorHtml = '';
@@ -985,10 +999,23 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
                                           handleLocalPrintClick(item.id)
                                         }
                                         className="rounded p-1 text-zinc-400 hover:bg-zinc-700 hover:text-purple-400"
-                                        title="Imprimir"
+                                        title="Imprimir PDF (A4)"
                                       >
                                         <Printer className="h-4 w-4" />
                                       </button>
+                                      {onPrintTermicoRequest && (
+                                        <button
+                                          onClick={() =>
+                                            handleLocalPrintTermicoClick(
+                                              item.id,
+                                            )
+                                          }
+                                          className="rounded p-1 text-zinc-400 hover:bg-zinc-700 hover:text-green-400"
+                                          title="Imprimir ticket térmico"
+                                        >
+                                          <Receipt className="h-4 w-4" />
+                                        </button>
+                                      )}
                                       {mostrarTodo && (
                                       <button
                                         onClick={() =>
@@ -1153,10 +1180,23 @@ function ReportesTab({ onPrintRequest, onViewDetailsRequest }) {
                                           handleLocalPrintClick(item.id)
                                         }
                                         className="rounded p-1 text-zinc-400 hover:bg-zinc-700 hover:text-purple-400"
-                                        title="Imprimir"
+                                        title="Imprimir PDF (A4)"
                                       >
                                         <Printer className="h-4 w-4" />
                                       </button>
+                                      {onPrintTermicoRequest && (
+                                        <button
+                                          onClick={() =>
+                                            handleLocalPrintTermicoClick(
+                                              item.id,
+                                            )
+                                          }
+                                          className="rounded p-1 text-zinc-400 hover:bg-zinc-700 hover:text-green-400"
+                                          title="Imprimir ticket térmico"
+                                        >
+                                          <Receipt className="h-4 w-4" />
+                                        </button>
+                                      )}
                                     </>
                                   )}
                                 </div>

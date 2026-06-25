@@ -610,29 +610,28 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       };
     }
 
-    // La lógica para agrupar items solo se aplica si NO es por peso y NO es un ticket
-    const itemExistente =
-      !isByWeight && !isScaleTicket
-        ? cartItems.find(
-            (i) =>
-              i.id === producto.id && i.descuentoPorcentaje === descuentoNum,
-          )
-        : null;
-
-    if (itemExistente) {
-      setCartItems((prev) =>
-        prev.map((i) =>
-          i.cartId === producto.id && i.descuentoPorcentaje === descuentoNum
+    // El agrupado se resuelve de forma FUNCIONAL (sobre el estado más reciente),
+    // así dos clicks rápidos sobre el mismo producto no crean líneas duplicadas
+    // ni desincronizan cantidad y precio. Por peso o ticket: siempre línea nueva.
+    if (isByWeight || isScaleTicket) {
+      setCartItems((prev) => [...prev, newItem]);
+    } else {
+      setCartItems((prev) => {
+        const idx = prev.findIndex(
+          (i) =>
+            i.id === producto.id && i.descuentoPorcentaje === descuentoNum,
+        );
+        if (idx === -1) return [...prev, newItem];
+        return prev.map((i, k) =>
+          k === idx
             ? {
                 ...i,
                 cantidad: i.cantidad + cantidad,
                 precioFinal: i.precioFinal + precioFinalConDescuento,
               }
             : i,
-        ),
-      );
-    } else {
-      setCartItems((prev) => [...prev, newItem]);
+        );
+      });
     }
   };
 
@@ -735,16 +734,19 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       return;
     }
 
-    const newPrecioTotal = item.precioOriginal * newQuantity;
-    const newPrecioFinal =
-      newPrecioTotal - (newPrecioTotal * item.descuentoPorcentaje) / 100;
-
+    // Actualización funcional: recalculamos cantidad y precioFinal a partir del
+    // estado más reciente, así nunca se desincronizan (ni con clicks rápidos).
+    // precioFinal SIEMPRE es el total de la línea = precioOriginal x cantidad.
     setCartItems((prev) =>
-      prev.map((i) =>
-        i.cartId === cartId
-          ? { ...i, cantidad: newQuantity, precioFinal: newPrecioFinal }
-          : i,
-      ),
+      prev.map((i) => {
+        if (i.cartId !== cartId) return i;
+        const qty = i.cantidad + change;
+        if (qty <= 0) return i; // el caso <=0 ya se filtró arriba
+        const totalLinea = i.precioOriginal * qty;
+        const precioFinal =
+          totalLinea - (totalLinea * (i.descuentoPorcentaje || 0)) / 100;
+        return { ...i, cantidad: qty, precioFinal };
+      }),
     );
   };
 

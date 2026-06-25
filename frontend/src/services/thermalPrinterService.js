@@ -111,22 +111,24 @@ const sendBytes = async (device, bytes) => {
 const ESC = 0x1b;
 const GS = 0x1d;
 
-// Mapa mínimo de caracteres latinos a CP437/CP850 (los que usan estas impresoras).
+// Caracteres fuera de Latin-1 que igual queremos soportar (su byte en CP1252).
 const CP_MAP = {
-  á: 0xa0, é: 0x82, í: 0xa1, ó: 0xa2, ú: 0xa3, ñ: 0xa4, Ñ: 0xa5,
-  ü: 0x81, Á: 0x41, É: 0x90, Í: 0x49, Ó: 0x4f, Ú: 0x55, '¿': 0xa8,
-  '¡': 0xad, '°': 0xf8, '€': 0x45,
+  '€': 0x80,
 };
 
-/** Convierte un string a bytes usando el code page de la impresora. */
+/**
+ * Convierte un string a bytes para la impresora (code page WPC1252 / Latin-1).
+ * Las tildes y la ñ son code points Unicode <= 0xFF, que coinciden con su byte
+ * Latin-1 (ej: ñ = U+00F1 = 0xF1), así que los enviamos tal cual.
+ */
 const encodeText = (text) => {
   const out = [];
   for (const ch of String(text)) {
     const code = ch.charCodeAt(0);
-    if (code < 128) {
-      out.push(code);
+    if (code <= 0xff) {
+      out.push(code); // ASCII + Latin-1 (incluye á é í ó ú ñ ü ¿ ¡ °)
     } else if (CP_MAP[ch] !== undefined) {
-      out.push(CP_MAP[ch]);
+      out.push(CP_MAP[ch]); // fuera de Latin-1 (€, etc.)
     } else {
       out.push(0x3f); // '?' para lo que no podamos mapear
     }
@@ -162,7 +164,8 @@ export const buildTicket = (venta, datosNegocio = {}, cliente = null) => {
 
   // Init
   push(ESC, 0x40); // ESC @  -> reset
-  push(ESC, 0x74, 0x00); // ESC t 0 -> code page CP437
+  push(ESC, 0x74, 0x10); // ESC t 16 -> code page WPC1252 (Latin-1). Estas
+  // impresoras interpretan los bytes altos como Latin-1/CP1252, no CP437.
 
   // Encabezado: centrado + negrita + doble alto
   push(ESC, 0x61, 0x01); // ESC a 1 -> centrado
@@ -195,10 +198,14 @@ export const buildTicket = (venta, datosNegocio = {}, cliente = null) => {
   items.forEach((item) => {
     line(item.nombre || 'Item');
     const cant = Number(item.cantidad) || 0;
-    const precioUnit = Number(item.precioFinal ?? item.precioOriginal) || 0;
-    const subtotal = precioUnit * cant;
+    // En el carrito, precioFinal es el TOTAL de la línea (precio x cantidad,
+    // con descuento). El unitario es precioOriginal; si falta, lo derivamos.
+    const totalLinea = Number(item.precioFinal) || 0;
+    const precioUnit =
+      Number(item.precioOriginal) ||
+      (cant > 0 ? totalLinea / cant : totalLinea);
     const izq = `  ${cant} x $${formatCurrency(precioUnit)}`;
-    line(lineLR(izq, `$${formatCurrency(subtotal)}`));
+    line(lineLR(izq, `$${formatCurrency(totalLinea)}`));
     if (item.descuentoPorcentaje > 0) {
       line(`  (Desc. ${item.descuentoPorcentaje}%)`);
     }
