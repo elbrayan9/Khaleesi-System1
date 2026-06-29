@@ -33,12 +33,32 @@ export const setAutoPrintEnabled = (enabled) =>
 
 let cachedDevice = null;
 
+// Si el SO desconecta la impresora (se apaga, se queda sin papel y la apagan,
+// o se desenchufa), el objeto USB en memoria queda MUERTO. Escuchamos el evento
+// para olvidar esa referencia y volver a tomar el dispositivo "fresco" al
+// reconectar, sin necesidad de refrescar la página.
+if (typeof navigator !== 'undefined' && navigator.usb) {
+  navigator.usb.addEventListener('disconnect', (event) => {
+    if (cachedDevice && event.device === cachedDevice) {
+      cachedDevice = null;
+    }
+  });
+}
+
 /** Devuelve la impresora ya autorizada (sin pedir gesto), o null. */
 export const getPairedPrinter = async () => {
   if (!isWebUsbSupported()) return null;
-  if (cachedDevice) return cachedDevice;
+  // getDevices() siempre devuelve el objeto "vivo" del dispositivo. Tras un
+  // desenchufe/reenchufe el objeto viejo queda inservible, así que reconciliamos
+  // el cache contra la lista actual en cada llamada.
   const devices = await navigator.usb.getDevices();
-  cachedDevice = devices[0] || null;
+  if (devices.length === 0) {
+    cachedDevice = null;
+    return null;
+  }
+  if (!cachedDevice || !devices.includes(cachedDevice)) {
+    cachedDevice = devices[0];
+  }
   return cachedDevice;
 };
 
@@ -253,24 +273,36 @@ export const buildTicket = (venta, datosNegocio = {}, cliente = null) => {
 // API de alto nivel
 // ----------------------------------------------------------------------------
 
-/** Imprime un ticket de venta. Lanza error si no hay impresora vinculada. */
-export const printVentaTicket = async (venta, datosNegocio, cliente) => {
-  const device = await getPairedPrinter();
+/**
+ * Envía bytes a la impresora con un reintento. Si el primer intento falla
+ * porque el dispositivo quedó "muerto" tras apagarlo/desenchufarlo, olvidamos
+ * el cache, volvemos a tomar el dispositivo fresco y reintentamos una vez.
+ */
+const printBytes = async (bytes) => {
+  let device = await getPairedPrinter();
   if (!device) {
     throw new Error(
       'No hay una impresora térmica vinculada. Conectala desde Configuración.',
     );
   }
+  try {
+    await sendBytes(device, bytes);
+  } catch (err) {
+    cachedDevice = null;
+    device = await getPairedPrinter();
+    if (!device) throw err;
+    await sendBytes(device, bytes);
+  }
+};
+
+/** Imprime un ticket de venta. Lanza error si no hay impresora vinculada. */
+export const printVentaTicket = async (venta, datosNegocio, cliente) => {
   const bytes = buildTicket(venta, datosNegocio, cliente);
-  await sendBytes(device, bytes);
+  await printBytes(bytes);
 };
 
 /** Imprime una página de prueba para verificar la conexión. */
 export const printTestPage = async (datosNegocio = {}) => {
-  const device = await getPairedPrinter();
-  if (!device) {
-    throw new Error('No hay una impresora térmica vinculada.');
-  }
   const ventaPrueba = {
     id: 'PRUEBA0000',
     fecha: new Date().toLocaleDateString('es-AR'),
@@ -284,5 +316,5 @@ export const printTestPage = async (datosNegocio = {}) => {
     tipoFactura: 'X',
   };
   const bytes = buildTicket(ventaPrueba, datosNegocio, null);
-  await sendBytes(device, bytes);
+  await printBytes(bytes);
 };
