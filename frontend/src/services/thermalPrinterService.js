@@ -279,20 +279,31 @@ export const buildTicket = (venta, datosNegocio = {}, cliente = null) => {
  * el cache, volvemos a tomar el dispositivo fresco y reintentamos una vez.
  */
 const printBytes = async (bytes) => {
-  let device = await getPairedPrinter();
-  if (!device) {
-    throw new Error(
-      'No hay una impresora térmica vinculada. Conectala desde Configuración.',
-    );
+  let lastErr = null;
+  // Hasta 3 intentos: tras un desenchufe/reenchufe el dispositivo tarda una
+  // fracción de segundo en re-aparecer en el sistema. Entre intentos olvidamos
+  // el cache y esperamos un poco para tomar el dispositivo ya "fresco".
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) {
+      cachedDevice = null;
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+    const device = await getPairedPrinter();
+    if (!device) {
+      lastErr = new Error(
+        'No hay una impresora térmica vinculada o está desconectada. ' +
+          'Revisá que esté encendida y conectada, y volvé a intentar.',
+      );
+      continue;
+    }
+    try {
+      await sendBytes(device, bytes);
+      return; // impreso OK
+    } catch (err) {
+      lastErr = err;
+    }
   }
-  try {
-    await sendBytes(device, bytes);
-  } catch (err) {
-    cachedDevice = null;
-    device = await getPairedPrinter();
-    if (!device) throw err;
-    await sendBytes(device, bytes);
-  }
+  throw lastErr;
 };
 
 /** Imprime un ticket de venta. Lanza error si no hay impresora vinculada. */
