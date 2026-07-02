@@ -216,7 +216,11 @@ export const generarPdfVenta = async (
   doc.setFont(font, 'bold');
   doc.text('Condición IVA:', leftColX, currentY);
   doc.setFont(font, 'normal');
-  doc.text('Responsable Monotributo', leftColX + 24, currentY); // Hardcoded por ahora, idealmente vendría de config
+  doc.text(
+    datosNegocio?.condicionIva || 'Responsable Monotributo',
+    leftColX + 24,
+    currentY,
+  );
 
   // COLUMNA DERECHA (DATOS COMPROBANTE)
   const rightColX = centerX + 10;
@@ -275,7 +279,11 @@ export const generarPdfVenta = async (
   doc.text(`CUIT: ${datosNegocio?.cuit || ''}`, rightColX, currentY);
   currentY += 6;
 
-  doc.text('Ingresos Brutos: EXENTO', rightColX, currentY);
+  doc.text(
+    `Ingresos Brutos: ${datosNegocio?.ingresosBrutos || 'EXENTO'}`,
+    rightColX,
+    currentY,
+  );
   currentY += 6;
 
   doc.text(
@@ -369,15 +377,28 @@ export const generarPdfVenta = async (
   ];
   const tableRows = [];
 
+  // En Factura A los importes se muestran SIN IVA (neto, alícuota 21%).
+  const esFacturaA = letra === 'A';
+
   venta.items.forEach((item) => {
+    const cant = Number(item.cantidad) || 0;
+    // precioFinal es el TOTAL de la línea (con descuento). El unitario es
+    // precioOriginal; si faltara, lo derivamos del total de la línea.
+    const totalLineaBruto = Number(item.precioFinal) || 0;
+    const unitBruto =
+      Number(item.precioOriginal) ||
+      (cant > 0 ? totalLineaBruto / cant : totalLineaBruto);
+    const precioUnit = esFacturaA ? unitBruto / 1.21 : unitBruto;
+    const subtotal = esFacturaA ? totalLineaBruto / 1.21 : totalLineaBruto;
+
     const itemData = [
-      item.codigoBarras || item.id.substring(0, 6),
+      item.codigoBarras || (item.id ? String(item.id).substring(0, 6) : ''),
       item.nombre,
       item.cantidad,
       'unidades',
-      formatCurrency(item.precioOriginal), // Precio Unitario
+      formatCurrency(precioUnit), // Precio Unitario
       formatCurrency(item.descuentoPorcentaje), // Bonif
-      formatCurrency(item.precioFinal * item.cantidad), // Subtotal
+      formatCurrency(subtotal), // Subtotal
     ];
     tableRows.push(itemData);
   });
@@ -433,7 +454,6 @@ export const generarPdfVenta = async (
     ? parseFloat(venta.afipData.impNeto)
     : 0;
   const impIva = venta.afipData?.impIva ? parseFloat(venta.afipData.impIva) : 0;
-  const esFacturaA = letra === 'A';
 
   doc.setFont(font, 'bold');
 
@@ -531,10 +551,14 @@ export const generarPdfVenta = async (
 
     // --- GENERACIÓN DE QR ---
     try {
+      // ARCA exige la fecha en formato yyyy-mm-dd con ceros a la izquierda.
+      const [dQR, mQR, yQR] = String(venta.fecha).split('/');
+      const fechaQR = `${yQR}-${String(mQR).padStart(2, '0')}-${String(dQR).padStart(2, '0')}`;
+
       const qrData = {
         ver: 1,
-        fecha: venta.fecha.split('/').reverse().join('-'),
-        cuit: parseInt(datosNegocio.cuit.replace(/\D/g, ''), 10),
+        fecha: fechaQR,
+        cuit: parseInt(String(datosNegocio?.cuit || '').replace(/\D/g, ''), 10),
         ptoVta: venta.afipData.ptoVta || 1,
         tipoCmp: parseInt(venta.afipData.cbteTipo, 10),
         nroCmp: parseInt(venta.afipData.cbteNro, 10),

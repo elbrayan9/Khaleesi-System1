@@ -47,6 +47,9 @@ function ConfiguracionTab() {
   const [afipCert, setAfipCert] = useState('');
   const [afipKey, setAfipKey] = useState('');
   const [puntoVenta, setPuntoVenta] = useState(1);
+  const [condicionIva, setCondicionIva] = useState('Responsable Monotributo');
+  const [ingresosBrutos, setIngresosBrutos] = useState('EXENTO');
+  const [inicioActividades, setInicioActividades] = useState('');
 
   useEffect(() => {
     if (datosNegocio) {
@@ -61,6 +64,9 @@ function ConfiguracionTab() {
       setAfipCert(datosNegocio.afipCert || '');
       setAfipKey(datosNegocio.afipKey || '');
       setPuntoVenta(datosNegocio.puntoVenta || 1);
+      setCondicionIva(datosNegocio.condicionIva || 'Responsable Monotributo');
+      setIngresosBrutos(datosNegocio.ingresosBrutos || 'EXENTO');
+      setInicioActividades(datosNegocio.inicioActividades || '');
     }
   }, [datosNegocio]);
 
@@ -185,6 +191,9 @@ function ConfiguracionTab() {
       afipCert: afipCert, // Guardamos el contenido del certificado
       afipKey: afipKey, // Guardamos el contenido de la clave
       puntoVenta: Number(puntoVenta) || 1,
+      condicionIva: condicionIva,
+      ingresosBrutos: ingresosBrutos.trim(),
+      inicioActividades: inicioActividades.trim(),
     };
     handleGuardarDatosNegocio(updatedData);
   };
@@ -570,6 +579,67 @@ function ConfiguracionTab() {
                 <p className="mt-1 text-xs text-zinc-500">
                   Número de punto de venta habilitado en AFIP para Web Services.
                 </p>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="config-condicion-iva"
+                  className="mb-1 block text-sm font-medium text-zinc-300"
+                >
+                  Condición frente al IVA (emisor)
+                </label>
+                <select
+                  id="config-condicion-iva"
+                  value={condicionIva}
+                  onChange={(e) => setCondicionIva(e.target.value)}
+                  className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100"
+                >
+                  <option value="Responsable Monotributo">
+                    Responsable Monotributo
+                  </option>
+                  <option value="Responsable Inscripto">
+                    Responsable Inscripto
+                  </option>
+                  <option value="Exento">Exento</option>
+                </select>
+                <p className="mt-1 text-xs text-zinc-500">
+                  Aparece en el encabezado de la factura. Debe coincidir con tu
+                  condición en ARCA.
+                </p>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="config-iibb"
+                  className="mb-1 block text-sm font-medium text-zinc-300"
+                >
+                  Ingresos Brutos
+                </label>
+                <input
+                  type="text"
+                  id="config-iibb"
+                  value={ingresosBrutos}
+                  onChange={(e) => setIngresosBrutos(e.target.value)}
+                  placeholder="Ej: EXENTO o N° de inscripción"
+                  className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="config-inicio-actividades"
+                  className="mb-1 block text-sm font-medium text-zinc-300"
+                >
+                  Inicio de Actividades
+                </label>
+                <input
+                  type="text"
+                  id="config-inicio-actividades"
+                  value={inicioActividades}
+                  onChange={(e) => setInicioActividades(e.target.value)}
+                  placeholder="Ej: 01/01/2024"
+                  className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100"
+                />
               </div>
 
               <div className="pt-2">

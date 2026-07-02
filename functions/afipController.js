@@ -245,6 +245,10 @@ exports.createInvoice = async (request) => {
       cbteNro: proximoNumero,
       cbteTipo: cbteTipoNum, // Added this line
       resultado: resultadoMatch ? resultadoMatch[1] : 'A',
+      // Importes para poder discriminar IVA en la Factura A del PDF.
+      impNeto: impNeto,
+      impIva: impIva,
+      impTotal: impTotal,
     };
   } catch (error) {
     console.error('[AFIP CAE] Error:', error);
