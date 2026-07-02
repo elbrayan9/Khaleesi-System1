@@ -542,12 +542,14 @@ export const generarPdfVenta = async (
     doc.text(`CAE N°: ${venta.afipData.cae}`, pageWidth - margin, qrY + 10, {
       align: 'right',
     });
-    doc.text(
-      `Fecha de Vto. de CAE: ${venta.afipData.caeFchVto}`,
-      pageWidth - margin,
-      qrY + 16,
-      { align: 'right' },
-    );
+    // ARCA devuelve el vto del CAE como AAAAMMDD; lo mostramos DD/MM/AAAA.
+    const caeVtoRaw = String(venta.afipData.caeFchVto || '');
+    const caeVto = /^\d{8}$/.test(caeVtoRaw)
+      ? `${caeVtoRaw.slice(6, 8)}/${caeVtoRaw.slice(4, 6)}/${caeVtoRaw.slice(0, 4)}`
+      : caeVtoRaw;
+    doc.text(`Fecha de Vto. de CAE: ${caeVto}`, pageWidth - margin, qrY + 16, {
+      align: 'right',
+    });
 
     // --- GENERACIÓN DE QR ---
     try {
