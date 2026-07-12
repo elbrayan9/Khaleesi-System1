@@ -1043,7 +1043,7 @@ function ReportesTab({
                                             <FileText className="h-4 w-4" />
                                           </button>
                                         )}
-                                      {mostrarTodo && (
+                                      {mostrarTodo && !item.afipData?.cae && (
                                       <button
                                         onClick={() =>
                                           handleLocalEliminarVenta(item.id)

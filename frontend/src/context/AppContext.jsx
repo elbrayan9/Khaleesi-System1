@@ -2110,6 +2110,16 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       mostrarMensaje?.('ID de venta inválido.', 'error');
       return;
     }
+    // Una factura autorizada por ARCA (con CAE) NO se puede eliminar: para darla
+    // de baja hay que emitir una Nota de Crédito (desde "Notas C/D").
+    const venta = ventas.find((v) => v.id === ventaId);
+    if (venta?.afipData?.cae) {
+      mostrarMensaje?.(
+        `Esta venta es una factura electrónica autorizada por ARCA (CAE ${venta.afipData.cae}). No se puede eliminar: para darla de baja emití una Nota de Crédito desde la pestaña "Notas C/D".`,
+        'warning',
+      );
+      return;
+    }
     if (
       await confirmarAccion?.(
         '¿Eliminar Venta?',
