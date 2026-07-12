@@ -356,7 +356,9 @@ async function enforceDailyLimit(uid, maxPerDay = 10) {
 // =======================
 // Chat con Gemini (Gen2 + Secret + modelo vigente)
 // =======================
-const MODEL_NAME = 'gemini-2.0-flash';
+// Alias que apunta siempre al modelo Flash vigente (evita 404 cuando Google
+// da de baja versiones puntuales como gemini-pro / gemini-2.0-flash).
+const MODEL_NAME = 'gemini-flash-latest';
 const TOPIC_KEYWORDS = [
   'pago',
   'pagos',
