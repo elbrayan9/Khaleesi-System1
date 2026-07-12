@@ -446,31 +446,55 @@ exports.askGemini = onCall({ secrets: [GEMINI_KEY] }, async (request) => {
         `[Usuario: ${userId}] Intención detectada: Consulta de Stock.`,
       );
 
-      const words = userPrompt.split(' ');
-      const productNameIndex =
-        words.findIndex(
-          (w) => w.toLowerCase() === 'producto' || w.toLowerCase() === 'de',
-        ) + 1;
-      const productName = words
-        .slice(productNameIndex)
+      const words = userPrompt.split(/\s+/);
+      const productNameIndex = words.findIndex((w) =>
+        ['producto', 'de'].includes(w.toLowerCase().replace(/[?¿!¡.,]/g, '')),
+      );
+      const productName = (
+        productNameIndex >= 0 ? words.slice(productNameIndex + 1) : []
+      )
         .join(' ')
-        .replace(/[?¿!¡]/g, '');
+        .replace(/[?¿!¡.,]/g, '')
+        .trim();
 
-      if (productName) {
-        const productsRef = db.collection('productos');
-        const query = productsRef
-          .where('userId', '==', userId)
-          .where('nombre', '==', productName);
-        const productSnapshot = await query.get();
+      const norm = (s) =>
+        String(s || '')
+          .toLowerCase()
+          .trim();
+      const target = norm(productName);
 
-        if (!productSnapshot.empty) {
-          const productData = productSnapshot.docs[0].data();
-          context = `Contexto de la base de datos: El producto "${productData.nombre}" tiene un stock de ${productData.stock} unidades.`;
-        } else {
-          context = `Contexto de la base de datos: No se encontró un producto con el nombre exacto "${productName}".`;
+      // Traemos los productos del usuario y matcheamos EN CÓDIGO, sin distinguir
+      // mayúsculas ni espacios (el match exacto de Firestore era muy frágil y
+      // confundía nombres parecidos como "pucho" y "puchio").
+      const snap = await db
+        .collection('productos')
+        .where('userId', '==', userId)
+        .get();
+      const productos = snap.docs.map((d) => d.data());
+
+      let candidatos = [];
+      if (target) {
+        // 1) Coincidencia exacta normalizada.
+        candidatos = productos.filter((p) => norm(p.nombre) === target);
+        // 2) Si no hay exacta, coincidencias parciales en ambos sentidos.
+        if (candidatos.length === 0) {
+          candidatos = productos.filter(
+            (p) =>
+              norm(p.nombre).includes(target) ||
+              target.includes(norm(p.nombre)),
+          );
         }
-        console.log(`[Usuario: ${userId}] Contexto generado: ${context}`);
       }
+
+      if (candidatos.length > 0) {
+        const lista = candidatos
+          .map((p) => `- "${p.nombre}": ${Number(p.stock) || 0} unidades`)
+          .join('\n');
+        context = `Contexto de la base de datos (stock actual):\n${lista}`;
+      } else {
+        context = `Contexto de la base de datos: No se encontró ningún producto que coincida con "${productName}".`;
+      }
+      console.log(`[Usuario: ${userId}] Contexto generado: ${context}`);
     } else if (!isInScope(userPrompt)) {
       // Si NO es una consulta de stock, revisamos si está en el alcance general.
       return { reply: OOS_MESSAGE };
@@ -483,6 +507,8 @@ exports.askGemini = onCall({ secrets: [GEMINI_KEY] }, async (request) => {
     const systemInstruction = `
       Eres 'Asistente Khaleesi', un experto en el sistema de punto de venta.
       - Si se te proporciona un "Contexto de la base de datos", tu respuesta DEBE basarse estrictamente en esa información.
+      - Respetá EXACTAMENTE los nombres y el stock que figuran en el contexto; no confundas productos con nombres parecidos.
+      - Si el contexto lista varios productos, informá el stock de cada uno por separado.
       - No inventes datos. Si el contexto dice que no se encontró algo, informa al usuario que no encontraste el producto.
       - Sé breve, amable y directo.
     `.trim();
