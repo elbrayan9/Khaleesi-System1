@@ -30,7 +30,10 @@ import SaleDetailModal from './components/SaleDetailModal.jsx';
 import NotaDetailModal from './components/NotaDetailModal.jsx';
 import { formatCurrency } from './utils/helpers.js';
 import { generarPdfVenta } from './services/pdfService'; // Importar servicio PDF
-import { printVentaTicket } from './services/thermalPrinterService';
+import {
+  printVentaTicket,
+  printNotaTicket,
+} from './services/thermalPrinterService';
 import AdminPanel from './screens/AdminPanel.jsx';
 import UserDetailAdmin from './screens/UserDetailAdmin.jsx';
 import LandingPage from './screens/LandingPage.jsx';
@@ -184,7 +187,8 @@ function App() {
                 cantidad: item.cantidad,
                 precioOriginal: item.precioOriginal || 0,
                 descuentoPorcentaje: 0,
-                precioFinal: item.precioOriginal || 0,
+                // precioFinal = total de la línea (unitario x cantidad).
+                precioFinal: (item.precioOriginal || 0) * (item.cantidad || 1),
               }))
             : [
                 {
@@ -204,6 +208,7 @@ function App() {
           cbteNro: nota.cbteNro,
           docTipo: nota.docTipo || 99,
           docNro: nota.docNro || 0,
+          fechaComprobante: nota.fechaComprobante || null,
         },
       };
 
@@ -232,6 +237,24 @@ function App() {
       setNotaDetailModalOpen(true);
     } else {
       mostrarMensaje('Detalles de la nota no encontrados.', 'error');
+    }
+  };
+
+  const handlePrintNotaTermico = async (notaId) => {
+    const nota = notasCD.find((n) => n.id === notaId);
+    if (!nota) {
+      mostrarMensaje('Nota no encontrada para imprimir.', 'error');
+      return;
+    }
+    try {
+      const cliente = clientes.find((c) => c.id === nota.clienteId) || {
+        nombre: nota.clienteNombre || 'Consumidor Final',
+        cuit: nota.clienteCuit || '',
+      };
+      await printNotaTicket(nota, datosNegocio, cliente);
+    } catch (error) {
+      console.error('Error imprimiendo ticket de nota:', error);
+      mostrarMensaje(`No se pudo imprimir el ticket: ${error.message}`, 'error');
     }
   };
 
@@ -351,6 +374,7 @@ function App() {
                   <NotasCDTab
                     onPrintNotaCD={handlePrintNota}
                     onViewDetailsNotaCD={openNotaDetailModal}
+                    onPrintNotaTermico={handlePrintNotaTermico}
                   />
                 }
               />

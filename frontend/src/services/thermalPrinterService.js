@@ -312,6 +312,104 @@ export const printVentaTicket = async (venta, datosNegocio, cliente) => {
   await printBytes(bytes);
 };
 
+/** Arma el array de bytes ESC/POS del ticket de una Nota de Crédito/Débito. */
+export const buildNotaTicket = (nota, datosNegocio = {}, cliente = null) => {
+  const bytes = [];
+  const push = (...b) => bytes.push(...b);
+  const text = (str) => push(...encodeText(str));
+  const newline = () => push(0x0a);
+  const line = (str = '') => {
+    text(str);
+    newline();
+  };
+
+  push(ESC, 0x40); // reset
+  push(ESC, 0x74, 0x10); // code page WPC1252 (Latin-1)
+
+  // Encabezado del negocio (centrado, doble, negrita)
+  push(ESC, 0x61, 0x01);
+  push(ESC, 0x21, 0x30);
+  push(ESC, 0x45, 0x01);
+  line(datosNegocio?.nombre || 'Mi Negocio');
+  push(ESC, 0x21, 0x00);
+  push(ESC, 0x45, 0x00);
+  if (datosNegocio?.direccion) line(datosNegocio.direccion);
+  if (datosNegocio?.cuit) line(`CUIT: ${datosNegocio.cuit}`);
+
+  // Título del comprobante
+  const esDebito = nota?.tipo === 'debito';
+  push(ESC, 0x45, 0x01);
+  line(esDebito ? 'NOTA DE DEBITO' : 'NOTA DE CREDITO');
+  push(ESC, 0x45, 0x00);
+  push(ESC, 0x61, 0x00); // izquierda
+  line(DIVIDER);
+
+  // Datos
+  if (nota?.fecha || nota?.hora)
+    line(`Fecha: ${nota.fecha || ''} ${nota.hora || ''}`.trim());
+  if (nota?.cbteNro) line(`Comprobante: #${nota.cbteNro}`);
+  else if (nota?.id) line(`Comprobante: #${String(nota.id).substring(0, 12)}`);
+  const clienteNombre =
+    cliente?.nombre || nota?.clienteNombre || 'Consumidor Final';
+  line(`Cliente: ${clienteNombre}`);
+  const clienteCuit = cliente?.cuit || nota?.clienteCuit;
+  if (clienteCuit) line(`CUIT/CUIL: ${clienteCuit}`);
+  if (nota?.ventaRelacionadaId)
+    line(`Comp. asociado: ${nota.ventaRelacionadaId}`);
+  if (nota?.motivo) line(`Motivo: ${nota.motivo}`);
+  line(DIVIDER);
+
+  // Ítems devueltos (si hubo devolución)
+  const items = Array.isArray(nota?.itemsDevueltos) ? nota.itemsDevueltos : [];
+  items.forEach((item) => {
+    line(item.nombre || 'Item');
+    const cant = Number(item.cantidad) || 0;
+    const unit = Number(item.precioOriginal) || 0;
+    line(
+      lineLR(
+        `  ${cant} x $${formatCurrency(unit)}`,
+        `$${formatCurrency(unit * cant)}`,
+      ),
+    );
+  });
+  if (items.length > 0) line(DIVIDER);
+
+  // Total (doble alto, negrita)
+  push(ESC, 0x21, 0x10);
+  push(ESC, 0x45, 0x01);
+  line(lineLR('TOTAL:', `$${formatCurrency(nota?.monto ?? nota?.total)}`));
+  push(ESC, 0x21, 0x00);
+  push(ESC, 0x45, 0x00);
+
+  // CAE (si es comprobante fiscal)
+  if (nota?.cae) {
+    line(DIVIDER);
+    line(`CAE: ${nota.cae}`);
+    const raw = String(nota.caeFchVto || '');
+    if (raw) {
+      const vto = /^\d{8}$/.test(raw)
+        ? `${raw.slice(6, 8)}/${raw.slice(4, 6)}/${raw.slice(0, 4)}`
+        : raw;
+      line(`Vto CAE: ${vto}`);
+    }
+  }
+
+  line(DIVIDER);
+  push(ESC, 0x61, 0x01); // centrado
+  line(nota?.cae ? 'Comprobante Autorizado' : 'Documento no valido como factura');
+
+  push(0x0a, 0x0a, 0x0a, 0x0a);
+  push(GS, 0x56, 0x42, 0x00); // corte parcial
+
+  return new Uint8Array(bytes);
+};
+
+/** Imprime el ticket térmico de una Nota de Crédito/Débito. */
+export const printNotaTicket = async (nota, datosNegocio, cliente) => {
+  const bytes = buildNotaTicket(nota, datosNegocio, cliente);
+  await printBytes(bytes);
+};
+
 /** Imprime una página de prueba para verificar la conexión. */
 export const printTestPage = async (datosNegocio = {}) => {
   const ventaPrueba = {

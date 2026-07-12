@@ -9,6 +9,7 @@ import {
   Eye,
   Printer,
   FileDiff,
+  Receipt,
 } from 'lucide-react';
 import SearchBar from './SearchBar.jsx';
 import {
@@ -22,7 +23,11 @@ import {
 import { useAppContext } from '../context/AppContext.jsx';
 import { formatCurrency } from '../utils/helpers.js';
 
-function NotasCDTab({ onViewDetailsNotaCD, onPrintNotaCD }) {
+function NotasCDTab({
+  onViewDetailsNotaCD,
+  onPrintNotaCD,
+  onPrintNotaTermico,
+}) {
   const {
     notasCD,
     handleCrearNotaManual,
@@ -320,6 +325,7 @@ function NotasCDTab({ onViewDetailsNotaCD, onPrintNotaCD }) {
         ptoVta: datosAfip?.ptoVta || null,
         cbteTipo: datosAfip?.cbteTipo || cbteTipoAFIP || null,
         cbteNro: datosAfip?.cbteNro || null,
+        fechaComprobante: datosAfip?.fechaComprobante || null,
       };
 
       await handleCrearNotaManual(notaDataParaApp);
@@ -704,12 +710,24 @@ function NotasCDTab({ onViewDetailsNotaCD, onPrintNotaCD }) {
                           <motion.button
                             onClick={() => onPrintNotaCD(n.id)}
                             className="mr-2 rounded p-1 text-blue-400 hover:text-blue-300"
-                            title="Imprimir Nota"
+                            title="Imprimir PDF (A4)"
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
                             disabled={isActionDisabled(n)}
                           >
                             <Printer className="inline-block h-4 w-4" />
+                          </motion.button>
+                        )}
+                        {typeof onPrintNotaTermico === 'function' && (
+                          <motion.button
+                            onClick={() => onPrintNotaTermico(n.id)}
+                            className="mr-2 rounded p-1 text-green-400 hover:text-green-300"
+                            title="Imprimir ticket térmico"
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            disabled={isActionDisabled(n)}
+                          >
+                            <Receipt className="inline-block h-4 w-4" />
                           </motion.button>
                         )}
                         <motion.button
