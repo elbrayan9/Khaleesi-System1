@@ -605,6 +605,7 @@ export const addNotaManual = async (userId, notaData, sucursalId) => {
       id: newNotaDocRef.id,
       sucursalId,
       userId,
+      createdAt: serverTimestamp(),
     });
 
     // 2. Si la nota es de crédito e implica devolución, restauramos stock

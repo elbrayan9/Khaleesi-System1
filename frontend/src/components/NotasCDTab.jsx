@@ -331,6 +331,18 @@ function NotasCDTab({ onViewDetailsNotaCD, onPrintNotaCD }) {
 
   const isActionDisabled = (nota) =>
     !nota.id || (typeof nota.id === 'string' && nota.id.startsWith('local_'));
+
+  // Valor para ordenar las notas: usa createdAt si existe; si no, parsea la
+  // fecha DD/MM/YYYY. Las más nuevas primero, con desempate por N° comprobante.
+  const notaSortValue = (n) => {
+    if (typeof n.createdAt?.toMillis === 'function') return n.createdAt.toMillis();
+    if (typeof n.createdAt?.seconds === 'number') return n.createdAt.seconds * 1000;
+    if (n.fecha) {
+      const [dd, mm, yyyy] = String(n.fecha).split('/').map(Number);
+      if (yyyy) return new Date(yyyy, (mm || 1) - 1, dd || 1).getTime();
+    }
+    return 0;
+  };
   const thClasses =
     'px-3 py-2 text-left text-xs font-medium text-zinc-300 uppercase tracking-wider';
   const tdClasses = 'px-3 py-2 text-sm';
@@ -623,7 +635,8 @@ function NotasCDTab({ onViewDetailsNotaCD, onPrintNotaCD }) {
                   .slice()
                   .sort(
                     (a, b) =>
-                      new Date(b.timestamp || 0) - new Date(a.timestamp || 0),
+                      notaSortValue(b) - notaSortValue(a) ||
+                      (Number(b.cbteNro) || 0) - (Number(a.cbteNro) || 0),
                   )
                   .map((n) => (
                     <TableRow
