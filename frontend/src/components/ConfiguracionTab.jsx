@@ -81,6 +81,21 @@ function ConfiguracionTab() {
     }
   };
 
+  // Descarga el contenido cargado (certificado o clave) como archivo, para
+  // que puedas guardar un backup antes de borrar nada.
+  const descargarArchivo = (contenido, nombreArchivo) => {
+    if (!contenido) return;
+    const blob = new Blob([contenido], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nombreArchivo;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const handleRepairData = async () => {
     console.log('handleRepairData iniciado'); // DEBUG
     if (!currentUser) {
@@ -503,13 +518,27 @@ function ConfiguracionTab() {
                       <span className="flex items-center gap-2 text-sm text-green-400">
                         ✓ Certificado Cargado
                       </span>
-                      <button
-                        onClick={() => setAfipCert('')}
-                        className="rounded p-1 text-zinc-400 transition-colors hover:bg-red-500/20 hover:text-red-400"
-                        title="Eliminar certificado"
-                      >
-                        <Trash2 size={18} />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() =>
+                            descargarArchivo(
+                              afipCert,
+                              `certificado_${cuit || 'negocio'}.crt`,
+                            )
+                          }
+                          className="rounded p-1 text-zinc-400 transition-colors hover:bg-blue-500/20 hover:text-blue-400"
+                          title="Descargar (backup) del certificado"
+                        >
+                          <Download size={18} />
+                        </button>
+                        <button
+                          onClick={() => setAfipCert('')}
+                          className="rounded p-1 text-zinc-400 transition-colors hover:bg-red-500/20 hover:text-red-400"
+                          title="Eliminar certificado"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <input
@@ -522,7 +551,7 @@ function ConfiguracionTab() {
                 </div>
                 <p className="mt-1 text-xs text-zinc-500">
                   {afipCert
-                    ? 'Para cambiarlo, elimínalo primero.'
+                    ? 'Descargá un backup (↓) y guardalo antes de eliminarlo.'
                     : 'Sube tu archivo .crt generado en AFIP.'}
                 </p>
               </div>
@@ -537,13 +566,27 @@ function ConfiguracionTab() {
                       <span className="flex items-center gap-2 text-sm text-green-400">
                         ✓ Clave Cargada
                       </span>
-                      <button
-                        onClick={() => setAfipKey('')}
-                        className="rounded p-1 text-zinc-400 transition-colors hover:bg-red-500/20 hover:text-red-400"
-                        title="Eliminar clave"
-                      >
-                        <Trash2 size={18} />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() =>
+                            descargarArchivo(
+                              afipKey,
+                              `clave_${cuit || 'negocio'}.key`,
+                            )
+                          }
+                          className="rounded p-1 text-zinc-400 transition-colors hover:bg-blue-500/20 hover:text-blue-400"
+                          title="Descargar (backup) de la clave privada"
+                        >
+                          <Download size={18} />
+                        </button>
+                        <button
+                          onClick={() => setAfipKey('')}
+                          className="rounded p-1 text-zinc-400 transition-colors hover:bg-red-500/20 hover:text-red-400"
+                          title="Eliminar clave"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <input
@@ -556,7 +599,7 @@ function ConfiguracionTab() {
                 </div>
                 <p className="mt-1 text-xs text-zinc-500">
                   {afipKey
-                    ? 'Para cambiarla, elimínala primero.'
+                    ? '⚠️ Descargá un backup (↓) y guardalo bien: si borrás la clave sin backup, hay que rehacer todo en ARCA.'
                     : 'Sube tu archivo .key generado con OpenSSL.'}
                 </p>
               </div>
