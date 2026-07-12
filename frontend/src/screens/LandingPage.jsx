@@ -1,8 +1,13 @@
 // frontend/src/screens/LandingPage.jsx
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import {
+  motion,
+  AnimatePresence,
+  useScroll,
+  useTransform,
+} from 'framer-motion';
 import {
   ShoppingCart,
   Package,
@@ -33,6 +38,7 @@ import dashboardMobile from '../assets/dashboard-mobile.png';
 import TypeAnimation from '../components/TypeAnimation';
 import { AnimatedButton } from '../components/AnimatedButton';
 import HoverEffectWrapper from '../components/HoverEffectWrapper';
+import Tilt3D from '../components/Tilt3D';
 
 // Componente para cada tarjeta de característica (CON EFECTO GLOW)
 const FeatureCard = ({
@@ -66,6 +72,16 @@ const FeatureCard = ({
 const LandingPage = () => {
   const [billingCycle, setBillingCycle] = useState('monthly');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Parallax del hero: la imagen 3D se mueve/encoge a medida que se hace scroll.
+  const heroRef = useRef(null);
+  const { scrollYProgress } = useScroll({
+    target: heroRef,
+    offset: ['start start', 'end start'],
+  });
+  const heroVisualY = useTransform(scrollYProgress, [0, 1], [0, 120]);
+  const heroVisualScale = useTransform(scrollYProgress, [0, 1], [1, 0.9]);
+  const heroVisualOpacity = useTransform(scrollYProgress, [0, 0.85], [1, 0.3]);
 
   // Lista COMPLETA de 12 características con texto ajustado
   const features = [
@@ -305,7 +321,10 @@ const LandingPage = () => {
 
       <main className="relative z-10">
         {/* Hero Section */}
-        <section className="px-4 py-24 text-center sm:py-32">
+        <section
+          ref={heroRef}
+          className="relative px-4 pb-10 pt-24 text-center sm:pt-32"
+        >
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -357,6 +376,46 @@ const LandingPage = () => {
                 Comienza tu prueba gratis de 7 días
               </AnimatedButton>
             </Link>
+          </motion.div>
+
+          {/* Visual 3D interactivo: parallax al hacer scroll + tilt con el mouse */}
+          <motion.div
+            className="relative mx-auto mt-16 max-w-5xl sm:mt-20"
+            style={{
+              y: heroVisualY,
+              scale: heroVisualScale,
+              opacity: heroVisualOpacity,
+            }}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 60, rotateX: 18 }}
+              animate={{ opacity: 1, y: 0, rotateX: 0 }}
+              transition={{ duration: 1, delay: 0.4, ease: 'easeOut' }}
+              style={{ transformStyle: 'preserve-3d' }}
+            >
+              {/* Resplandor detrás del panel */}
+              <div className="pointer-events-none absolute inset-x-10 top-12 -z-10 h-3/4 rounded-full bg-blue-600/25 blur-[110px]" />
+
+              <Tilt3D max={7} glare className="w-full">
+                <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-zinc-900/80 shadow-2xl shadow-blue-950/40 ring-1 ring-white/5">
+                  {/* Barra del navegador */}
+                  <div className="flex h-9 items-center gap-2 border-b border-white/10 bg-zinc-900/90 px-4">
+                    <span className="h-3 w-3 rounded-full bg-red-500/80" />
+                    <span className="h-3 w-3 rounded-full bg-yellow-500/80" />
+                    <span className="h-3 w-3 rounded-full bg-green-500/80" />
+                    <div className="ml-3 hidden flex-1 rounded-md bg-white/5 px-3 py-1 text-left text-xs text-zinc-500 sm:block">
+                      app.khaleesisystem.com.ar
+                    </div>
+                  </div>
+                  <img
+                    src={dashboardDesktop}
+                    alt="Panel de control de Khaleesi System"
+                    className="block w-full"
+                    loading="lazy"
+                  />
+                </div>
+              </Tilt3D>
+            </motion.div>
           </motion.div>
         </section>
 
@@ -599,7 +658,11 @@ const LandingPage = () => {
                 </p>
               </motion.div>
 
-              <div className="relative mx-auto h-[400px] w-full max-w-[600px] lg:h-[500px]">
+              <Tilt3D
+                max={10}
+                glare={false}
+                className="relative mx-auto h-[400px] w-full max-w-[600px] lg:h-[500px]"
+              >
                 {/* Computer Mockup */}
                 <motion.div
                   className="absolute left-0 top-10 z-10 h-[300px] w-[90%] rounded-xl border border-zinc-700 bg-zinc-900/90 shadow-2xl backdrop-blur-sm sm:h-[350px] md:w-[80%]"
@@ -659,7 +722,7 @@ const LandingPage = () => {
                     </div>
                   </div>
                 </motion.div>
-              </div>
+              </Tilt3D>
             </div>
           </div>
         </section>
