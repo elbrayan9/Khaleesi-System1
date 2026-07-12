@@ -356,7 +356,7 @@ async function enforceDailyLimit(uid, maxPerDay = 10) {
 // =======================
 // Chat con Gemini (Gen2 + Secret + modelo vigente)
 // =======================
-const MODEL_NAME = 'gemini-1.5-flash-001';
+const MODEL_NAME = 'gemini-2.0-flash';
 const TOPIC_KEYWORDS = [
   'pago',
   'pagos',
@@ -486,7 +486,7 @@ exports.askGemini = onCall({ secrets: [GEMINI_KEY] }, async (request) => {
     `.trim();
 
     const model = genAI.getGenerativeModel({
-      model: 'gemini-pro',
+      model: MODEL_NAME,
     });
 
     // Prepend system instruction to the prompt since some models/API versions
