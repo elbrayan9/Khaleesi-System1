@@ -249,6 +249,9 @@ exports.createInvoice = async (request) => {
       impNeto: impNeto,
       impIva: impIva,
       impTotal: impTotal,
+      // Fecha real del comprobante (AAAAMMDD) que registró ARCA. Sirve para
+      // que el PDF/QR muestren la fecha de emisión correcta al facturar después.
+      fechaComprobante: fechaCbte,
     };
   } catch (error) {
     console.error('[AFIP CAE] Error:', error);

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Printer,
@@ -25,6 +26,7 @@ import {
   Unlock,
   Receipt,
   FileText,
+  FileMinus,
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import PaginationControls from './PaginationControls.jsx';
@@ -72,6 +74,7 @@ function ReportesTab({
     solicitarPin,
     canAccessAfip,
   } = useAppContext();
+  const navigate = useNavigate();
 
   const vendedorActual = vendedores?.find(v => v.id === vendedorActivoId) || {};
   const puedeVerEstadisticasCaja = vendedorActual.verEstadisticasCaja !== false;
@@ -555,6 +558,16 @@ function ReportesTab({
       return;
     }
     handleFacturarVentaExistente?.(ventaId);
+  };
+  const handleLocalAnularClick = (ventaId) => {
+    if (!checkIdValidityForAction(ventaId, 'Venta')) {
+      mostrarMensaje('ID de venta inválido.', 'error');
+      return;
+    }
+    const ventaObj = ventas.find((v) => v.id === ventaId);
+    if (!ventaObj) return mostrarMensaje('Venta no encontrada.', 'error');
+    // Llevamos a Notas C/D con la venta precargada para emitir la NC.
+    navigate('/dashboard/notas', { state: { ventaParaAnular: ventaObj } });
   };
 
   const handleCerrarCaja = () => {
@@ -1043,6 +1056,18 @@ function ReportesTab({
                                             <FileText className="h-4 w-4" />
                                           </button>
                                         )}
+                                      {canAccessAfip &&
+                                        item.afipData?.cae && (
+                                          <button
+                                            onClick={() =>
+                                              handleLocalAnularClick(item.id)
+                                            }
+                                            className="rounded p-1 text-zinc-400 hover:bg-zinc-700 hover:text-pink-400"
+                                            title="Anular con Nota de Crédito"
+                                          >
+                                            <FileMinus className="h-4 w-4" />
+                                          </button>
+                                        )}
                                       {mostrarTodo && !item.afipData?.cae && (
                                       <button
                                         onClick={() =>
@@ -1234,6 +1259,18 @@ function ReportesTab({
                                             title="Facturar (emitir Factura AFIP)"
                                           >
                                             <FileText className="h-4 w-4" />
+                                          </button>
+                                        )}
+                                      {canAccessAfip &&
+                                        item.afipData?.cae && (
+                                          <button
+                                            onClick={() =>
+                                              handleLocalAnularClick(item.id)
+                                            }
+                                            className="rounded p-1 text-zinc-400 hover:bg-zinc-700 hover:text-pink-400"
+                                            title="Anular con Nota de Crédito"
+                                          >
+                                            <FileMinus className="h-4 w-4" />
                                           </button>
                                         )}
                                     </>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   PlusCircle,
@@ -52,6 +53,8 @@ function NotasCDTab({ onViewDetailsNotaCD, onPrintNotaCD }) {
 
   const productoDevRef = useRef(null);
   const clienteRef = useRef(null);
+  const location = useLocation();
+  const preloadDoneRef = useRef(false);
 
   useEffect(() => {
     if (!implicaDevolucion || tipoNota === 'debito') {
@@ -59,6 +62,52 @@ function NotasCDTab({ onViewDetailsNotaCD, onPrintNotaCD }) {
       if (tipoNota === 'debito') setImplicaDevolucion(false);
     }
   }, [implicaDevolucion, tipoNota]);
+
+  // Precarga cuando se llega desde "Anular con NC" en Caja y Reportes.
+  useEffect(() => {
+    if (preloadDoneRef.current) return;
+    const v = location.state?.ventaParaAnular;
+    if (!v) return;
+    preloadDoneRef.current = true;
+
+    setTipoNota('credito');
+    // Si la venta original es una factura con CAE, la NC debe ser electrónica.
+    setGenerarEnAfip(!!v.afipData?.cae);
+    setMonto(String(v.total ?? ''));
+    setVentaRelacionadaId(
+      v.afipData?.cbteNro ? String(v.afipData.cbteNro) : String(v.id || ''),
+    );
+    setMotivo(
+      v.afipData?.cbteNro
+        ? `Anulación de Factura N° ${v.afipData.cbteNro}`
+        : `Anulación de venta #${String(v.id || '').substring(0, 6)}`,
+    );
+
+    const cli = clientes.find((c) => c.id === v.clienteId);
+    if (cli) setClienteSeleccionado(cli);
+    else if (v.clienteNombre) setClienteNombreManual(v.clienteNombre);
+
+    // Precargamos los productos rastreables para devolución (restaura stock).
+    const itemsRast = (Array.isArray(v.items) ? v.items : []).filter(
+      (it) =>
+        it.id &&
+        typeof it.id === 'string' &&
+        !it.id.startsWith('manual_') &&
+        !it.id.startsWith('local_'),
+    );
+    if (itemsRast.length > 0) {
+      setImplicaDevolucion(true);
+      setItemsDevueltos(
+        itemsRast.map((it) => ({
+          id: it.id,
+          nombre: it.nombre,
+          cantidad: it.cantidad,
+          precioOriginal: it.precioOriginal ?? it.precio ?? 0,
+          isTracked: true,
+        })),
+      );
+    }
+  }, [location.state, clientes]);
 
   const isValidFirestoreIdForSelection = (id) =>
     id && typeof id === 'string' && !id.startsWith('local_');

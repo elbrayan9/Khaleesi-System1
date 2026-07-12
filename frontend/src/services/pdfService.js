@@ -273,7 +273,14 @@ export const generarPdfVenta = async (
   doc.setFontSize(10); // Restaurar tamaño
   currentY += 6;
 
-  doc.text(`Fecha de Emisión: ${venta.fecha}`, rightColX, currentY);
+  // Fecha de emisión: si la venta se facturó (con CAE), ARCA usa la fecha del
+  // día en que se emitió. Preferimos esa (afipData.fechaComprobante, AAAAMMDD)
+  // para que el PDF y el QR coincidan con lo que registró ARCA.
+  const fechaCbteRaw = String(venta.afipData?.fechaComprobante || '');
+  const fechaEmision = /^\d{8}$/.test(fechaCbteRaw)
+    ? `${fechaCbteRaw.slice(6, 8)}/${fechaCbteRaw.slice(4, 6)}/${fechaCbteRaw.slice(0, 4)}`
+    : venta.fecha;
+  doc.text(`Fecha de Emisión: ${fechaEmision}`, rightColX, currentY);
   currentY += 6;
 
   doc.text(`CUIT: ${datosNegocio?.cuit || ''}`, rightColX, currentY);
@@ -553,9 +560,15 @@ export const generarPdfVenta = async (
 
     // --- GENERACIÓN DE QR ---
     try {
-      // ARCA exige la fecha en formato yyyy-mm-dd con ceros a la izquierda.
-      const [dQR, mQR, yQR] = String(venta.fecha).split('/');
-      const fechaQR = `${yQR}-${String(mQR).padStart(2, '0')}-${String(dQR).padStart(2, '0')}`;
+      // ARCA exige yyyy-mm-dd. Si tenemos la fecha real del comprobante
+      // (afipData.fechaComprobante, AAAAMMDD), la usamos; si no, la de la venta.
+      let fechaQR;
+      if (/^\d{8}$/.test(fechaCbteRaw)) {
+        fechaQR = `${fechaCbteRaw.slice(0, 4)}-${fechaCbteRaw.slice(4, 6)}-${fechaCbteRaw.slice(6, 8)}`;
+      } else {
+        const [dQR, mQR, yQR] = String(venta.fecha).split('/');
+        fechaQR = `${yQR}-${String(mQR).padStart(2, '0')}-${String(dQR).padStart(2, '0')}`;
+      }
 
       const qrData = {
         ver: 1,
