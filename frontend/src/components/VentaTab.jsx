@@ -175,6 +175,37 @@ function VentaTab() {
         const { getFunctions, httpsCallable } =
           await import('firebase/functions');
         const functions = getFunctions();
+
+        // --- CHEQUEO PREVIO: ¿ARCA está operativo? ---
+        // ARCA a veces se cae. Si está caído, avisamos y NO intentamos facturar
+        // (evita el error críptico y no deja la venta a medias).
+        try {
+          const checkAfipStatus = httpsCallable(functions, 'checkAfipStatus');
+          const estado = await checkAfipStatus({
+            sucursalId: sucursalActual?.id || null,
+          });
+          const s = estado?.data?.status;
+          const arcaOperativo =
+            estado?.data?.success &&
+            s?.appServer === 'OK' &&
+            s?.dbServer === 'OK' &&
+            s?.authServer === 'OK';
+          if (!arcaOperativo) {
+            await mostrarMensaje(
+              'El sistema de ARCA no está disponible en este momento, así que no se puede emitir la factura. Probá de nuevo en unos minutos, o cobrá como "Ticket X" (sin factura) y facturá cuando ARCA vuelva.',
+              'warning',
+            );
+            return;
+          }
+        } catch (statusErr) {
+          console.error('Error verificando estado de ARCA:', statusErr);
+          await mostrarMensaje(
+            'No se pudo verificar el estado de ARCA (puede estar caído o sin conexión a internet). No se emitió la factura. Probá de nuevo en unos minutos.',
+            'warning',
+          );
+          return;
+        }
+
         const createInvoice = httpsCallable(functions, 'createInvoice');
 
         // 1. Preparar Datos para AFIP
