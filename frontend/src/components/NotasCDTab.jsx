@@ -180,6 +180,24 @@ function NotasCDTab({ onViewDetailsNotaCD, onPrintNotaCD }) {
       return;
     }
 
+    // Evitar duplicar una NC para el mismo comprobante/venta relacionada.
+    if (tipoNota === 'credito' && ventaRelacionadaId.trim()) {
+      const rel = ventaRelacionadaId.trim();
+      const yaExiste = notasCD.some(
+        (n) =>
+          n.tipo === 'credito' &&
+          n.ventaRelacionadaId &&
+          String(n.ventaRelacionadaId).trim() === rel,
+      );
+      if (yaExiste) {
+        mostrarMensaje(
+          'Ya existe una Nota de Crédito para ese comprobante/venta. No se puede generar otra.',
+          'warning',
+        );
+        return;
+      }
+    }
+
     setIsProcessing(true);
 
     try {

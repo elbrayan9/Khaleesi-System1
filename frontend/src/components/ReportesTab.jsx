@@ -59,6 +59,7 @@ function ReportesTab({
     egresos,
     ingresosManuales,
     clientes,
+    notasCD,
     handleRegistrarIngresoManual,
     handleEliminarIngresoManual,
     handleRegistrarEgreso,
@@ -559,6 +560,21 @@ function ReportesTab({
     }
     handleFacturarVentaExistente?.(ventaId);
   };
+  // True si la venta/factura ya tiene una Nota de Crédito emitida.
+  const facturaTieneNota = (venta) => {
+    if (!venta) return false;
+    const cbteNro = venta.afipData?.cbteNro
+      ? String(venta.afipData.cbteNro)
+      : null;
+    return (notasCD || []).some(
+      (n) =>
+        n.tipo === 'credito' &&
+        (n.ventaOriginalId === venta.id ||
+          (n.ventaRelacionadaId &&
+            (String(n.ventaRelacionadaId) === String(venta.id) ||
+              (cbteNro && String(n.ventaRelacionadaId) === cbteNro)))),
+    );
+  };
   const handleLocalAnularClick = (ventaId) => {
     if (!checkIdValidityForAction(ventaId, 'Venta')) {
       mostrarMensaje('ID de venta inválido.', 'error');
@@ -566,6 +582,12 @@ function ReportesTab({
     }
     const ventaObj = ventas.find((v) => v.id === ventaId);
     if (!ventaObj) return mostrarMensaje('Venta no encontrada.', 'error');
+    if (facturaTieneNota(ventaObj)) {
+      return mostrarMensaje(
+        'Esta factura ya tiene una Nota de Crédito emitida. No se puede anular de nuevo.',
+        'warning',
+      );
+    }
     // Llevamos a Notas C/D con la venta precargada para emitir la NC.
     navigate('/dashboard/notas', { state: { ventaParaAnular: ventaObj } });
   };
@@ -1057,7 +1079,8 @@ function ReportesTab({
                                           </button>
                                         )}
                                       {canAccessAfip &&
-                                        item.afipData?.cae && (
+                                        item.afipData?.cae &&
+                                        !facturaTieneNota(item) && (
                                           <button
                                             onClick={() =>
                                               handleLocalAnularClick(item.id)
@@ -1262,7 +1285,8 @@ function ReportesTab({
                                           </button>
                                         )}
                                       {canAccessAfip &&
-                                        item.afipData?.cae && (
+                                        item.afipData?.cae &&
+                                        !facturaTieneNota(item) && (
                                           <button
                                             onClick={() =>
                                               handleLocalAnularClick(item.id)
