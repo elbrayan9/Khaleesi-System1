@@ -150,7 +150,7 @@ function VentaTab() {
     }
   };
 
-  const handleConfirmPayment = async (metodoPago, tipoFactura) => {
+  const handleConfirmPayment = async (metodoPago, tipoFactura, vuelto = 0) => {
     setIsPaymentModalOpen(false);
     const totalVenta = calculateTotal();
     const clienteFinal = selectedClientId
@@ -278,6 +278,7 @@ function VentaTab() {
       tipoFactura,
       vendedorActivoId, // <--- USAMOS EL GLOBAL
       afipResult, // <--- Pasamos los datos de AFIP
+      vuelto, // <--- Vuelto calculado en el modal de pago
     );
     setSelectedClientId(null);
     safeFocus();

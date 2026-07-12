@@ -23,6 +23,8 @@ function PaymentModal({
 
   // Estado específico para el cálculo de vuelto en efectivo
   const [pagaCon, setPagaCon] = useState('');
+  // Vuelto acumulado que hay que devolver (se guarda en la venta / ticket).
+  const [vueltoAcumulado, setVueltoAcumulado] = useState(0);
 
   useEffect(() => {
     // Resetea el modal cada vez que se abre
@@ -31,6 +33,7 @@ function PaymentModal({
       setMontoActual('');
       setMetodoPagoActual('efectivo');
       setPagaCon('');
+      setVueltoAcumulado(0);
       if (cliente && cliente.cuit && cliente.cuit.length > 5) {
         setTipoFactura('A');
       } else {
@@ -45,28 +48,34 @@ function PaymentModal({
     return parseFloat((total - pagado).toFixed(2));
   }, [pagos, total]);
 
+  // Preview del vuelto: si no se tipeó un monto, se asume que en efectivo
+  // paga el saldo restante (caso más común: paga todo con un billete).
   const vuelto = useMemo(() => {
+    if (metodoPagoActual !== 'efectivo') return 0;
     const recibido = parseFloat(pagaCon) || 0;
-    const montoAPagar = parseFloat(montoActual) || 0;
-    if (
-      metodoPagoActual === 'efectivo' &&
-      recibido > 0 &&
-      recibido >= montoAPagar
-    ) {
-      return recibido - montoAPagar;
-    }
-    return 0;
-  }, [pagaCon, montoActual, metodoPagoActual]);
+    if (recibido <= 0) return 0;
+    const aplica = parseFloat(montoActual) || montoRestante;
+    return recibido > aplica ? parseFloat((recibido - aplica).toFixed(2)) : 0;
+  }, [pagaCon, montoActual, metodoPagoActual, montoRestante]);
 
   // --- FUNCIÓN PARA AGREGAR PAGOS ---
   const handleAgregarPago = () => {
-    const monto = parseFloat(montoActual);
+    const esEfectivo = metodoPagoActual === 'efectivo';
+    const recibido = parseFloat(pagaCon) || 0;
+
+    // Monto a aplicar: lo tipeado; si es efectivo y solo se puso "paga con",
+    // se aplica el saldo restante (caso común: paga todo con un billete).
+    let monto = parseFloat(montoActual);
+    if (isNaN(monto) && esEfectivo && recibido > 0) {
+      monto = montoRestante;
+    }
     if (isNaN(monto) || monto <= 0) {
-      mostrarMensaje('Por favor, ingrese un monto válido.', 'warning');
+      mostrarMensaje('Ingresá un monto o con cuánto paga.', 'warning');
       return;
     }
+    monto = parseFloat(monto.toFixed(2));
+
     if (monto > montoRestante + 0.001) {
-      // Pequeño margen de error para decimales
       mostrarMensaje(
         `El monto no puede ser mayor que lo que falta pagar ($${formatCurrency(montoRestante)}).`,
         'warning',
@@ -74,8 +83,13 @@ function PaymentModal({
       return;
     }
 
-    const nuevoPago = { metodo: metodoPagoActual, monto: monto };
-    setPagos((prev) => [...prev, nuevoPago]);
+    // Vuelto de este pago: solo en efectivo, si recibió más de lo aplicado.
+    const vueltoTender = esEfectivo && recibido > monto ? recibido - monto : 0;
+
+    setPagos((prev) => [...prev, { metodo: metodoPagoActual, monto }]);
+    setVueltoAcumulado((prev) =>
+      parseFloat((prev + vueltoTender).toFixed(2)),
+    );
 
     // Limpiar campos
     setMontoActual('');
@@ -85,8 +99,8 @@ function PaymentModal({
 
   // Lógica para el botón de confirmar
   const handleConfirmar = () => {
-    // Pasamos la lista de pagos y el tipo de factura al AppContext
-    onConfirm(pagos, tipoFactura);
+    // Pasamos pagos, tipo de factura y el vuelto acumulado al AppContext.
+    onConfirm(pagos, tipoFactura, vueltoAcumulado);
   };
 
   if (!isOpen) return null;
@@ -109,9 +123,9 @@ function PaymentModal({
               Faltan: ${formatCurrency(montoRestante)}
             </p>
           )}
-          {montoRestante < 0 && (
-            <p className="text-lg font-semibold text-green-400">
-              Vuelto Total: ${formatCurrency(Math.abs(montoRestante))}
+          {vueltoAcumulado > 0 && (
+            <p className="text-xl font-bold text-green-400">
+              Vuelto: ${formatCurrency(vueltoAcumulado)}
             </p>
           )}
         </div>
@@ -183,7 +197,7 @@ function PaymentModal({
             {metodoPagoActual === 'efectivo' && (
               <div>
                 <label className="mb-1 block text-sm font-medium text-zinc-300">
-                  Paga con (Opcional):
+                  ¿Con cuánto paga? (para calcular el vuelto):
                 </label>
                 <input
                   type="number"
@@ -192,6 +206,25 @@ function PaymentModal({
                   placeholder="Ej: 1000"
                   className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2"
                 />
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPagaCon(montoRestante.toFixed(2))}
+                    className="rounded-md bg-zinc-600 px-3 py-1 text-xs font-semibold text-white hover:bg-zinc-500"
+                  >
+                    Justo
+                  </button>
+                  {[1000, 2000, 5000, 10000, 20000].map((billete) => (
+                    <button
+                      key={billete}
+                      type="button"
+                      onClick={() => setPagaCon(String(billete))}
+                      className="rounded-md bg-zinc-600 px-3 py-1 text-xs font-semibold text-white hover:bg-zinc-500"
+                    >
+                      ${billete.toLocaleString('es-AR')}
+                    </button>
+                  ))}
+                </div>
                 {vuelto > 0 && (
                   <p className="text-md mt-2 text-center font-bold text-green-400">
                     Vuelto: ${formatCurrency(vuelto)}

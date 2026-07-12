@@ -1167,6 +1167,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     tipoFactura,
     overrideVendedorId = null,
     afipData = null, // <--- Nuevo parámetro opcional
+    vueltoManual = null, // <--- Vuelto calculado en el modal de pago
   ) => {
     // Usamos el override si existe, sino el del contexto (cajero)
     const vendedorIdFinal = overrideVendedorId || vendedorActivoId;
@@ -1206,7 +1207,14 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       (sum, p) => sum + (Number(p?.monto) || 0),
       0,
     );
-    const vueltoFinal = totalPagado > total ? totalPagado - total : 0;
+    // Preferimos el vuelto calculado en el modal (efectivo "paga con"); si no,
+    // lo derivamos de la diferencia entre lo pagado y el total.
+    const vueltoFinal =
+      vueltoManual != null && vueltoManual > 0
+        ? parseFloat(Number(vueltoManual).toFixed(2))
+        : totalPagado > total
+          ? totalPagado - total
+          : 0;
 
     // --- LÓGICA MODIFICADA PARA AÑADIR EL COSTO ---
     const itemsWithCost = ensureArray(itemsInCart).map((item) => {
