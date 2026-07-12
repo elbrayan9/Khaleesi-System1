@@ -1284,6 +1284,131 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     }
   };
 
+  // Emite la factura electrónica de una venta YA cobrada (ej: se cobró como
+  // Ticket X porque ARCA estaba caído). Al obtener el CAE, actualiza la venta.
+  const handleFacturarVentaExistente = async (ventaId) => {
+    const venta = ventas.find((v) => v.id === ventaId);
+    if (!venta) {
+      mostrarMensaje?.('Venta no encontrada.', 'error');
+      return;
+    }
+    if (venta.afipData?.cae) {
+      mostrarMensaje?.('Esta venta ya tiene factura (CAE).', 'info');
+      return;
+    }
+
+    const cliente = clientes.find((c) => c.id === venta.clienteId) || null;
+
+    // Tipo de comprobante según la condición del emisor (y del cliente para A/B).
+    const condEmisor = (datosNegocio?.condicionIva || '').toLowerCase();
+    let tipoFactura = 'C';
+    if (condEmisor.includes('inscripto')) {
+      const clienteRI = (cliente?.condicionFiscal || '')
+        .toLowerCase()
+        .includes('inscripto');
+      tipoFactura = clienteRI && cliente?.cuit ? 'A' : 'B';
+    }
+
+    const confirmado = await confirmarAccion?.(
+      'Facturar venta',
+      `Se va a emitir una Factura ${tipoFactura} por $${Number(venta.total).toFixed(2)}. ¿Continuar?`,
+      'question',
+      'Sí, facturar',
+    );
+    if (!confirmado) return;
+
+    try {
+      setIsLoadingData(true);
+      const { getFunctions, httpsCallable } = await import(
+        'firebase/functions'
+      );
+      const functions = getFunctions();
+
+      // Chequeo previo: ¿ARCA está operativo?
+      const checkAfipStatus = httpsCallable(functions, 'checkAfipStatus');
+      const estado = await checkAfipStatus({
+        sucursalId: sucursalActual?.id || null,
+      });
+      const s = estado?.data?.status;
+      const arcaOperativo =
+        estado?.data?.success &&
+        s?.appServer === 'OK' &&
+        s?.dbServer === 'OK' &&
+        s?.authServer === 'OK';
+      if (!arcaOperativo) {
+        mostrarMensaje?.(
+          'ARCA sigue sin estar disponible. Probá de nuevo en unos minutos.',
+          'warning',
+        );
+        return;
+      }
+
+      // Importes y documento del receptor.
+      const total = Number(venta.total) || 0;
+      const cbteTipo = tipoFactura === 'A' ? 1 : tipoFactura === 'B' ? 6 : 11;
+      let importeNeto = total;
+      let importeIva = 0;
+      if (tipoFactura === 'A' || tipoFactura === 'B') {
+        importeNeto = total / 1.21;
+        importeIva = total - importeNeto;
+      }
+
+      const cuitCliente = String(cliente?.cuit || '').replace(/\D/g, '');
+      let docTipo = 99; // Consumidor Final
+      let docNro = 0;
+      if (cuitCliente.length === 11) {
+        docTipo = 80; // CUIT
+        docNro = cuitCliente;
+      }
+
+      const ptoVta =
+        sucursalActual?.puntoVenta ||
+        sucursalActual?.configuracion?.puntoVenta ||
+        datosNegocio?.puntoVenta ||
+        1;
+
+      const createInvoice = httpsCallable(functions, 'createInvoice');
+      const result = await createInvoice({
+        sucursalId: sucursalActual?.id,
+        ptoVta,
+        cbteTipo,
+        concepto: 1,
+        docTipo,
+        docNro,
+        importeTotal: total,
+        importeNeto,
+        importeIva,
+        importeExento: 0,
+      });
+
+      if (!result?.data?.success || !result?.data?.cae) {
+        throw new Error(result?.data?.error || 'ARCA no devolvió un CAE.');
+      }
+
+      const afipData = { ...result.data, ptoVta, cbteTipo, docTipo, docNro };
+
+      const ok = await fsService.updateDocument('ventas', venta.id, {
+        afipData,
+        tipoFactura,
+      });
+      if (!ok) {
+        throw new Error(
+          `La factura se emitió pero no se pudo guardar en la venta. Anotá el CAE: ${afipData.cae}`,
+        );
+      }
+
+      await mostrarMensaje?.(
+        `Factura ${tipoFactura} emitida con éxito. CAE: ${afipData.cae}`,
+        'success',
+      );
+    } catch (error) {
+      console.error('Error al facturar venta existente:', error);
+      mostrarMensaje?.(`No se pudo facturar: ${error.message}`, 'error');
+    } finally {
+      setIsLoadingData(false);
+    }
+  };
+
   const handleAbrirTurno = async (vendedorId, montoInicial) => {
     const vendedor = vendedores.find((v) => v.id === vendedorId);
     if (!vendedor) return;
@@ -2177,6 +2302,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     handleUpdateCartQuantity,
     handleClearCart,
     handleSaleConfirmed,
+    handleFacturarVentaExistente,
     handleEliminarVenta,
     handleSaveBudget,
     handleDeleteBudget,

@@ -24,6 +24,7 @@ import {
   Lock,
   Unlock,
   Receipt,
+  FileText,
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import PaginationControls from './PaginationControls.jsx';
@@ -61,9 +62,16 @@ function ReportesTab({
     handleRegistrarEgreso,
     handleEliminarEgreso,
     handleEliminarVenta,
+    handleFacturarVentaExistente,
     mostrarMensaje,
   } = useAppContext();
-  const { datosNegocio, vendedores, vendedorActivoId, solicitarPin } = useAppContext();
+  const {
+    datosNegocio,
+    vendedores,
+    vendedorActivoId,
+    solicitarPin,
+    canAccessAfip,
+  } = useAppContext();
 
   const vendedorActual = vendedores?.find(v => v.id === vendedorActivoId) || {};
   const puedeVerEstadisticasCaja = vendedorActual.verEstadisticasCaja !== false;
@@ -541,6 +549,13 @@ function ReportesTab({
     if (ventaObj && onPrintTermicoRequest) onPrintTermicoRequest(ventaObj);
     else mostrarMensaje('Venta no encontrada.', 'error');
   };
+  const handleLocalFacturarClick = (ventaId) => {
+    if (!checkIdValidityForAction(ventaId, 'Venta')) {
+      mostrarMensaje('ID de venta inválido.', 'error');
+      return;
+    }
+    handleFacturarVentaExistente?.(ventaId);
+  };
 
   const handleCerrarCaja = () => {
     let resumenVendedorHtml = '';
@@ -1016,6 +1031,18 @@ function ReportesTab({
                                           <Receipt className="h-4 w-4" />
                                         </button>
                                       )}
+                                      {canAccessAfip &&
+                                        !item.afipData?.cae && (
+                                          <button
+                                            onClick={() =>
+                                              handleLocalFacturarClick(item.id)
+                                            }
+                                            className="rounded p-1 text-zinc-400 hover:bg-zinc-700 hover:text-amber-400"
+                                            title="Facturar (emitir Factura AFIP)"
+                                          >
+                                            <FileText className="h-4 w-4" />
+                                          </button>
+                                        )}
                                       {mostrarTodo && (
                                       <button
                                         onClick={() =>
@@ -1197,6 +1224,18 @@ function ReportesTab({
                                           <Receipt className="h-4 w-4" />
                                         </button>
                                       )}
+                                      {canAccessAfip &&
+                                        !item.afipData?.cae && (
+                                          <button
+                                            onClick={() =>
+                                              handleLocalFacturarClick(item.id)
+                                            }
+                                            className="rounded p-1 text-zinc-400 hover:bg-zinc-700 hover:text-amber-400"
+                                            title="Facturar (emitir Factura AFIP)"
+                                          >
+                                            <FileText className="h-4 w-4" />
+                                          </button>
+                                        )}
                                     </>
                                   )}
                                 </div>
