@@ -11,6 +11,7 @@ function ClientForm({ onSave, clientToEdit, onCancelEdit }) {
   const [cuit, setCuit] = useState('');
   const [direccion, setDireccion] = useState('');
   const [condicionFiscal, setCondicionFiscal] = useState('Consumidor Final');
+  const [telefono, setTelefono] = useState('');
 
   // Cargar datos al editar un cliente existente
   useEffect(() => {
@@ -19,12 +20,14 @@ function ClientForm({ onSave, clientToEdit, onCancelEdit }) {
       setCuit(clientToEdit.cuit || '');
       setDireccion(clientToEdit.direccion || '');
       setCondicionFiscal(clientToEdit.condicionFiscal || 'Consumidor Final');
+      setTelefono(clientToEdit.telefono || '');
     } else {
       // Limpiar formulario para nuevo cliente
       setNombre('');
       setCuit('');
       setDireccion('');
       setCondicionFiscal('Consumidor Final');
+      setTelefono('');
     }
   }, [clientToEdit]);
 
@@ -40,6 +43,7 @@ function ClientForm({ onSave, clientToEdit, onCancelEdit }) {
       cuit: cuit.trim() || null,
       direccion: direccion.trim() || '-', // Guion si está vacío para evitar error en PDF
       condicionFiscal: condicionFiscal || 'Consumidor Final',
+      telefono: telefono.trim() || null,
     });
   };
 
@@ -210,6 +214,20 @@ function ClientForm({ onSave, clientToEdit, onCancelEdit }) {
             <option value="Responsable Inscripto">Responsable Inscripto</option>
             <option value="Exento">Exento</option>
           </select>
+        </div>
+
+        {/* TELÉFONO / WHATSAPP */}
+        <div className="sm:col-span-2">
+          <label className="mb-1 block text-sm font-medium text-zinc-300">
+            Teléfono / WhatsApp:
+          </label>
+          <input
+            type="tel"
+            value={telefono}
+            onChange={(e) => setTelefono(e.target.value)}
+            placeholder="Ej: 3541 21-5803 (para enviar el comprobante)"
+            className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100 focus:border-blue-500 focus:ring-blue-500"
+          />
         </div>
 
         {/* BOTONES */}

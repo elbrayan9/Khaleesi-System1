@@ -2,7 +2,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { X } from 'lucide-react';
-import { Download, Printer } from 'lucide-react';
+import { Download, Printer, MessageCircle } from 'lucide-react';
 
 function SaleDetailModal({
   isOpen,
@@ -20,6 +20,37 @@ function SaleDetailModal({
     clienteInfo?.nombre || venta?.clienteNombre || 'Consumidor Final';
   const clienteCuit =
     clienteInfo?.cuit || (venta?.clienteId !== 0 ? 'No disponible' : '');
+
+  // Envía el comprobante al cliente por WhatsApp (usa su teléfono si lo tiene).
+  const enviarPorWhatsapp = () => {
+    const negocio = datosNegocio?.nombre || 'Mi Negocio';
+    const items = Array.isArray(venta?.items) ? venta.items : [];
+    const lineas = items
+      .map((it) => {
+        const cant = Number(it.cantidad) || 0;
+        const totalLinea = Number(it.precioFinal) || 0;
+        return `- ${it.nombre} x${cant}: $${formatCurrency(totalLinea)}`;
+      })
+      .join('\n');
+    const esFactura = !!venta?.afipData?.cae;
+    const encabezado = esFactura
+      ? `Factura N° ${venta.afipData.cbteNro || ''}`
+      : `Comprobante #${String(venta?.id || '').substring(0, 8)}`;
+    const cae = esFactura ? `\nCAE: ${venta.afipData.cae}` : '';
+    const mensaje =
+      `*${negocio}*\n${encabezado}\n` +
+      `Fecha: ${venta?.fecha || ''}\n` +
+      `--------------------\n${lineas}\n--------------------\n` +
+      `*TOTAL: $${formatCurrency(venta?.total)}*${cae}\n\n` +
+      `¡Gracias por tu compra!`;
+
+    // Teléfono del cliente normalizado para wa.me (Argentina).
+    let tel = String(clienteInfo?.telefono || '').replace(/\D/g, '');
+    if (tel && !tel.startsWith('54')) tel = `549${tel}`;
+
+    const url = `https://wa.me/${tel}?text=${encodeURIComponent(mensaje)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
 
   const modalVariants = {
     hidden: { opacity: 0, scale: 0.9 },
@@ -195,7 +226,17 @@ function SaleDetailModal({
           </div>
         </div>
 
-        <div className="mt-5 flex justify-end gap-3 border-t border-zinc-700 pt-4">
+        <div className="mt-5 flex flex-wrap justify-end gap-3 border-t border-zinc-700 pt-4">
+          <motion.button
+            onClick={enviarPorWhatsapp}
+            className="inline-flex items-center rounded-md bg-emerald-600 px-4 py-2 font-bold text-white transition duration-150 ease-in-out hover:bg-emerald-700"
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            title="Enviar comprobante por WhatsApp"
+          >
+            <MessageCircle className="mr-2 h-4 w-4" />
+            WhatsApp
+          </motion.button>
           {onPrintTermico && (
             <motion.button
               onClick={() => onPrintTermico(venta)}
