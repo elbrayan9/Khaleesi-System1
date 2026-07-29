@@ -50,6 +50,7 @@ function ConfiguracionTab() {
   const [condicionIva, setCondicionIva] = useState('Responsable Monotributo');
   const [ingresosBrutos, setIngresosBrutos] = useState('EXENTO');
   const [inicioActividades, setInicioActividades] = useState('');
+  const [mpAccessToken, setMpAccessToken] = useState('');
 
   useEffect(() => {
     if (datosNegocio) {
@@ -67,6 +68,7 @@ function ConfiguracionTab() {
       setCondicionIva(datosNegocio.condicionIva || 'Responsable Monotributo');
       setIngresosBrutos(datosNegocio.ingresosBrutos || 'EXENTO');
       setInicioActividades(datosNegocio.inicioActividades || '');
+      setMpAccessToken(datosNegocio.mpAccessToken || '');
     }
   }, [datosNegocio]);
 
@@ -209,6 +211,7 @@ function ConfiguracionTab() {
       condicionIva: condicionIva,
       ingresosBrutos: ingresosBrutos.trim(),
       inicioActividades: inicioActividades.trim(),
+      mpAccessToken: mpAccessToken.trim() || null,
     };
     handleGuardarDatosNegocio(updatedData);
   };
@@ -683,6 +686,29 @@ function ConfiguracionTab() {
                   placeholder="Ej: 01/01/2024"
                   className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100"
                 />
+              </div>
+
+              <div className="border-t border-zinc-600 pt-3">
+                <label
+                  htmlFor="config-mp-token"
+                  className="mb-1 block text-sm font-medium text-zinc-300"
+                >
+                  Mercado Pago — Access Token
+                </label>
+                <input
+                  type="password"
+                  id="config-mp-token"
+                  value={mpAccessToken}
+                  onChange={(e) => setMpAccessToken(e.target.value)}
+                  placeholder="APP_USR-... (o TEST-... para pruebas)"
+                  className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100"
+                  autoComplete="off"
+                />
+                <p className="mt-1 text-xs text-zinc-500">
+                  Para generar links/QR de cobro. Se obtiene en Mercado Pago →
+                  Tus integraciones → Credenciales (usá las de prueba para
+                  testear).
+                </p>
               </div>
 
               <div className="pt-2">

@@ -669,6 +669,102 @@ exports.checkAfipStatus = onCall(async (request) => {
 });
 
 // ===============================================
+// MERCADO PAGO: crear link/QR de pago (Checkout Pro)
+// ===============================================
+exports.crearPagoMP = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
+  }
+  const uid = request.auth.uid;
+  const {
+    monto,
+    descripcion = 'Venta',
+    sucursalId = null,
+    ventaId = null,
+  } = request.data || {};
+
+  const montoNum = Number(monto);
+  if (!montoNum || montoNum <= 0) {
+    throw new HttpsError('invalid-argument', 'Monto inválido.');
+  }
+
+  // Buscamos el Access Token de Mercado Pago del comercio (sucursal o negocio).
+  let accessToken = null;
+  try {
+    if (sucursalId) {
+      const sucDoc = await db.collection('sucursales').doc(sucursalId).get();
+      if (sucDoc.exists) {
+        const d = sucDoc.data();
+        accessToken =
+          d?.configuracion?.mpAccessToken || d?.mpAccessToken || null;
+      }
+    }
+    if (!accessToken) {
+      const negDoc = await db.collection('datosNegocio').doc(uid).get();
+      if (negDoc.exists) accessToken = negDoc.data()?.mpAccessToken || null;
+    }
+  } catch (e) {
+    console.error('[MP] Error leyendo Access Token:', e);
+  }
+
+  if (!accessToken) {
+    throw new HttpsError(
+      'failed-precondition',
+      'Falta configurar el Access Token de Mercado Pago en Configuración.',
+    );
+  }
+
+  // Referencia externa para poder identificar el pago después (webhook).
+  const externalReference = ventaId || `${uid}_${Date.now()}`;
+
+  const preference = {
+    items: [
+      {
+        title: String(descripcion).substring(0, 250) || 'Venta',
+        quantity: 1,
+        unit_price: parseFloat(montoNum.toFixed(2)),
+        currency_id: 'ARS',
+      },
+    ],
+    external_reference: externalReference,
+    metadata: { userId: uid, sucursalId, ventaId },
+  };
+
+  try {
+    const resp = await fetch(
+      'https://api.mercadopago.com/checkout/preferences',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(preference),
+      },
+    );
+    const data = await resp.json();
+    if (!resp.ok) {
+      console.error('[MP] Rechazo al crear preferencia:', data);
+      throw new HttpsError(
+        'invalid-argument',
+        `Mercado Pago: ${data?.message || 'no se pudo crear el link de pago.'}`,
+      );
+    }
+    return {
+      success: true,
+      preferenceId: data.id,
+      initPoint: data.init_point,
+      sandboxInitPoint: data.sandbox_init_point,
+      externalReference,
+    };
+  } catch (error) {
+    if (error.code) throw error;
+    console.error('[MP] Error de red:', error);
+    throw new HttpsError('internal', 'No se pudo contactar con Mercado Pago.');
+  }
+});
+
+// ===============================================
 // BACKUP MANUAL DE DATOS
 // ===============================================
 /**

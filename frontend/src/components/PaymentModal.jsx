@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { formatCurrency } from '../utils/helpers';
 import PaymentMethodSelect from './PaymentMethodSelect';
 import ReceiptTypeSelect from './ReceiptTypeSelect';
+import CobroMercadoPagoModal from './CobroMercadoPagoModal';
 
 function PaymentModal({
   isOpen,
@@ -29,6 +30,7 @@ function PaymentModal({
   // Propina (opcional): se suma a lo que paga el cliente, pero NO al total
   // facturado a AFIP. Va aparte en la venta y en el ticket.
   const [propina, setPropina] = useState(0);
+  const [showMP, setShowMP] = useState(false); // modal de cobro Mercado Pago
 
   useEffect(() => {
     // Resetea el modal cada vez que se abre
@@ -203,6 +205,16 @@ function PaymentModal({
           )}
         </div>
 
+        {/* COBRO CON MERCADO PAGO (QR / link) */}
+        <button
+          type="button"
+          onClick={() => setShowMP(true)}
+          disabled={totalACobrar <= 0}
+          className="mb-4 flex w-full items-center justify-center gap-2 rounded-lg border border-sky-600 bg-sky-600/10 px-4 py-2 font-semibold text-sky-400 transition-colors hover:bg-sky-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Cobrar con Mercado Pago (QR / Link)
+        </button>
+
         {/* LISTA DE PAGOS AGREGADOS */}
         <div className="mb-4 max-h-24 space-y-2 overflow-y-auto pr-2">
           {pagos.map((pago, index) => (
@@ -333,6 +345,15 @@ function PaymentModal({
           </button>
         </div>
       </div>
+
+      {showMP && (
+        <CobroMercadoPagoModal
+          monto={totalACobrar}
+          descripcion={`Venta ${cliente?.nombre || ''}`.trim()}
+          cliente={cliente}
+          onClose={() => setShowMP(false)}
+        />
+      )}
     </div>
   );
 }
