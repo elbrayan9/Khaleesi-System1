@@ -28,12 +28,20 @@ const RECEIPT_TYPES = [
   },
 ];
 
-function ReceiptTypeSelect({ value, onChange }) {
+function ReceiptTypeSelect({ value, onChange, condicionEmisor }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
 
-  const selectedType =
-    RECEIPT_TYPES.find((t) => t.value === value) || RECEIPT_TYPES[0];
+  // Solo mostramos los comprobantes que el emisor PUEDE emitir según su
+  // condición: Monotributo/Exento -> C; Responsable Inscripto -> A/B.
+  const cond = (condicionEmisor || '').toLowerCase();
+  let permitidos = ['A', 'B', 'C', 'X'];
+  if (cond.includes('inscripto')) permitidos = ['A', 'B', 'X'];
+  else if (cond.includes('monotributo') || cond.includes('exento'))
+    permitidos = ['C', 'X'];
+  const tipos = RECEIPT_TYPES.filter((t) => permitidos.includes(t.value));
+
+  const selectedType = tipos.find((t) => t.value === value) || tipos[0];
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -76,7 +84,7 @@ function ReceiptTypeSelect({ value, onChange }) {
 
       {isOpen && (
         <div className="absolute z-50 mt-1 w-max min-w-full max-w-[300px] rounded-md border border-zinc-600 bg-zinc-800 shadow-lg">
-          {RECEIPT_TYPES.map((type) => (
+          {tipos.map((type) => (
             <button
               key={type.value}
               type="button"

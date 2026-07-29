@@ -553,6 +553,7 @@ function VentaTab() {
         onConfirm={handleConfirmPayment}
         formatCurrency={formatCurrency}
         mostrarMensaje={mostrarMensaje}
+        condicionEmisor={datosNegocio?.condicionIva}
       />
     </div>
   );

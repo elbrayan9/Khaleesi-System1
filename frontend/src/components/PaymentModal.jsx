@@ -11,6 +11,7 @@ function PaymentModal({
   cliente,
   onConfirm,
   mostrarMensaje,
+  condicionEmisor,
 }) {
   // --- ESTADOS PARA PAGOS DIVIDIDOS Y VUELTO ---
   const [pagos, setPagos] = useState([]); // Lista de pagos agregados
@@ -38,13 +39,19 @@ function PaymentModal({
       setPagaCon('');
       setVueltoAcumulado(0);
       setPropina(0);
-      if (cliente && cliente.cuit && cliente.cuit.length > 5) {
+      // Tipo de comprobante por defecto según la condición del EMISOR:
+      // Monotributo/Exento -> C; Responsable Inscripto -> A (si el cliente tiene
+      // CUIT) o B. Evita intentar Factura A con un emisor monotributista.
+      const cond = (condicionEmisor || '').toLowerCase();
+      if (cond.includes('monotributo') || cond.includes('exento')) {
+        setTipoFactura('C');
+      } else if (cliente && cliente.cuit && cliente.cuit.length > 5) {
         setTipoFactura('A');
       } else {
         setTipoFactura('B');
       }
     }
-  }, [isOpen, cliente, total]);
+  }, [isOpen, cliente, total, condicionEmisor]);
 
   // --- LÓGICA DE CÁLCULO ---
   // Total que efectivamente cobra el comercio = productos + propina.
@@ -234,6 +241,7 @@ function PaymentModal({
                 <ReceiptTypeSelect
                   value={tipoFactura}
                   onChange={setTipoFactura}
+                  condicionEmisor={condicionEmisor}
                 />
               </div>
 
