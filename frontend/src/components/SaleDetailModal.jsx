@@ -3,7 +3,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { Download, Printer, MessageCircle } from 'lucide-react';
-import { enviarComprobantePorWhatsapp } from '../utils/helpers';
+import { enviarComprobantePdfWhatsapp } from '../services/pdfService';
 
 function SaleDetailModal({
   isOpen,
@@ -22,9 +22,10 @@ function SaleDetailModal({
   const clienteCuit =
     clienteInfo?.cuit || (venta?.clienteId !== 0 ? 'No disponible' : '');
 
-  // Envía el comprobante al cliente por WhatsApp (usa su teléfono si lo tiene).
+  // Envía el comprobante (PDF) al cliente por WhatsApp: comparte el archivo o
+  // manda el link del PDF; usa su teléfono si lo tiene cargado.
   const enviarPorWhatsapp = () =>
-    enviarComprobantePorWhatsapp(venta, datosNegocio, clienteInfo);
+    enviarComprobantePdfWhatsapp(venta, datosNegocio, clienteInfo);
 
   const modalVariants = {
     hidden: { opacity: 0, scale: 0.9 },

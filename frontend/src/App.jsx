@@ -28,12 +28,11 @@ import PrintReceipt from './components/PrintReceipt.jsx';
 import PrintNota from './components/PrintNota.jsx';
 import SaleDetailModal from './components/SaleDetailModal.jsx';
 import NotaDetailModal from './components/NotaDetailModal.jsx';
+import { formatCurrency, enviarNotaPorWhatsapp } from './utils/helpers.js';
 import {
-  formatCurrency,
-  enviarComprobantePorWhatsapp,
-  enviarNotaPorWhatsapp,
-} from './utils/helpers.js';
-import { generarPdfVenta } from './services/pdfService'; // Importar servicio PDF
+  generarPdfVenta,
+  enviarComprobantePdfWhatsapp,
+} from './services/pdfService'; // Importar servicio PDF
 import {
   printVentaTicket,
   printNotaTicket,
@@ -262,7 +261,7 @@ function App() {
     }
   };
 
-  const handleWhatsappVenta = (ventaId) => {
+  const handleWhatsappVenta = async (ventaId) => {
     const venta = ventas.find((v) => v.id === ventaId);
     if (!venta) {
       mostrarMensaje('Venta no encontrada.', 'error');
@@ -271,7 +270,12 @@ function App() {
     const cliente = clientes.find((c) => c.id === venta.clienteId) || {
       nombre: venta.clienteNombre || 'Consumidor Final',
     };
-    enviarComprobantePorWhatsapp(venta, datosNegocio, cliente);
+    try {
+      await enviarComprobantePdfWhatsapp(venta, datosNegocio, cliente);
+    } catch (error) {
+      console.error('Error enviando comprobante por WhatsApp:', error);
+      mostrarMensaje('No se pudo generar el comprobante PDF.', 'error');
+    }
   };
 
   const handleWhatsappNota = (notaId) => {

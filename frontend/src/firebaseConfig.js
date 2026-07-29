@@ -15,6 +15,7 @@ import {
   initializeAppCheck,
   ReCaptchaV3Provider,
 } from 'firebase/app-check';
+import { getStorage } from 'firebase/storage';
 
 // Config desde Vite (.env)
 const firebaseConfig = {
@@ -78,3 +79,4 @@ if (typeof window !== 'undefined') {
 }
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
+export const storage = getStorage(app);

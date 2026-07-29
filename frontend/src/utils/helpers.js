@@ -145,11 +145,10 @@ const abrirWhatsapp = (mensaje, cliente) => {
   window.open(url, '_blank', 'noopener,noreferrer');
 };
 
-/** Envía el comprobante de una VENTA por WhatsApp. */
-export const enviarComprobantePorWhatsapp = (venta, datosNegocio, cliente) => {
-  if (!venta) return;
+/** Arma el texto del comprobante de una VENTA (sin abrir WhatsApp). */
+export const construirMensajeComprobante = (venta, datosNegocio) => {
   const negocio = datosNegocio?.nombre || 'Mi Negocio';
-  const items = Array.isArray(venta.items) ? venta.items : [];
+  const items = Array.isArray(venta?.items) ? venta.items : [];
   const lineas = items
     .map((it) => {
       const cant = Number(it.cantidad) || 0;
@@ -157,18 +156,28 @@ export const enviarComprobantePorWhatsapp = (venta, datosNegocio, cliente) => {
       return `- ${it.nombre} x${cant}: $${formatCurrency(totalLinea)}`;
     })
     .join('\n');
-  const esFactura = !!venta.afipData?.cae;
+  const esFactura = !!venta?.afipData?.cae;
   const encabezado = esFactura
     ? `Factura N° ${venta.afipData.cbteNro || ''}`
-    : `Comprobante #${String(venta.id || '').substring(0, 8)}`;
+    : `Comprobante #${String(venta?.id || '').substring(0, 8)}`;
   const cae = esFactura ? `\nCAE: ${venta.afipData.cae}` : '';
-  const mensaje =
+  return (
     `*${negocio}*\n${encabezado}\n` +
-    `Fecha: ${venta.fecha || ''}\n` +
+    `Fecha: ${venta?.fecha || ''}\n` +
     `--------------------\n${lineas}\n--------------------\n` +
-    `*TOTAL: $${formatCurrency(venta.total)}*${cae}\n\n` +
-    `¡Gracias por tu compra!`;
+    `*TOTAL: $${formatCurrency(venta?.total)}*${cae}\n\n` +
+    `¡Gracias por tu compra!`
+  );
+};
+
+/** Abre WhatsApp con un mensaje (expuesto para otros flujos, ej: PDF + link). */
+export const abrirWhatsappConMensaje = (mensaje, cliente) =>
   abrirWhatsapp(mensaje, cliente);
+
+/** Envía el comprobante de una VENTA por WhatsApp (solo texto). */
+export const enviarComprobantePorWhatsapp = (venta, datosNegocio, cliente) => {
+  if (!venta) return;
+  abrirWhatsapp(construirMensajeComprobante(venta, datosNegocio), cliente);
 };
 
 /** Envía una NOTA de crédito/débito por WhatsApp. */

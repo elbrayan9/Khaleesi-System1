@@ -3,7 +3,11 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import QRCode from 'qrcode';
-import { formatCurrency } from '../utils/helpers';
+import {
+  formatCurrency,
+  construirMensajeComprobante,
+} from '../utils/helpers';
+import { subirComprobantePdf } from './storageService';
 
 /**
  * Genera un recibo de venta en formato PDF con diseño oficial de AFIP.
@@ -599,6 +603,11 @@ export const generarPdfVenta = async (
     }
   }
 
+  // Devolver el PDF como Blob (para compartir/subir sin descargar).
+  if (accion === 'blob') {
+    return doc.output('blob');
+  }
+
   // Guardar PDF o Imprimir
   if (accion === 'print') {
     doc.autoPrint(); // Inyecta script de impresión automática en el PDF
@@ -626,4 +635,90 @@ export const generarPdfVenta = async (
       `${tipoDocumento.replace(/ /g, '_')}_${venta.id ? venta.id.substring(0, 8) : 'temp'}.pdf`,
     );
   }
+};
+
+// ----------------------------------------------------------------------------
+// Envío del comprobante como PDF por WhatsApp
+// ----------------------------------------------------------------------------
+
+const derivarTipoDoc = (venta) => {
+  const t = parseInt(venta?.afipData?.cbteTipo, 10);
+  if (t === 1) return 'Factura A';
+  if (t === 6) return 'Factura B';
+  if (t === 11) return 'Factura C';
+  return 'Ticket X';
+};
+
+/**
+ * Envía el comprobante de una venta por WhatsApp COMO PDF. Estrategia en cascada:
+ *  1) Compartir nativo (adjunta el PDF real) si el dispositivo lo permite.
+ *  2) Subir a Firebase Storage y mandar el LINK del PDF por WhatsApp.
+ *  3) Fallback: descargar el PDF y abrir WhatsApp con el texto del comprobante.
+ */
+export const enviarComprobantePdfWhatsapp = async (
+  venta,
+  datosNegocio,
+  cliente,
+) => {
+  if (!venta) return;
+  const tipoDoc = derivarTipoDoc(venta);
+  const blob = await generarPdfVenta(
+    venta,
+    datosNegocio,
+    cliente,
+    tipoDoc,
+    'blob',
+  );
+  const nombre = `${tipoDoc.replace(/ /g, '_')}_${String(venta.id || 'temp').substring(0, 8)}.pdf`;
+  const mensaje = construirMensajeComprobante(venta, datosNegocio);
+
+  // Teléfono del cliente normalizado para wa.me (Argentina).
+  let tel = String(cliente?.telefono || '').replace(/\D/g, '');
+  if (tel && !tel.startsWith('54')) tel = `549${tel}`;
+  const waUrl = (texto) =>
+    `https://wa.me/${tel}?text=${encodeURIComponent(texto)}`;
+
+  // 1) Compartir nativo con el PDF adjunto.
+  try {
+    const file = new File([blob], nombre, { type: 'application/pdf' });
+    if (
+      typeof navigator !== 'undefined' &&
+      navigator.canShare &&
+      navigator.canShare({ files: [file] })
+    ) {
+      await navigator.share({ files: [file], text: mensaje, title: nombre });
+      return;
+    }
+  } catch (e) {
+    if (e?.name === 'AbortError') return; // el usuario canceló
+    // otro error de share -> seguimos a los fallbacks
+  }
+
+  // 2) Subir a Storage y mandar el link del PDF.
+  try {
+    const url = await subirComprobantePdf(venta.userId, blob, nombre);
+    window.open(
+      waUrl(`${mensaje}\n\nDescargá tu comprobante en PDF:\n${url}`),
+      '_blank',
+      'noopener,noreferrer',
+    );
+    return;
+  } catch (e) {
+    console.warn('No se pudo subir el PDF a Storage; se descarga local:', e);
+  }
+
+  // 3) Fallback: descargar el PDF + abrir WhatsApp con el texto.
+  const dlUrl = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = dlUrl;
+  a.download = nombre;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(dlUrl);
+  window.open(
+    waUrl(`${mensaje}\n\n(Te adjunto el PDF que se descargó)`),
+    '_blank',
+    'noopener,noreferrer',
+  );
 };
