@@ -3,6 +3,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { Download, Printer, MessageCircle } from 'lucide-react';
+import { enviarComprobantePorWhatsapp } from '../utils/helpers';
 
 function SaleDetailModal({
   isOpen,
@@ -22,35 +23,8 @@ function SaleDetailModal({
     clienteInfo?.cuit || (venta?.clienteId !== 0 ? 'No disponible' : '');
 
   // Envía el comprobante al cliente por WhatsApp (usa su teléfono si lo tiene).
-  const enviarPorWhatsapp = () => {
-    const negocio = datosNegocio?.nombre || 'Mi Negocio';
-    const items = Array.isArray(venta?.items) ? venta.items : [];
-    const lineas = items
-      .map((it) => {
-        const cant = Number(it.cantidad) || 0;
-        const totalLinea = Number(it.precioFinal) || 0;
-        return `- ${it.nombre} x${cant}: $${formatCurrency(totalLinea)}`;
-      })
-      .join('\n');
-    const esFactura = !!venta?.afipData?.cae;
-    const encabezado = esFactura
-      ? `Factura N° ${venta.afipData.cbteNro || ''}`
-      : `Comprobante #${String(venta?.id || '').substring(0, 8)}`;
-    const cae = esFactura ? `\nCAE: ${venta.afipData.cae}` : '';
-    const mensaje =
-      `*${negocio}*\n${encabezado}\n` +
-      `Fecha: ${venta?.fecha || ''}\n` +
-      `--------------------\n${lineas}\n--------------------\n` +
-      `*TOTAL: $${formatCurrency(venta?.total)}*${cae}\n\n` +
-      `¡Gracias por tu compra!`;
-
-    // Teléfono del cliente normalizado para wa.me (Argentina).
-    let tel = String(clienteInfo?.telefono || '').replace(/\D/g, '');
-    if (tel && !tel.startsWith('54')) tel = `549${tel}`;
-
-    const url = `https://wa.me/${tel}?text=${encodeURIComponent(mensaje)}`;
-    window.open(url, '_blank', 'noopener,noreferrer');
-  };
+  const enviarPorWhatsapp = () =>
+    enviarComprobantePorWhatsapp(venta, datosNegocio, clienteInfo);
 
   const modalVariants = {
     hidden: { opacity: 0, scale: 0.9 },

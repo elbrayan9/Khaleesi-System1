@@ -28,7 +28,11 @@ import PrintReceipt from './components/PrintReceipt.jsx';
 import PrintNota from './components/PrintNota.jsx';
 import SaleDetailModal from './components/SaleDetailModal.jsx';
 import NotaDetailModal from './components/NotaDetailModal.jsx';
-import { formatCurrency } from './utils/helpers.js';
+import {
+  formatCurrency,
+  enviarComprobantePorWhatsapp,
+  enviarNotaPorWhatsapp,
+} from './utils/helpers.js';
 import { generarPdfVenta } from './services/pdfService'; // Importar servicio PDF
 import {
   printVentaTicket,
@@ -258,6 +262,30 @@ function App() {
     }
   };
 
+  const handleWhatsappVenta = (ventaId) => {
+    const venta = ventas.find((v) => v.id === ventaId);
+    if (!venta) {
+      mostrarMensaje('Venta no encontrada.', 'error');
+      return;
+    }
+    const cliente = clientes.find((c) => c.id === venta.clienteId) || {
+      nombre: venta.clienteNombre || 'Consumidor Final',
+    };
+    enviarComprobantePorWhatsapp(venta, datosNegocio, cliente);
+  };
+
+  const handleWhatsappNota = (notaId) => {
+    const nota = notasCD.find((n) => n.id === notaId);
+    if (!nota) {
+      mostrarMensaje('Nota no encontrada.', 'error');
+      return;
+    }
+    const cliente = clientes.find((c) => c.id === nota.clienteId) || {
+      nombre: nota.clienteNombre || 'Consumidor Final',
+    };
+    enviarNotaPorWhatsapp(nota, datosNegocio, cliente);
+  };
+
   if (isLoadingData) {
     // ...ahora mostramos tu animación personalizada
     return (
@@ -365,6 +393,7 @@ function App() {
                     onPrintRequest={handlePrintRequest}
                     onViewDetailsRequest={openSaleDetailModal}
                     onPrintTermicoRequest={handlePrintTermico}
+                    onWhatsappRequest={handleWhatsappVenta}
                   />
                 }
               />
@@ -375,6 +404,7 @@ function App() {
                     onPrintNotaCD={handlePrintNota}
                     onViewDetailsNotaCD={openNotaDetailModal}
                     onPrintNotaTermico={handlePrintNotaTermico}
+                    onWhatsappNota={handleWhatsappNota}
                   />
                 }
               />

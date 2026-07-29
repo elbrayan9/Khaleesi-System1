@@ -131,3 +131,70 @@ export const formatDate = (dateInput) => {
     return String(dateInput); // Si falla, devuelve el valor original
   }
 };
+
+// ----------------------------------------------------------------------------
+// Envío de comprobantes por WhatsApp (gratis, vía wa.me)
+// ----------------------------------------------------------------------------
+
+// Abre WhatsApp con el mensaje ya escrito. Precarga el teléfono del cliente si
+// está disponible (normalizado a Argentina: 549 + número).
+const abrirWhatsapp = (mensaje, cliente) => {
+  let tel = String(cliente?.telefono || '').replace(/\D/g, '');
+  if (tel && !tel.startsWith('54')) tel = `549${tel}`;
+  const url = `https://wa.me/${tel}?text=${encodeURIComponent(mensaje)}`;
+  window.open(url, '_blank', 'noopener,noreferrer');
+};
+
+/** Envía el comprobante de una VENTA por WhatsApp. */
+export const enviarComprobantePorWhatsapp = (venta, datosNegocio, cliente) => {
+  if (!venta) return;
+  const negocio = datosNegocio?.nombre || 'Mi Negocio';
+  const items = Array.isArray(venta.items) ? venta.items : [];
+  const lineas = items
+    .map((it) => {
+      const cant = Number(it.cantidad) || 0;
+      const totalLinea = Number(it.precioFinal) || 0;
+      return `- ${it.nombre} x${cant}: $${formatCurrency(totalLinea)}`;
+    })
+    .join('\n');
+  const esFactura = !!venta.afipData?.cae;
+  const encabezado = esFactura
+    ? `Factura N° ${venta.afipData.cbteNro || ''}`
+    : `Comprobante #${String(venta.id || '').substring(0, 8)}`;
+  const cae = esFactura ? `\nCAE: ${venta.afipData.cae}` : '';
+  const mensaje =
+    `*${negocio}*\n${encabezado}\n` +
+    `Fecha: ${venta.fecha || ''}\n` +
+    `--------------------\n${lineas}\n--------------------\n` +
+    `*TOTAL: $${formatCurrency(venta.total)}*${cae}\n\n` +
+    `¡Gracias por tu compra!`;
+  abrirWhatsapp(mensaje, cliente);
+};
+
+/** Envía una NOTA de crédito/débito por WhatsApp. */
+export const enviarNotaPorWhatsapp = (nota, datosNegocio, cliente) => {
+  if (!nota) return;
+  const negocio = datosNegocio?.nombre || 'Mi Negocio';
+  const tipo = nota.tipo === 'debito' ? 'Nota de Débito' : 'Nota de Crédito';
+  const encabezado = nota.cbteNro ? `${tipo} N° ${nota.cbteNro}` : tipo;
+  const items = Array.isArray(nota.itemsDevueltos) ? nota.itemsDevueltos : [];
+  const lineas = items
+    .map((it) => {
+      const cant = Number(it.cantidad) || 0;
+      const unit = Number(it.precioOriginal) || 0;
+      return `- ${it.nombre} x${cant}: $${formatCurrency(unit * cant)}`;
+    })
+    .join('\n');
+  const cuerpo = lineas
+    ? `--------------------\n${lineas}\n--------------------\n`
+    : '';
+  const cae = nota.cae ? `\nCAE: ${nota.cae}` : '';
+  const mensaje =
+    `*${negocio}*\n${encabezado}\n` +
+    `Fecha: ${nota.fecha || ''}\n` +
+    (nota.motivo ? `Motivo: ${nota.motivo}\n` : '') +
+    cuerpo +
+    `*TOTAL: $${formatCurrency(nota.monto)}*${cae}\n\n` +
+    `Comprobante de tu operación.`;
+  abrirWhatsapp(mensaje, cliente);
+};

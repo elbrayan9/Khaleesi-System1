@@ -10,6 +10,7 @@ import {
   Printer,
   FileDiff,
   Receipt,
+  MessageCircle,
 } from 'lucide-react';
 import SearchBar from './SearchBar.jsx';
 import {
@@ -27,6 +28,7 @@ function NotasCDTab({
   onViewDetailsNotaCD,
   onPrintNotaCD,
   onPrintNotaTermico,
+  onWhatsappNota,
 }) {
   const {
     notasCD,
@@ -728,6 +730,18 @@ function NotasCDTab({
                             disabled={isActionDisabled(n)}
                           >
                             <Receipt className="inline-block h-4 w-4" />
+                          </motion.button>
+                        )}
+                        {typeof onWhatsappNota === 'function' && (
+                          <motion.button
+                            onClick={() => onWhatsappNota(n.id)}
+                            className="mr-2 rounded p-1 text-emerald-400 hover:text-emerald-300"
+                            title="Enviar por WhatsApp"
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            disabled={isActionDisabled(n)}
+                          >
+                            <MessageCircle className="inline-block h-4 w-4" />
                           </motion.button>
                         )}
                         <motion.button

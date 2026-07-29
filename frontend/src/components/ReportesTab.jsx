@@ -27,6 +27,7 @@ import {
   Receipt,
   FileText,
   FileMinus,
+  MessageCircle,
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import PaginationControls from './PaginationControls.jsx';
@@ -53,6 +54,7 @@ function ReportesTab({
   onPrintRequest,
   onViewDetailsRequest,
   onPrintTermicoRequest,
+  onWhatsappRequest,
 }) {
   const {
     ventas,
@@ -552,6 +554,13 @@ function ReportesTab({
     const ventaObj = ventas.find((v) => v.id === ventaId);
     if (ventaObj && onPrintTermicoRequest) onPrintTermicoRequest(ventaObj);
     else mostrarMensaje('Venta no encontrada.', 'error');
+  };
+  const handleLocalWhatsappClick = (ventaId) => {
+    if (!checkIdValidityForAction(ventaId, 'Venta')) {
+      mostrarMensaje('ID de venta inválido.', 'error');
+      return;
+    }
+    onWhatsappRequest?.(ventaId);
   };
   const handleLocalFacturarClick = (ventaId) => {
     if (!checkIdValidityForAction(ventaId, 'Venta')) {
@@ -1066,6 +1075,17 @@ function ReportesTab({
                                           <Receipt className="h-4 w-4" />
                                         </button>
                                       )}
+                                      {onWhatsappRequest && (
+                                        <button
+                                          onClick={() =>
+                                            handleLocalWhatsappClick(item.id)
+                                          }
+                                          className="rounded p-1 text-zinc-400 hover:bg-zinc-700 hover:text-emerald-400"
+                                          title="Enviar comprobante por WhatsApp"
+                                        >
+                                          <MessageCircle className="h-4 w-4" />
+                                        </button>
+                                      )}
                                       {canAccessAfip &&
                                         !item.afipData?.cae && (
                                           <button
@@ -1270,6 +1290,17 @@ function ReportesTab({
                                           title="Imprimir ticket térmico"
                                         >
                                           <Receipt className="h-4 w-4" />
+                                        </button>
+                                      )}
+                                      {onWhatsappRequest && (
+                                        <button
+                                          onClick={() =>
+                                            handleLocalWhatsappClick(item.id)
+                                          }
+                                          className="rounded p-1 text-zinc-400 hover:bg-zinc-700 hover:text-emerald-400"
+                                          title="Enviar comprobante por WhatsApp"
+                                        >
+                                          <MessageCircle className="h-4 w-4" />
                                         </button>
                                       )}
                                       {canAccessAfip &&
