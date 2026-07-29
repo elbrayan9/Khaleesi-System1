@@ -55,6 +55,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
   const [ingresosManuales, setIngresosManuales] = useState([]);
   const [notasCD, setNotasCD] = useState([]);
   const [presupuestos, setPresupuestos] = useState([]);
+  const [movimientosCC, setMovimientosCC] = useState([]); // cuenta corriente
   const [datosNegocio, setDatosNegocio] = useState(null);
   const [turnos, setTurnos] = useState([]);
 
@@ -359,6 +360,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       { name: 'presupuestos', setter: setPresupuestos },
       { name: 'turnos', setter: setTurnos },
       { name: 'alertas_borrados', setter: setAlertasBorrados },
+      { name: 'movimientos_cc', setter: setMovimientosCC },
     ];
 
     const unsubscribes = collectionsToListen.map(({ name, setter }) => {
@@ -1197,6 +1199,18 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       return;
     }
 
+    // Fiado (cuenta corriente) requiere un cliente identificado.
+    const hayFiado = ensureArray(pagos).some(
+      (p) => p?.metodo === 'cuenta_corriente',
+    );
+    if (hayFiado && !(cliente && isValidFirestoreId(cliente.id))) {
+      mostrarMensaje?.(
+        'Para vender en Cuenta Corriente (fiado) tenés que seleccionar un cliente.',
+        'warning',
+      );
+      return;
+    }
+
     setIsLoadingData(true);
     const { fecha, hora } = obtenerFechaHoraActual();
     const clienteIdFinal =
@@ -1269,6 +1283,31 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
         // 3. Limpiamos el carrito y mostramos el mensaje de éxito
         setCartItems([]);
         await mostrarMensaje?.('Venta registrada con éxito.', 'success');
+
+        // 3b. Cuenta corriente: si se pagó (total o parte) como fiado,
+        // registramos el cargo (deuda) del cliente.
+        const montoFiado = ensureArray(pagos)
+          .filter((p) => p?.metodo === 'cuenta_corriente')
+          .reduce((s, p) => s + (Number(p?.monto) || 0), 0);
+        if (montoFiado > 0 && clienteIdFinal !== 'consumidor_final') {
+          fsService
+            .addDocument(
+              currentUser?.uid,
+              'movimientos_cc',
+              {
+                clienteId: clienteIdFinal,
+                clienteNombre: cliente?.nombre || '',
+                tipo: 'cargo',
+                monto: montoFiado,
+                fecha,
+                hora,
+                ventaId,
+                descripcion: `Venta a cuenta #${String(ventaId).substring(0, 6)}`,
+              },
+              sucursalActual.id,
+            )
+            .catch((e) => console.error('Error registrando cargo CC:', e));
+        }
 
         // 4. Impresión automática del ticket térmico (si está habilitada)
         if (thermalPrinter.isAutoPrintEnabled()) {
@@ -1417,6 +1456,52 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     } finally {
       setIsLoadingData(false);
     }
+  };
+
+  // --- CUENTA CORRIENTE (FIADO) ---
+  // Saldo del cliente = cargos (ventas fiadas) - pagos a cuenta. Positivo = debe.
+  const getSaldoCliente = (clienteId) =>
+    movimientosCC
+      .filter((m) => m.clienteId === clienteId)
+      .reduce(
+        (acc, m) => acc + (m.tipo === 'pago' ? -1 : 1) * (Number(m.monto) || 0),
+        0,
+      );
+
+  const handleRegistrarPagoCuenta = async (
+    cliente,
+    monto,
+    metodoPago = 'efectivo',
+    descripcion = '',
+  ) => {
+    if (!cliente?.id || !sucursalActual) return false;
+    const montoNum = Number(monto);
+    if (isNaN(montoNum) || montoNum <= 0) {
+      mostrarMensaje?.('Ingresá un monto válido.', 'warning');
+      return false;
+    }
+    const { fecha, hora } = obtenerFechaHoraActual();
+    const nuevoId = await fsService.addDocument(
+      currentUser?.uid,
+      'movimientos_cc',
+      {
+        clienteId: cliente.id,
+        clienteNombre: cliente.nombre || '',
+        tipo: 'pago',
+        monto: montoNum,
+        metodoPago,
+        fecha,
+        hora,
+        descripcion: descripcion || 'Pago a cuenta',
+      },
+      sucursalActual.id,
+    );
+    const ok = isValidFirestoreId(nuevoId);
+    mostrarMensaje?.(
+      ok ? 'Pago a cuenta registrado.' : 'Error al registrar el pago.',
+      ok ? 'success' : 'error',
+    );
+    return ok;
   };
 
   const handleAbrirTurno = async (vendedorId, montoInicial) => {
@@ -2324,6 +2409,10 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     handleSaleConfirmed,
     handleFacturarVentaExistente,
     handleEliminarVenta,
+    // Cuenta corriente (fiado)
+    movimientosCC,
+    getSaldoCliente,
+    handleRegistrarPagoCuenta,
     handleSaveBudget,
     handleDeleteBudget,
     // Handlers Turnos

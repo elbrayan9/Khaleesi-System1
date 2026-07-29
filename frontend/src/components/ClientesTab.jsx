@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import ClientForm from './ClientForm.jsx';
 import ClientTable from './ClientTable.jsx';
+import CuentaCorrienteModal from './CuentaCorrienteModal.jsx';
 import PaginationControls from './PaginationControls.jsx';
 import { Search, Users } from 'lucide-react';
 import { useAppContext } from '../context/AppContext.jsx'; // Importar hook
@@ -17,9 +19,11 @@ function ClientesTab() {
     handleCancelEditClient, // Renombrado desde onCancelEditClient
     editingClient,
     mostrarMensaje,
+    getSaldoCliente,
     // confirmarAccion (si es necesario)
   } = useAppContext();
 
+  const [cuentaCliente, setCuentaCliente] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState({
     key: 'id',
@@ -150,6 +154,8 @@ function ClientesTab() {
             onDelete={handleDelete}
             requestSort={requestSort}
             sortConfig={sortConfig}
+            getSaldoCliente={getSaldoCliente}
+            onCuentaCorriente={setCuentaCliente}
           />
         </div>
         <PaginationControls
@@ -160,6 +166,15 @@ function ClientesTab() {
           totalItems={filteredSortedClientes.length}
         />
       </div>
+
+      <AnimatePresence>
+        {cuentaCliente && (
+          <CuentaCorrienteModal
+            cliente={cuentaCliente}
+            onClose={() => setCuentaCliente(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

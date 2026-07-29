@@ -6,6 +6,7 @@ import {
   QrCode,
   Smartphone,
   ChevronDown,
+  Notebook,
 } from 'lucide-react';
 
 const PAYMENT_METHODS = [
@@ -38,6 +39,12 @@ const PAYMENT_METHODS = [
     label: 'QR Billetera',
     icon: Smartphone,
     color: 'text-pink-500',
+  },
+  {
+    value: 'cuenta_corriente',
+    label: 'Cuenta Corriente (Fiado)',
+    icon: Notebook,
+    color: 'text-amber-500',
   },
 ];
 

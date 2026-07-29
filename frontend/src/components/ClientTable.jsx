@@ -1,7 +1,14 @@
 // src/components/ClientTable.jsx
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Edit, Trash2, ArrowUp, ArrowDown, Minus } from 'lucide-react';
+import {
+  Edit,
+  Trash2,
+  ArrowUp,
+  ArrowDown,
+  Minus,
+  Notebook,
+} from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -10,6 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'; //
+import { formatCurrency } from '../utils/helpers';
 
 function ClientTable({
   clients = [],
@@ -17,6 +25,8 @@ function ClientTable({
   onDelete,
   requestSort,
   sortConfig,
+  getSaldoCliente,
+  onCuentaCorriente,
 }) {
   const getSortIcon = (key) => {
     if (!sortConfig || sortConfig.key !== key)
@@ -65,6 +75,9 @@ function ClientTable({
               CUIT/CUIL/DNI {getSortIcon('cuit')}
             </button>
           </TableHead>
+          <TableHead className="text-right text-xs font-medium uppercase tracking-wider text-zinc-300">
+            Saldo
+          </TableHead>
           <TableHead className="text-center">Acciones</TableHead>
         </TableRow>
       </TableHeader>
@@ -72,7 +85,7 @@ function ClientTable({
         {clients.length === 0 ? (
           <TableRow className="border-b-zinc-700 hover:bg-transparent">
             <TableCell
-              colSpan={4}
+              colSpan={5}
               className="h-24 text-center italic text-zinc-400"
             >
               No hay clientes.
@@ -96,7 +109,37 @@ function ClientTable({
               </TableCell>
               <TableCell className="text-zinc-200">{c.nombre}</TableCell>
               <TableCell className="text-zinc-400">{c.cuit || 'N/A'}</TableCell>
+              <TableCell className="whitespace-nowrap text-right">
+                {(() => {
+                  const saldo = getSaldoCliente ? getSaldoCliente(c.id) : 0;
+                  if (saldo > 0)
+                    return (
+                      <span className="font-semibold text-red-400">
+                        Debe ${formatCurrency(saldo)}
+                      </span>
+                    );
+                  if (saldo < 0)
+                    return (
+                      <span className="font-semibold text-green-400">
+                        A favor ${formatCurrency(Math.abs(saldo))}
+                      </span>
+                    );
+                  return <span className="text-zinc-500">—</span>;
+                })()}
+              </TableCell>
               <TableCell className="whitespace-nowrap text-center">
+                {onCuentaCorriente && (
+                  <motion.button
+                    onClick={() => onCuentaCorriente(c)}
+                    className="mr-3 rounded p-1 text-amber-400 hover:text-amber-300"
+                    title="Cuenta corriente"
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    disabled={isActionDisabled(c)}
+                  >
+                    <Notebook className="inline-block h-4 w-4" />
+                  </motion.button>
+                )}
                 <motion.button
                   onClick={() => onEdit(c)}
                   className="mr-3 rounded p-1 text-blue-400 hover:text-blue-300"
