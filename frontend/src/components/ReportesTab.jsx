@@ -28,6 +28,7 @@ import {
   FileText,
   FileMinus,
   MessageCircle,
+  Mail,
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import PaginationControls from './PaginationControls.jsx';
@@ -55,6 +56,7 @@ function ReportesTab({
   onViewDetailsRequest,
   onPrintTermicoRequest,
   onWhatsappRequest,
+  onEmailRequest,
 }) {
   const {
     ventas,
@@ -561,6 +563,13 @@ function ReportesTab({
       return;
     }
     onWhatsappRequest?.(ventaId);
+  };
+  const handleLocalEmailClick = (ventaId) => {
+    if (!checkIdValidityForAction(ventaId, 'Venta')) {
+      mostrarMensaje('ID de venta inválido.', 'error');
+      return;
+    }
+    onEmailRequest?.(ventaId);
   };
   const handleLocalFacturarClick = (ventaId) => {
     if (!checkIdValidityForAction(ventaId, 'Venta')) {
@@ -1086,6 +1095,17 @@ function ReportesTab({
                                           <MessageCircle className="h-4 w-4" />
                                         </button>
                                       )}
+                                      {onEmailRequest && (
+                                        <button
+                                          onClick={() =>
+                                            handleLocalEmailClick(item.id)
+                                          }
+                                          className="rounded p-1 text-zinc-400 hover:bg-zinc-700 hover:text-indigo-400"
+                                          title="Enviar comprobante por Email"
+                                        >
+                                          <Mail className="h-4 w-4" />
+                                        </button>
+                                      )}
                                       {canAccessAfip &&
                                         !item.afipData?.cae && (
                                           <button
@@ -1301,6 +1321,17 @@ function ReportesTab({
                                           title="Enviar comprobante por WhatsApp"
                                         >
                                           <MessageCircle className="h-4 w-4" />
+                                        </button>
+                                      )}
+                                      {onEmailRequest && (
+                                        <button
+                                          onClick={() =>
+                                            handleLocalEmailClick(item.id)
+                                          }
+                                          className="rounded p-1 text-zinc-400 hover:bg-zinc-700 hover:text-indigo-400"
+                                          title="Enviar comprobante por Email"
+                                        >
+                                          <Mail className="h-4 w-4" />
                                         </button>
                                       )}
                                       {canAccessAfip &&

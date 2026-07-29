@@ -2,8 +2,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { X } from 'lucide-react';
-import { Download, Printer, MessageCircle } from 'lucide-react';
-import { enviarComprobantePdfWhatsapp } from '../services/pdfService';
+import { Download, Printer, MessageCircle, Mail } from 'lucide-react';
+import {
+  enviarComprobantePdfWhatsapp,
+  enviarComprobantePorEmail,
+} from '../services/pdfService';
 
 function SaleDetailModal({
   isOpen,
@@ -26,6 +29,10 @@ function SaleDetailModal({
   // manda el link del PDF; usa su teléfono si lo tiene cargado.
   const enviarPorWhatsapp = () =>
     enviarComprobantePdfWhatsapp(venta, datosNegocio, clienteInfo);
+
+  // Envía el comprobante (PDF) por email: abre el correo con el link ya escrito.
+  const enviarPorEmail = () =>
+    enviarComprobantePorEmail(venta, datosNegocio, clienteInfo);
 
   const modalVariants = {
     hidden: { opacity: 0, scale: 0.9 },
@@ -211,6 +218,16 @@ function SaleDetailModal({
           >
             <MessageCircle className="mr-2 h-4 w-4" />
             WhatsApp
+          </motion.button>
+          <motion.button
+            onClick={enviarPorEmail}
+            className="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 font-bold text-white transition duration-150 ease-in-out hover:bg-indigo-700"
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            title="Enviar comprobante por Email"
+          >
+            <Mail className="mr-2 h-4 w-4" />
+            Email
           </motion.button>
           {onPrintTermico && (
             <motion.button

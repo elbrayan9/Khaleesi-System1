@@ -12,6 +12,7 @@ function ClientForm({ onSave, clientToEdit, onCancelEdit }) {
   const [direccion, setDireccion] = useState('');
   const [condicionFiscal, setCondicionFiscal] = useState('Consumidor Final');
   const [telefono, setTelefono] = useState('');
+  const [email, setEmail] = useState('');
 
   // Cargar datos al editar un cliente existente
   useEffect(() => {
@@ -21,6 +22,7 @@ function ClientForm({ onSave, clientToEdit, onCancelEdit }) {
       setDireccion(clientToEdit.direccion || '');
       setCondicionFiscal(clientToEdit.condicionFiscal || 'Consumidor Final');
       setTelefono(clientToEdit.telefono || '');
+      setEmail(clientToEdit.email || '');
     } else {
       // Limpiar formulario para nuevo cliente
       setNombre('');
@@ -28,6 +30,7 @@ function ClientForm({ onSave, clientToEdit, onCancelEdit }) {
       setDireccion('');
       setCondicionFiscal('Consumidor Final');
       setTelefono('');
+      setEmail('');
     }
   }, [clientToEdit]);
 
@@ -44,6 +47,7 @@ function ClientForm({ onSave, clientToEdit, onCancelEdit }) {
       direccion: direccion.trim() || '-', // Guion si está vacío para evitar error en PDF
       condicionFiscal: condicionFiscal || 'Consumidor Final',
       telefono: telefono.trim() || null,
+      email: email.trim() || null,
     });
   };
 
@@ -217,7 +221,7 @@ function ClientForm({ onSave, clientToEdit, onCancelEdit }) {
         </div>
 
         {/* TELÉFONO / WHATSAPP */}
-        <div className="sm:col-span-2">
+        <div>
           <label className="mb-1 block text-sm font-medium text-zinc-300">
             Teléfono / WhatsApp:
           </label>
@@ -225,7 +229,21 @@ function ClientForm({ onSave, clientToEdit, onCancelEdit }) {
             type="tel"
             value={telefono}
             onChange={(e) => setTelefono(e.target.value)}
-            placeholder="Ej: 3541 21-5803 (para enviar el comprobante)"
+            placeholder="Ej: 3541 21-5803"
+            className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100 focus:border-blue-500 focus:ring-blue-500"
+          />
+        </div>
+
+        {/* EMAIL */}
+        <div className="sm:col-span-2">
+          <label className="mb-1 block text-sm font-medium text-zinc-300">
+            Email:
+          </label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Ej: cliente@email.com (para enviar el comprobante)"
             className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100 focus:border-blue-500 focus:ring-blue-500"
           />
         </div>

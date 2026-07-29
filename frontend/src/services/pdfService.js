@@ -722,3 +722,49 @@ export const enviarComprobantePdfWhatsapp = async (
     'noopener,noreferrer',
   );
 };
+
+/**
+ * Envía el comprobante por EMAIL: sube el PDF a Storage y abre el cliente de
+ * correo (mailto) con el asunto y el link al PDF ya escritos.
+ */
+export const enviarComprobantePorEmail = async (venta, datosNegocio, cliente) => {
+  if (!venta) return;
+  const tipoDoc = derivarTipoDoc(venta);
+  const blob = await generarPdfVenta(
+    venta,
+    datosNegocio,
+    cliente,
+    tipoDoc,
+    'blob',
+  );
+  const nombre = `${tipoDoc.replace(/ /g, '_')}_${String(venta.id || 'temp').substring(0, 8)}.pdf`;
+  const negocio = datosNegocio?.nombre || 'Mi Negocio';
+  const esFactura = !!venta.afipData?.cae;
+  const asunto = esFactura
+    ? `${negocio} - Factura N° ${venta.afipData.cbteNro || ''}`
+    : `${negocio} - Comprobante`;
+
+  let cuerpo =
+    `Hola,\n\nTe enviamos tu comprobante de ${negocio}.\n` +
+    `Total: $${formatCurrency(venta.total)}\n`;
+
+  try {
+    const url = await subirComprobantePdf(venta.userId, blob, nombre);
+    cuerpo += `\nDescargá el PDF acá:\n${url}\n`;
+  } catch (e) {
+    console.warn('No se pudo subir el PDF; se descarga local:', e);
+    const dlUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = dlUrl;
+    a.download = nombre;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(dlUrl);
+    cuerpo += `\n(Adjuntá el PDF que se descargó en tu equipo.)\n`;
+  }
+  cuerpo += `\n¡Gracias por tu compra!`;
+
+  const dest = cliente?.email || '';
+  window.location.href = `mailto:${dest}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`;
+};

@@ -32,6 +32,7 @@ import { formatCurrency, enviarNotaPorWhatsapp } from './utils/helpers.js';
 import {
   generarPdfVenta,
   enviarComprobantePdfWhatsapp,
+  enviarComprobantePorEmail,
 } from './services/pdfService'; // Importar servicio PDF
 import {
   printVentaTicket,
@@ -278,6 +279,23 @@ function App() {
     }
   };
 
+  const handleEmailVenta = async (ventaId) => {
+    const venta = ventas.find((v) => v.id === ventaId);
+    if (!venta) {
+      mostrarMensaje('Venta no encontrada.', 'error');
+      return;
+    }
+    const cliente = clientes.find((c) => c.id === venta.clienteId) || {
+      nombre: venta.clienteNombre || 'Consumidor Final',
+    };
+    try {
+      await enviarComprobantePorEmail(venta, datosNegocio, cliente);
+    } catch (error) {
+      console.error('Error enviando comprobante por email:', error);
+      mostrarMensaje('No se pudo generar el comprobante PDF.', 'error');
+    }
+  };
+
   const handleWhatsappNota = (notaId) => {
     const nota = notasCD.find((n) => n.id === notaId);
     if (!nota) {
@@ -398,6 +416,7 @@ function App() {
                     onViewDetailsRequest={openSaleDetailModal}
                     onPrintTermicoRequest={handlePrintTermico}
                     onWhatsappRequest={handleWhatsappVenta}
+                    onEmailRequest={handleEmailVenta}
                   />
                 }
               />
