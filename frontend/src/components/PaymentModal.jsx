@@ -25,6 +25,9 @@ function PaymentModal({
   const [pagaCon, setPagaCon] = useState('');
   // Vuelto acumulado que hay que devolver (se guarda en la venta / ticket).
   const [vueltoAcumulado, setVueltoAcumulado] = useState(0);
+  // Propina (opcional): se suma a lo que paga el cliente, pero NO al total
+  // facturado a AFIP. Va aparte en la venta y en el ticket.
+  const [propina, setPropina] = useState(0);
 
   useEffect(() => {
     // Resetea el modal cada vez que se abre
@@ -34,6 +37,7 @@ function PaymentModal({
       setMetodoPagoActual('efectivo');
       setPagaCon('');
       setVueltoAcumulado(0);
+      setPropina(0);
       if (cliente && cliente.cuit && cliente.cuit.length > 5) {
         setTipoFactura('A');
       } else {
@@ -43,10 +47,15 @@ function PaymentModal({
   }, [isOpen, cliente, total]);
 
   // --- LÓGICA DE CÁLCULO ---
+  // Total que efectivamente cobra el comercio = productos + propina.
+  const totalACobrar = useMemo(
+    () => parseFloat((total + (Number(propina) || 0)).toFixed(2)),
+    [total, propina],
+  );
   const montoRestante = useMemo(() => {
     const pagado = pagos.reduce((sum, p) => sum + p.monto, 0);
-    return parseFloat((total - pagado).toFixed(2));
-  }, [pagos, total]);
+    return parseFloat((totalACobrar - pagado).toFixed(2));
+  }, [pagos, totalACobrar]);
 
   // Preview del vuelto: si no se tipeó un monto, se asume que en efectivo
   // paga el saldo restante (caso más común: paga todo con un billete).
@@ -99,8 +108,8 @@ function PaymentModal({
 
   // Lógica para el botón de confirmar
   const handleConfirmar = () => {
-    // Pasamos pagos, tipo de factura y el vuelto acumulado al AppContext.
-    onConfirm(pagos, tipoFactura, vueltoAcumulado);
+    // Pasamos pagos, tipo de factura, vuelto y propina al AppContext.
+    onConfirm(pagos, tipoFactura, vueltoAcumulado, Number(propina) || 0);
   };
 
   if (!isOpen) return null;
@@ -114,11 +123,30 @@ function PaymentModal({
 
         {/* SECCIÓN DE TOTALES */}
         <div className="mb-4 rounded-lg bg-zinc-900 p-3 text-center">
-          <p className="text-sm text-zinc-400">Total a Pagar</p>
-          <p className="text-3xl font-bold text-white">
-            ${formatCurrency(total)}
-          </p>
-          {montoRestante > 0 && montoRestante !== total && (
+          {Number(propina) > 0 ? (
+            <>
+              <div className="flex justify-between px-1 text-sm text-zinc-400">
+                <span>Subtotal</span>
+                <span>${formatCurrency(total)}</span>
+              </div>
+              <div className="flex justify-between px-1 text-sm text-emerald-400">
+                <span>Propina</span>
+                <span>+ ${formatCurrency(Number(propina))}</span>
+              </div>
+              <p className="mt-1 text-sm text-zinc-400">Total a Cobrar</p>
+              <p className="text-3xl font-bold text-white">
+                ${formatCurrency(totalACobrar)}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-zinc-400">Total a Pagar</p>
+              <p className="text-3xl font-bold text-white">
+                ${formatCurrency(totalACobrar)}
+              </p>
+            </>
+          )}
+          {montoRestante > 0 && montoRestante !== totalACobrar && (
             <p className="text-lg font-semibold text-yellow-400">
               Faltan: ${formatCurrency(montoRestante)}
             </p>
@@ -127,6 +155,44 @@ function PaymentModal({
             <p className="text-xl font-bold text-green-400">
               Vuelto: ${formatCurrency(vueltoAcumulado)}
             </p>
+          )}
+        </div>
+
+        {/* PROPINA / REDONDEO */}
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900/50 p-3">
+          <span className="text-sm font-medium text-zinc-300">Propina:</span>
+          <input
+            type="number"
+            value={propina || ''}
+            onChange={(e) => setPropina(parseFloat(e.target.value) || 0)}
+            placeholder="0"
+            className="w-24 rounded-md border border-zinc-600 bg-zinc-700 p-1.5 text-sm text-zinc-100"
+          />
+          <button
+            type="button"
+            onClick={() => setPropina(parseFloat((total * 0.1).toFixed(2)))}
+            className="rounded-md bg-zinc-600 px-2 py-1 text-xs font-semibold text-white hover:bg-zinc-500"
+          >
+            10%
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              setPropina(Math.max(0, Math.ceil(total / 100) * 100 - total))
+            }
+            className="rounded-md bg-zinc-600 px-2 py-1 text-xs font-semibold text-white hover:bg-zinc-500"
+            title="Redondear el total al próximo múltiplo de $100"
+          >
+            Redondear
+          </button>
+          {Number(propina) > 0 && (
+            <button
+              type="button"
+              onClick={() => setPropina(0)}
+              className="rounded-md bg-zinc-700 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-600"
+            >
+              Quitar
+            </button>
           )}
         </div>
 

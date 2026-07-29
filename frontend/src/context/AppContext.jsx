@@ -1168,6 +1168,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     overrideVendedorId = null,
     afipData = null, // <--- Nuevo parámetro opcional
     vueltoManual = null, // <--- Vuelto calculado en el modal de pago
+    propina = 0, // <--- Propina (NO entra en el total facturado a AFIP)
   ) => {
     // Usamos el override si existe, sino el del contexto (cajero)
     const vendedorIdFinal = overrideVendedorId || vendedorActivoId;
@@ -1240,6 +1241,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       clienteNombre: cliente?.nombre || 'Consumidor Final',
       items: itemsWithCost,
       total,
+      propina: Number(propina) || 0,
       pagos: ensureArray(pagos),
       vuelto: vueltoFinal,
       tipoFactura,

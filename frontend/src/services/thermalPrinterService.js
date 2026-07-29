@@ -239,6 +239,17 @@ export const buildTicket = (venta, datosNegocio = {}, cliente = null) => {
   push(ESC, 0x21, 0x00);
   push(ESC, 0x45, 0x00);
 
+  // Propina (no forma parte del total facturado)
+  if (Number(venta?.propina) > 0) {
+    line(lineLR('Propina:', `$${formatCurrency(venta.propina)}`));
+    line(
+      lineLR(
+        'Total cobrado:',
+        `$${formatCurrency((Number(venta?.total) || 0) + Number(venta.propina))}`,
+      ),
+    );
+  }
+
   // Pagos
   const pagos = Array.isArray(venta?.pagos) ? venta.pagos : [];
   if (pagos.length > 0) {
