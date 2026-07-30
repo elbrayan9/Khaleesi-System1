@@ -487,6 +487,12 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     const unsubSuscripcion = onSnapshot(
       doc(db, 'datosNegocio', currentUser.uid),
       (snap) => {
+        // DEBUG temporal para diagnosticar el bloqueo por suscripción.
+        console.log('[SUB] datosNegocio/', currentUser.uid, {
+          existe: snap.exists(),
+          status: snap.data()?.subscriptionStatus,
+          plan: snap.data()?.plan,
+        });
         if (!snap.exists()) return;
         const d = snap.data();
         const endDate =
