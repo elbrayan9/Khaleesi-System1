@@ -142,7 +142,10 @@ Cuando a un cliente se le **vence la suscripción**, puede **pagarte a vos**
 - El token de la plataforma es un **secret** de Firebase: `MP_PLATFORM_TOKEN`
   (más seguro que Firestore, que los clientes podrían leer).
 - Precios (backend, `PLANES_PRECIO`): Básico $15.000 / Completo $25.000.
-- Se cobra en **1 cuota** (para minimizar comisión/intereses).
+- Dos opciones de pago:
+  - **Débito / dinero en cuenta**: precio base, 1 cuota (comisión más baja).
+  - **Crédito (con recargo)**: precio + `RECARGO_CREDITO` (10% por defecto),
+    permite cuotas. El recargo cubre la comisión mayor de la tarjeta.
 
 **Flujo:**
 1. `crearPagoSuscripcion` (onCall) crea la preferencia con tu token de
