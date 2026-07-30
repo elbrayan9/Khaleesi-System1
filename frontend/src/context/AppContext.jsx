@@ -457,7 +457,12 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
               Object.keys(obj).forEach((key) => { result[key] = sanitize(obj[key]); });
               return result;
             };
-            setDatosNegocio(sanitize({ id: sucursalActual.id, ...data.configuracion }));
+            // Fusionamos (no reemplazamos) para conservar la suscripción/plan
+            // que vienen de datosNegocio/{uid} (otro listener).
+            setDatosNegocio((prev) => ({
+              ...(prev || {}),
+              ...sanitize({ id: sucursalActual.id, ...data.configuracion }),
+            }));
           } else {
             // Fallback: Si por alguna razón no tiene config, podríamos intentar leer la global
             // Pero para simplificar y evitar loops, esperamos a que initialize haga su trabajo.
@@ -470,6 +475,30 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       },
     );
     unsubscribes.push(unsubDatosNegocio);
+
+    // La SUSCRIPCIÓN y el PLAN viven en datosNegocio/{uid} (los escribe el admin
+    // y el webhook de Mercado Pago). Los fusionamos para que el bloqueo por
+    // vencimiento, el banner y el plan reflejen el estado real.
+    const unsubSuscripcion = onSnapshot(
+      doc(db, 'datosNegocio', currentUser.uid),
+      (snap) => {
+        if (!snap.exists()) return;
+        const d = snap.data();
+        const endDate =
+          d.subscriptionEndDate &&
+          typeof d.subscriptionEndDate.toDate === 'function'
+            ? d.subscriptionEndDate.toDate().toISOString()
+            : d.subscriptionEndDate || null;
+        setDatosNegocio((prev) => ({
+          ...(prev || {}),
+          subscriptionStatus: d.subscriptionStatus ?? prev?.subscriptionStatus,
+          subscriptionEndDate: endDate ?? prev?.subscriptionEndDate,
+          plan: d.plan ?? prev?.plan,
+        }));
+      },
+      (error) => console.error('Error escuchando suscripción:', error),
+    );
+    unsubscribes.push(unsubSuscripcion);
 
     return () => {
       unsubscribes.forEach((u) => u && u());
