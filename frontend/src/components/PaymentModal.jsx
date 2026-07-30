@@ -115,6 +115,15 @@ function PaymentModal({
     setMetodoPagoActual('efectivo'); // Resetea al método por defecto
   };
 
+  // Mercado Pago confirmó el pago: agregamos el pago por el saldo restante.
+  const handleMpPagado = () => {
+    setPagos((prev) => [
+      ...prev,
+      { metodo: 'mercado_pago', monto: montoRestante },
+    ]);
+    setShowMP(false);
+  };
+
   // Lógica para el botón de confirmar
   const handleConfirmar = () => {
     // Pasamos pagos, tipo de factura, vuelto y propina al AppContext.
@@ -206,14 +215,15 @@ function PaymentModal({
         </div>
 
         {/* COBRO CON MERCADO PAGO (QR / link) */}
-        <button
-          type="button"
-          onClick={() => setShowMP(true)}
-          disabled={totalACobrar <= 0}
-          className="mb-4 flex w-full items-center justify-center gap-2 rounded-lg border border-sky-600 bg-sky-600/10 px-4 py-2 font-semibold text-sky-400 transition-colors hover:bg-sky-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Cobrar con Mercado Pago (QR / Link)
-        </button>
+        {montoRestante > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowMP(true)}
+            className="mb-4 flex w-full items-center justify-center gap-2 rounded-lg border border-sky-600 bg-sky-600/10 px-4 py-2 font-semibold text-sky-400 transition-colors hover:bg-sky-600 hover:text-white"
+          >
+            Cobrar con Mercado Pago (QR / Link)
+          </button>
+        )}
 
         {/* LISTA DE PAGOS AGREGADOS */}
         <div className="mb-4 max-h-24 space-y-2 overflow-y-auto pr-2">
@@ -348,10 +358,11 @@ function PaymentModal({
 
       {showMP && (
         <CobroMercadoPagoModal
-          monto={totalACobrar}
+          monto={montoRestante}
           descripcion={`Venta ${cliente?.nombre || ''}`.trim()}
           cliente={cliente}
           onClose={() => setShowMP(false)}
+          onPagado={handleMpPagado}
         />
       )}
     </div>

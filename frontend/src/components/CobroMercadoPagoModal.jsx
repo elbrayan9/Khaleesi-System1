@@ -1,17 +1,33 @@
 // src/components/CobroMercadoPagoModal.jsx
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, ExternalLink, MessageCircle, Copy } from 'lucide-react';
+import {
+  X,
+  ExternalLink,
+  MessageCircle,
+  Copy,
+  CheckCircle,
+} from 'lucide-react';
 import QRCode from 'qrcode';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../firebaseConfig';
 import { useAppContext } from '../context/AppContext.jsx';
 import { formatCurrency } from '../utils/helpers.js';
 
-function CobroMercadoPagoModal({ monto, descripcion, cliente, onClose }) {
+function CobroMercadoPagoModal({
+  monto,
+  descripcion,
+  cliente,
+  onClose,
+  onPagado,
+}) {
   const { sucursalActual, mostrarMensaje } = useAppContext();
   const [estado, setEstado] = useState('cargando'); // cargando | listo | error
   const [link, setLink] = useState('');
   const [qrDataUrl, setQrDataUrl] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [externalReference, setExternalReference] = useState(null);
+  const [pagado, setPagado] = useState(false);
 
   useEffect(() => {
     let cancelado = false;
@@ -31,6 +47,7 @@ function CobroMercadoPagoModal({ monto, descripcion, cliente, onClose }) {
         const url = res.data?.initPoint || res.data?.sandboxInitPoint;
         if (!url) throw new Error('No se recibió el link de pago.');
         if (cancelado) return;
+        setExternalReference(res.data?.externalReference || null);
         setLink(url);
         const qr = await QRCode.toDataURL(url, { width: 260, margin: 1 });
         if (cancelado) return;
@@ -49,6 +66,24 @@ function CobroMercadoPagoModal({ monto, descripcion, cliente, onClose }) {
       cancelado = true;
     };
   }, [monto, descripcion, sucursalActual]);
+
+  // Escucha el cobro en tiempo real: cuando MP confirma, lo marca pagado.
+  useEffect(() => {
+    if (!externalReference) return undefined;
+    const unsub = onSnapshot(doc(db, 'cobros_mp', externalReference), (snap) => {
+      if (snap.data()?.estado === 'pagado') setPagado(true);
+    });
+    return () => unsub();
+  }, [externalReference]);
+
+  // Al quedar pagado, avisamos al modal de pago (una sola vez).
+  useEffect(() => {
+    if (pagado) {
+      mostrarMensaje?.('¡Pago recibido por Mercado Pago!', 'success');
+      onPagado?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pagado]);
 
   const enviarWhatsapp = () => {
     let tel = String(cliente?.telefono || '').replace(/\D/g, '');
@@ -99,15 +134,28 @@ function CobroMercadoPagoModal({ monto, descripcion, cliente, onClose }) {
           ${formatCurrency(monto)}
         </p>
 
-        {estado === 'cargando' && (
+        {pagado && (
+          <div className="py-8">
+            <CheckCircle className="mx-auto mb-2 h-16 w-16 text-green-400" />
+            <p className="text-xl font-bold text-green-400">¡Pago recibido!</p>
+            <button
+              onClick={onClose}
+              className="mt-4 rounded-md bg-green-600 px-6 py-2 font-semibold text-white hover:bg-green-700"
+            >
+              Cerrar
+            </button>
+          </div>
+        )}
+
+        {!pagado && estado === 'cargando' && (
           <p className="py-10 text-sm text-zinc-400">Generando cobro…</p>
         )}
 
-        {estado === 'error' && (
+        {!pagado && estado === 'error' && (
           <p className="py-6 text-sm text-red-400">{errorMsg}</p>
         )}
 
-        {estado === 'listo' && (
+        {!pagado && estado === 'listo' && (
           <>
             <div className="mx-auto mb-3 inline-block rounded-lg bg-white p-3">
               <img src={qrDataUrl} alt="QR de pago Mercado Pago" width={220} />

@@ -1,5 +1,5 @@
 const admin = require('firebase-admin');
-const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { onCall, HttpsError, onRequest } = require('firebase-functions/v2/https');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const functions = require('firebase-functions');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -714,8 +714,10 @@ exports.crearPagoMP = onCall(async (request) => {
     );
   }
 
-  // Referencia externa para poder identificar el pago después (webhook).
+  // Referencia externa para identificar el pago después (webhook).
   const externalReference = ventaId || `${uid}_${Date.now()}`;
+  const WEBHOOK_URL =
+    'https://us-central1-khaleesy-system.cloudfunctions.net/mpWebhook';
 
   const preference = {
     items: [
@@ -727,8 +729,24 @@ exports.crearPagoMP = onCall(async (request) => {
       },
     ],
     external_reference: externalReference,
+    notification_url: `${WEBHOOK_URL}?uid=${uid}`,
     metadata: { userId: uid, sucursalId, ventaId },
   };
+
+  // Registramos el cobro como "pendiente" para confirmarlo luego por webhook
+  // y que el frontend lo escuche en tiempo real.
+  try {
+    await db.collection('cobros_mp').doc(externalReference).set({
+      userId: uid,
+      sucursalId: sucursalId || null,
+      monto: parseFloat(montoNum.toFixed(2)),
+      descripcion: String(descripcion),
+      estado: 'pendiente',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch (e) {
+    console.error('[MP] Error creando cobro pendiente:', e);
+  }
 
   try {
     const resp = await fetch(
@@ -761,6 +779,60 @@ exports.crearPagoMP = onCall(async (request) => {
     if (error.code) throw error;
     console.error('[MP] Error de red:', error);
     throw new HttpsError('internal', 'No se pudo contactar con Mercado Pago.');
+  }
+});
+
+// ===============================================
+// MERCADO PAGO: webhook de notificaciones de pago
+// ===============================================
+exports.mpWebhook = onRequest(async (req, res) => {
+  try {
+    // El uid del comercio viaja en la query (lo pusimos en notification_url).
+    const uid = req.query.uid;
+    const tipo = req.body?.type || req.query.type || req.query.topic;
+    const paymentId =
+      req.body?.data?.id || req.query['data.id'] || req.query.id;
+
+    // Solo nos interesan notificaciones de pago.
+    if (!uid || !paymentId || (tipo && tipo !== 'payment')) {
+      return res.status(200).send('ignored');
+    }
+
+    // Access Token del comercio para consultar el pago.
+    const negDoc = await db.collection('datosNegocio').doc(uid).get();
+    const token = negDoc.exists ? negDoc.data()?.mpAccessToken : null;
+    if (!token) return res.status(200).send('sin token');
+
+    const r = await fetch(
+      `https://api.mercadopago.com/v1/payments/${paymentId}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    const pago = await r.json();
+    if (!r.ok) {
+      console.error('[MP webhook] Error consultando pago:', pago);
+      return res.status(200).send('error consulta');
+    }
+
+    const extRef = pago.external_reference;
+    if (extRef) {
+      const estado = pago.status === 'approved' ? 'pagado' : pago.status;
+      await db.collection('cobros_mp').doc(extRef).set(
+        {
+          estado,
+          paymentId: String(paymentId),
+          montoPagado: pago.transaction_amount || null,
+          metodoMP: pago.payment_type_id || null,
+          actualizadoEn: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      );
+    }
+
+    return res.status(200).send('ok');
+  } catch (error) {
+    console.error('[MP webhook] Error:', error);
+    // Respondemos 200 igual para que MP no reintente indefinidamente.
+    return res.status(200).send('error');
   }
 });
 
