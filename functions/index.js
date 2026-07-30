@@ -729,7 +729,7 @@ exports.crearPagoMP = onCall(async (request) => {
       },
     ],
     external_reference: externalReference,
-    notification_url: `${WEBHOOK_URL}?uid=${uid}`,
+    notification_url: `${WEBHOOK_URL}?uid=${uid}&suc=${sucursalId || ''}`,
     metadata: { userId: uid, sucursalId, ventaId },
   };
 
@@ -798,10 +798,27 @@ exports.mpWebhook = onRequest(async (req, res) => {
       return res.status(200).send('ignored');
     }
 
-    // Access Token del comercio para consultar el pago.
-    const negDoc = await db.collection('datosNegocio').doc(uid).get();
-    const token = negDoc.exists ? negDoc.data()?.mpAccessToken : null;
-    if (!token) return res.status(200).send('sin token');
+    // Access Token del comercio (igual que crearPagoMP: sucursal, luego negocio).
+    const sucId = req.query.suc;
+    let token = null;
+    if (sucId) {
+      const sucDoc = await db.collection('sucursales').doc(sucId).get();
+      if (sucDoc.exists) {
+        const d = sucDoc.data();
+        token = d?.configuracion?.mpAccessToken || d?.mpAccessToken || null;
+      }
+    }
+    if (!token) {
+      const negDoc = await db.collection('datosNegocio').doc(uid).get();
+      token = negDoc.exists ? negDoc.data()?.mpAccessToken : null;
+    }
+    if (!token) {
+      console.warn(`[MP webhook] sin token (uid=${uid}, suc=${sucId})`);
+      return res.status(200).send('sin token');
+    }
+    console.log(
+      `[MP webhook] uid=${uid} suc=${sucId} paymentId=${paymentId}`,
+    );
 
     const r = await fetch(
       `https://api.mercadopago.com/v1/payments/${paymentId}`,
@@ -814,6 +831,7 @@ exports.mpWebhook = onRequest(async (req, res) => {
     }
 
     const extRef = pago.external_reference;
+    console.log(`[MP webhook] extRef=${extRef} status=${pago.status}`);
     if (extRef) {
       const estado = pago.status === 'approved' ? 'pagado' : pago.status;
       await db.collection('cobros_mp').doc(extRef).set(
