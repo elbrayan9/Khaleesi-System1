@@ -485,6 +485,30 @@ function ConfiguracionTab() {
                 Si configuras este número (con + y código de país), el reporte de Cierre de Caja armará un link listo para enviar a este contacto.
               </p>
             </div>
+
+            {/* MERCADO PAGO */}
+            <div>
+              <label
+                htmlFor="config-mp-token"
+                className="mb-1 block text-sm font-medium text-zinc-300"
+              >
+                Mercado Pago — Access Token
+              </label>
+              <input
+                type="password"
+                id="config-mp-token"
+                value={mpAccessToken}
+                onChange={(e) => setMpAccessToken(e.target.value)}
+                placeholder="APP_USR-... (o TEST-... para pruebas)"
+                className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100 placeholder-zinc-400"
+                autoComplete="off"
+              />
+              <p className="mt-1 text-xs text-zinc-400">
+                Para cobrar con QR/link de Mercado Pago. Se obtiene en Mercado
+                Pago → Tus integraciones → Credenciales (usá las de prueba para
+                testear).
+              </p>
+            </div>
           </div>
 
           <hr className="my-6 border-zinc-700" />
@@ -686,29 +710,6 @@ function ConfiguracionTab() {
                   placeholder="Ej: 01/01/2024"
                   className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100"
                 />
-              </div>
-
-              <div className="border-t border-zinc-600 pt-3">
-                <label
-                  htmlFor="config-mp-token"
-                  className="mb-1 block text-sm font-medium text-zinc-300"
-                >
-                  Mercado Pago — Access Token
-                </label>
-                <input
-                  type="password"
-                  id="config-mp-token"
-                  value={mpAccessToken}
-                  onChange={(e) => setMpAccessToken(e.target.value)}
-                  placeholder="APP_USR-... (o TEST-... para pruebas)"
-                  className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100"
-                  autoComplete="off"
-                />
-                <p className="mt-1 text-xs text-zinc-500">
-                  Para generar links/QR de cobro. Se obtiene en Mercado Pago →
-                  Tus integraciones → Credenciales (usá las de prueba para
-                  testear).
-                </p>
               </div>
 
               <div className="pt-2">
