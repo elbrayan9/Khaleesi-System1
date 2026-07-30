@@ -10,6 +10,9 @@ const db = admin.firestore();
 
 // Secret de Gemini (configurado con `firebase functions:secrets:set GEMINI_KEY`)
 const GEMINI_KEY = defineSecret('GEMINI_KEY');
+// Access Token de Mercado Pago de la PLATAFORMA (tu cuenta) para cobrar las
+// suscripciones. Se setea con: firebase functions:secrets:set MP_PLATFORM_TOKEN
+const MP_PLATFORM_TOKEN = defineSecret('MP_PLATFORM_TOKEN');
 
 // =======================
 // Funciones de administración
@@ -853,6 +856,146 @@ exports.mpWebhook = onRequest(async (req, res) => {
     return res.status(200).send('error');
   }
 });
+
+// ===============================================
+// SUSCRIPCIONES: cobro con Mercado Pago (a la cuenta de la plataforma)
+// ===============================================
+const PLANES_PRECIO = { basic: 15000, premium: 25000 };
+
+exports.crearPagoSuscripcion = onCall(
+  { secrets: [MP_PLATFORM_TOKEN] },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
+    }
+    const uid = request.auth.uid;
+    const email = request.auth.token?.email || '';
+    const plan = ['basic', 'premium'].includes(request.data?.plan)
+      ? request.data.plan
+      : 'premium';
+    const precio = PLANES_PRECIO[plan];
+
+    const token = MP_PLATFORM_TOKEN.value();
+    if (!token) {
+      throw new HttpsError(
+        'failed-precondition',
+        'Falta configurar el token de Mercado Pago de la plataforma.',
+      );
+    }
+
+    const WEBHOOK_URL =
+      'https://us-central1-khaleesy-system.cloudfunctions.net/mpWebhookSuscripcion';
+    const externalReference = `sub_${uid}_${plan}_${Date.now()}`;
+
+    const preference = {
+      items: [
+        {
+          title: `Suscripción Khaleesi - Plan ${plan === 'premium' ? 'Completo' : 'Básico'}`,
+          quantity: 1,
+          unit_price: precio,
+          currency_id: 'ARS',
+        },
+      ],
+      payer: email ? { email } : undefined,
+      external_reference: externalReference,
+      notification_url: `${WEBHOOK_URL}?uid=${uid}&plan=${plan}`,
+      // 1 sola cuota para minimizar comisiones/intereses.
+      payment_methods: { installments: 1, default_installments: 1 },
+      metadata: { userId: uid, plan, tipo: 'suscripcion' },
+    };
+
+    try {
+      const resp = await fetch(
+        'https://api.mercadopago.com/checkout/preferences',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(preference),
+        },
+      );
+      const data = await resp.json();
+      if (!resp.ok) {
+        console.error('[MP sub] rechazo al crear preferencia:', data);
+        throw new HttpsError(
+          'invalid-argument',
+          `Mercado Pago: ${data?.message || 'no se pudo crear el pago.'}`,
+        );
+      }
+      return {
+        success: true,
+        initPoint: data.init_point,
+        sandboxInitPoint: data.sandbox_init_point,
+        preferenceId: data.id,
+        plan,
+        precio,
+      };
+    } catch (error) {
+      if (error.code) throw error;
+      console.error('[MP sub] error de red:', error);
+      throw new HttpsError('internal', 'No se pudo contactar con Mercado Pago.');
+    }
+  },
+);
+
+exports.mpWebhookSuscripcion = onRequest(
+  { secrets: [MP_PLATFORM_TOKEN] },
+  async (req, res) => {
+    try {
+      const uid = req.query.uid;
+      const plan = ['basic', 'premium'].includes(req.query.plan)
+        ? req.query.plan
+        : null;
+      const tipo = req.body?.type || req.query.type || req.query.topic;
+      const paymentId =
+        req.body?.data?.id || req.query['data.id'] || req.query.id;
+
+      if (!uid || !paymentId || (tipo && tipo !== 'payment')) {
+        return res.status(200).send('ignored');
+      }
+
+      const token = MP_PLATFORM_TOKEN.value();
+      if (!token) return res.status(200).send('sin token');
+
+      const r = await fetch(
+        `https://api.mercadopago.com/v1/payments/${paymentId}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      const pago = await r.json();
+      if (!r.ok) {
+        console.error('[MP sub webhook] error consultando pago:', pago);
+        return res.status(200).send('error consulta');
+      }
+
+      console.log(
+        `[MP sub webhook] uid=${uid} plan=${plan} status=${pago.status} extRef=${pago.external_reference}`,
+      );
+
+      // Solo reactivamos si el pago está aprobado y corresponde a este usuario.
+      if (
+        pago.status === 'approved' &&
+        String(pago.external_reference || '').startsWith(`sub_${uid}`)
+      ) {
+        const nuevaFecha = new Date();
+        nuevaFecha.setDate(nuevaFecha.getDate() + 30);
+        const updates = {
+          subscriptionStatus: 'active',
+          subscriptionEndDate: nuevaFecha,
+        };
+        if (plan) updates.plan = plan;
+        await db.collection('datosNegocio').doc(uid).set(updates, { merge: true });
+        console.log(`[MP sub webhook] Suscripción reactivada: ${uid}`);
+      }
+
+      return res.status(200).send('ok');
+    } catch (error) {
+      console.error('[MP sub webhook] Error:', error);
+      return res.status(200).send('error');
+    }
+  },
+);
 
 // ===============================================
 // BACKUP MANUAL DE DATOS

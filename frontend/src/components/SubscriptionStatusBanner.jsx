@@ -1,14 +1,45 @@
 // frontend/src/components/SubscriptionStatusBanner.jsx
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { motion } from 'framer-motion';
 import { Info, AlertTriangle, CreditCard } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const SubscriptionStatusBanner = () => {
-  const { datosNegocio } = useAppContext();
+  const { datosNegocio, mostrarMensaje } = useAppContext();
   const navigate = useNavigate();
+  const [procesando, setProcesando] = useState(false);
+
+  const handlePagarSuscripcion = async () => {
+    setProcesando(true);
+    try {
+      const { getFunctions, httpsCallable } = await import(
+        'firebase/functions'
+      );
+      const functions = getFunctions();
+      const crearPagoSuscripcion = httpsCallable(
+        functions,
+        'crearPagoSuscripcion',
+      );
+      const plan = datosNegocio?.plan === 'basic' ? 'basic' : 'premium';
+      const res = await crearPagoSuscripcion({ plan });
+      const url = res.data?.initPoint || res.data?.sandboxInitPoint;
+      if (!url) throw new Error('No se recibió el link de pago.');
+      window.open(url, '_blank', 'noopener,noreferrer');
+      mostrarMensaje?.(
+        'Te llevamos a Mercado Pago. Al pagar, tu plan se reactiva solo.',
+        'info',
+      );
+    } catch (e) {
+      mostrarMensaje?.(
+        `No se pudo iniciar el pago: ${e.message || 'error'}`,
+        'error',
+      );
+    } finally {
+      setProcesando(false);
+    }
+  };
 
   if (!datosNegocio || datosNegocio.subscriptionStatus === 'active') {
     return null; // No mostrar nada si los datos no han cargado o la suscripción está activa
@@ -60,15 +91,26 @@ const SubscriptionStatusBanner = () => {
         {bannerContent.icon}
         <span className="text-zinc-200">{bannerContent.message}</span>
       </div>
-      <motion.button
-        className="flex w-full items-center justify-center gap-2 rounded-md bg-green-600 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-green-700 sm:w-auto"
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={() => navigate('/payment-instructions')}
-      >
-        <CreditCard size={14} />
-        {bannerContent.buttonText}
-      </motion.button>
+      <div className="flex w-full flex-col items-stretch gap-1 sm:w-auto sm:items-end">
+        <motion.button
+          className="flex w-full items-center justify-center gap-2 rounded-md bg-green-600 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          whileHover={{ scale: procesando ? 1 : 1.05 }}
+          whileTap={{ scale: procesando ? 1 : 0.95 }}
+          onClick={handlePagarSuscripcion}
+          disabled={procesando}
+        >
+          <CreditCard size={14} />
+          {procesando
+            ? 'Generando pago…'
+            : `${bannerContent.buttonText} con Mercado Pago`}
+        </motion.button>
+        <button
+          onClick={() => navigate('/payment-instructions')}
+          className="text-[11px] text-zinc-400 underline hover:text-zinc-200"
+        >
+          Ver otras formas de pago
+        </button>
+      </div>
     </motion.div>
   );
 };

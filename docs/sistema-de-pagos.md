@@ -132,7 +132,37 @@ Frontend: `components/CobroMercadoPagoModal.jsx`.
 Reemplazar el token `TEST-...` por el **`APP_USR-...`** de producción en
 Configuración. Nada más cambia.
 
-## 7. Facturación electrónica (ARCA)
+## 7. Cobro de suscripciones (a la plataforma) + reactivación automática
+
+Cuando a un cliente se le **vence la suscripción**, puede **pagarte a vos**
+(Brian) desde el banner "Renovar Suscripción con Mercado Pago", y el plan se
+**reactiva solo** (+30 días) al acreditarse el pago.
+
+- La plata va a **tu cuenta de MP** (la de la plataforma), NO a la del comercio.
+- El token de la plataforma es un **secret** de Firebase: `MP_PLATFORM_TOKEN`
+  (más seguro que Firestore, que los clientes podrían leer).
+- Precios (backend, `PLANES_PRECIO`): Básico $15.000 / Completo $25.000.
+- Se cobra en **1 cuota** (para minimizar comisión/intereses).
+
+**Flujo:**
+1. `crearPagoSuscripcion` (onCall) crea la preferencia con tu token de
+   plataforma. `external_reference = sub_{uid}_{plan}_{ts}`.
+2. El cliente paga → `mpWebhookSuscripcion` recibe el aviso, consulta el pago y,
+   si está `approved`, pone `subscriptionStatus: 'active'`,
+   `subscriptionEndDate = hoy + 30` y el `plan` en `datosNegocio/{uid}`.
+3. La app escucha `datosNegocio` en tiempo real → el banner desaparece solo.
+
+**Configurar tu token de plataforma (una vez):**
+```
+firebase functions:secrets:set MP_PLATFORM_TOKEN
+# pegás tu Access Token: TEST-... para probar, APP_USR-... para producción
+firebase deploy --only functions:crearPagoSuscripcion,functions:mpWebhookSuscripcion
+```
+
+Código: `functions/index.js` (`crearPagoSuscripcion`, `mpWebhookSuscripcion`),
+`components/SubscriptionStatusBanner.jsx`.
+
+## 8. Facturación electrónica (ARCA)
 
 Ver **`docs/facturacion-arca.md`** (certificados, CSR, puntos de venta, errores
 comunes). El PDF de la factura muestra la **fecha real de emisión** (la que
