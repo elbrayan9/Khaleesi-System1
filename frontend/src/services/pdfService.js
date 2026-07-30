@@ -310,15 +310,15 @@ export const generarPdfVenta = async (
   doc.setFont(font, 'bold');
   doc.text('Período Facturado Desde:', margin + 2, periodoY + 5);
   doc.setFont(font, 'normal');
-  doc.text(venta.fecha, margin + 42, periodoY + 5);
+  doc.text(fechaEmision, margin +42, periodoY + 5);
   doc.setFont(font, 'bold');
   doc.text('Hasta:', margin + 70, periodoY + 5);
   doc.setFont(font, 'normal');
-  doc.text(venta.fecha, margin + 82, periodoY + 5);
+  doc.text(fechaEmision, margin +82, periodoY + 5);
   doc.setFont(font, 'bold');
   doc.text('Vto. para el pago:', margin + 120, periodoY + 5);
   doc.setFont(font, 'normal');
-  doc.text(venta.fecha, margin + 150, periodoY + 5);
+  doc.text(fechaEmision, margin +150, periodoY + 5);
 
   // --- CAJA DE DATOS DEL CLIENTE ---
   const clienteY = periodoY + 10;
