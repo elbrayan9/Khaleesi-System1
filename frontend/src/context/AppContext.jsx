@@ -457,12 +457,17 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
               Object.keys(obj).forEach((key) => { result[key] = sanitize(obj[key]); });
               return result;
             };
-            // Fusionamos (no reemplazamos) para conservar la suscripción/plan
-            // que vienen de datosNegocio/{uid} (otro listener).
-            setDatosNegocio((prev) => ({
-              ...(prev || {}),
-              ...sanitize({ id: sucursalActual.id, ...data.configuracion }),
-            }));
+            // Fusionamos SIN pisar la suscripción/plan: esos son autoridad de
+            // datosNegocio/{uid} (la config de sucursal puede tenerlos viejos
+            // por la migración inicial).
+            const cfg = sanitize({
+              id: sucursalActual.id,
+              ...data.configuracion,
+            });
+            delete cfg.subscriptionStatus;
+            delete cfg.subscriptionEndDate;
+            delete cfg.plan;
+            setDatosNegocio((prev) => ({ ...(prev || {}), ...cfg }));
           } else {
             // Fallback: Si por alguna razón no tiene config, podríamos intentar leer la global
             // Pero para simplificar y evitar loops, esperamos a que initialize haga su trabajo.
