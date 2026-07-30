@@ -3,18 +3,50 @@
 import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Send } from 'lucide-react';
+import { ArrowLeft, Send, CreditCard } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const PaymentInstructions = () => {
-  const { handleNotifyPayment, isLoading, datosNegocio } = useAppContext();
+  const { handleNotifyPayment, isLoading, datosNegocio, mostrarMensaje } =
+    useAppContext();
   const [notified, setNotified] = useState(false);
+  const [procesando, setProcesando] = useState(null); // 'debito' | 'credito'
   const navigate = useNavigate();
 
   const handleNotificationClick = async () => {
     const success = await handleNotifyPayment();
     if (success) {
       setNotified(true);
+    }
+  };
+
+  const handlePagarSuscripcion = async (metodo) => {
+    setProcesando(metodo);
+    try {
+      const { getFunctions, httpsCallable } = await import(
+        'firebase/functions'
+      );
+      const functions = getFunctions();
+      const crearPagoSuscripcion = httpsCallable(
+        functions,
+        'crearPagoSuscripcion',
+      );
+      const plan = datosNegocio?.plan === 'basic' ? 'basic' : 'premium';
+      const res = await crearPagoSuscripcion({ plan, metodo });
+      const url = res.data?.initPoint || res.data?.sandboxInitPoint;
+      if (!url) throw new Error('No se recibió el link de pago.');
+      window.open(url, '_blank', 'noopener,noreferrer');
+      mostrarMensaje?.(
+        'Te llevamos a Mercado Pago. Al pagar, tu plan se reactiva solo.',
+        'info',
+      );
+    } catch (e) {
+      mostrarMensaje?.(
+        `No se pudo iniciar el pago: ${e.message || 'error'}`,
+        'error',
+      );
+    } finally {
+      setProcesando(null);
     }
   };
 
@@ -35,7 +67,47 @@ const PaymentInstructions = () => {
         <h2 className="mb-2 text-2xl font-bold">Activa tu Suscripción</h2>
         <p className="mb-6 text-zinc-400">
           Tu plan {datosNegocio?.subscriptionStatus} finalizó el {endDate}.
-          Sigue estos pasos para reactivarlo:
+          Reactivalo en un instante pagando con Mercado Pago:
+        </p>
+
+        {/* OPCIÓN RECOMENDADA: pago online con reactivación automática */}
+        <div className="mb-6 rounded-md border border-blue-500/40 bg-blue-900/20 p-4">
+          <h3 className="mb-1 text-lg font-semibold">
+            Pagá online y reactivá al instante
+          </h3>
+          <p className="mb-3 text-sm text-zinc-300">
+            Pagás con Mercado Pago y tu cuenta se reactiva sola, sin esperar.
+          </p>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <motion.button
+              onClick={() => handlePagarSuscripcion('debito')}
+              disabled={!!procesando}
+              className="flex flex-1 items-center justify-center gap-2 rounded-md bg-green-600 px-4 py-3 font-semibold text-white hover:bg-green-700 disabled:opacity-60"
+              whileHover={{ scale: procesando ? 1 : 1.02 }}
+              whileTap={{ scale: procesando ? 1 : 0.98 }}
+            >
+              <CreditCard size={16} />
+              {procesando === 'debito'
+                ? 'Generando…'
+                : 'Débito / dinero en cuenta'}
+            </motion.button>
+            <motion.button
+              onClick={() => handlePagarSuscripcion('credito')}
+              disabled={!!procesando}
+              className="flex flex-1 items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-3 font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+              whileHover={{ scale: procesando ? 1 : 1.02 }}
+              whileTap={{ scale: procesando ? 1 : 0.98 }}
+            >
+              <CreditCard size={16} />
+              {procesando === 'credito'
+                ? 'Generando…'
+                : 'Crédito (con recargo)'}
+            </motion.button>
+          </div>
+        </div>
+
+        <p className="mb-3 text-sm font-medium text-zinc-400">
+          ¿Preferís transferir? También podés:
         </p>
 
         <div className="space-y-4 rounded-md bg-zinc-900 p-4">
