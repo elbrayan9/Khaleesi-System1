@@ -42,11 +42,9 @@ const PaymentInstructions = () => {
       });
       const url = res.data?.initPoint || res.data?.sandboxInitPoint;
       if (!url) throw new Error('No se recibió el link de pago.');
-      window.open(url, '_blank', 'noopener,noreferrer');
-      mostrarMensaje?.(
-        'Te llevamos a Mercado Pago. Al pagar, tu plan se reactiva solo.',
-        'info',
-      );
+      // Redirigimos en la misma pestaña: evita el bloqueo de pop-ups y al
+      // volver de Mercado Pago la app recarga el estado de la suscripción.
+      window.location.assign(url);
     } catch (e) {
       mostrarMensaje?.(
         `No se pudo iniciar el pago: ${e.message || 'error'}`,
