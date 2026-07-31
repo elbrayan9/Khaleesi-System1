@@ -36,7 +36,10 @@ const PaymentInstructions = () => {
         functions,
         'crearPagoSuscripcion',
       );
-      const res = await crearPagoSuscripcion({ plan: planKey });
+      const res = await crearPagoSuscripcion({
+        plan: planKey,
+        origin: window.location.origin,
+      });
       const url = res.data?.initPoint || res.data?.sandboxInitPoint;
       if (!url) throw new Error('No se recibió el link de pago.');
       window.open(url, '_blank', 'noopener,noreferrer');

@@ -887,6 +887,15 @@ exports.crearPagoSuscripcion = onCall(
       'https://us-central1-khaleesy-system.cloudfunctions.net/mpWebhookSuscripcion';
     const externalReference = `sub_${uid}_${plan}_${Date.now()}`;
 
+    // Origen del frontend (window.location.origin) para volver a la app al
+    // terminar el pago. Se valida que sea una URL http(s) para no confiar en
+    // texto arbitrario.
+    const origin =
+      typeof request.data?.origin === 'string' &&
+      /^https?:\/\/[^\s]+$/.test(request.data.origin)
+        ? request.data.origin.replace(/\/+$/, '')
+        : null;
+
     const preference = {
       items: [
         {
@@ -907,6 +916,19 @@ exports.crearPagoSuscripcion = onCall(
       payment_methods: { installments: 1, default_installments: 1 },
       metadata: { userId: uid, plan, tipo: 'suscripcion' },
     };
+
+    // Al terminar el pago, MP devuelve al usuario a la app automáticamente.
+    if (origin) {
+      preference.back_urls = {
+        success: `${origin}/dashboard?pago=ok`,
+        pending: `${origin}/dashboard?pago=pendiente`,
+        failure: `${origin}/payment-instructions?pago=error`,
+      };
+      // auto_return sólo con https (MP lo rechaza en http/localhost).
+      if (origin.startsWith('https://')) {
+        preference.auto_return = 'approved';
+      }
+    }
 
     try {
       const resp = await fetch(

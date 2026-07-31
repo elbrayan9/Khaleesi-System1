@@ -21,7 +21,10 @@ const SubscriptionStatusBanner = () => {
         'crearPagoSuscripcion',
       );
       const plan = datosNegocio?.plan === 'basic' ? 'basic' : 'premium';
-      const res = await crearPagoSuscripcion({ plan });
+      const res = await crearPagoSuscripcion({
+        plan,
+        origin: window.location.origin,
+      });
       const url = res.data?.initPoint || res.data?.sandboxInitPoint;
       if (!url) throw new Error('No se recibió el link de pago.');
       window.open(url, '_blank', 'noopener,noreferrer');
