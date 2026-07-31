@@ -66,8 +66,10 @@ const PaymentInstructions = () => {
       <div className="rounded-lg border border-zinc-700 bg-zinc-800 p-6">
         <h2 className="mb-2 text-2xl font-bold">Activa tu Suscripción</h2>
         <p className="mb-6 text-zinc-400">
-          Tu plan {datosNegocio?.subscriptionStatus} finalizó el {endDate}.
-          Reactivalo en un instante pagando con Mercado Pago:
+          {datosNegocio?.subscriptionStatus === 'expired'
+            ? `Tu suscripción venció${endDate ? ` el ${endDate}` : ''}.`
+            : `Tu período de prueba finalizó${endDate ? ` el ${endDate}` : ''}.`}{' '}
+          Reactivala en un instante pagando con Mercado Pago:
         </p>
 
         {/* OPCIÓN RECOMENDADA: pago online con reactivación automática */}
