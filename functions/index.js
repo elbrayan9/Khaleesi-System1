@@ -861,9 +861,6 @@ exports.mpWebhook = onRequest(async (req, res) => {
 // SUSCRIPCIONES: cobro con Mercado Pago (a la cuenta de la plataforma)
 // ===============================================
 const PLANES_PRECIO = { basic: 15000, premium: 25000 };
-// Recargo si el cliente paga con TARJETA DE CRÉDITO (cubre la comisión mayor).
-// Débito / dinero en cuenta pagan el precio base (sin recargo).
-const RECARGO_CREDITO = 0.1; // 10%
 
 exports.crearPagoSuscripcion = onCall(
   { secrets: [MP_PLATFORM_TOKEN] },
@@ -876,11 +873,7 @@ exports.crearPagoSuscripcion = onCall(
     const plan = ['basic', 'premium'].includes(request.data?.plan)
       ? request.data.plan
       : 'premium';
-    // 'credito' -> con recargo y cuotas; 'debito' (default) -> base, 1 cuota.
-    const metodo = request.data?.metodo === 'credito' ? 'credito' : 'debito';
-    const base = PLANES_PRECIO[plan];
-    const precio =
-      metodo === 'credito' ? Math.round(base * (1 + RECARGO_CREDITO)) : base;
+    const precio = PLANES_PRECIO[plan];
 
     const token = MP_PLATFORM_TOKEN.value();
     if (!token) {
@@ -894,32 +887,12 @@ exports.crearPagoSuscripcion = onCall(
       'https://us-central1-khaleesy-system.cloudfunctions.net/mpWebhookSuscripcion';
     const externalReference = `sub_${uid}_${plan}_${Date.now()}`;
 
-    // Medios de pago:
-    // - crédito: se permite tarjeta de crédito y cuotas (con el recargo ya
-    //   aplicado en el precio); se excluyen débito/dinero en cuenta.
-    // - débito (default): base, 1 cuota, se excluye tarjeta de crédito.
-    const payment_methods =
-      metodo === 'credito'
-        ? {
-            excluded_payment_types: [
-              { id: 'debit_card' },
-              { id: 'account_money' },
-              { id: 'ticket' },
-              { id: 'bank_transfer' },
-            ],
-          }
-        : {
-            excluded_payment_types: [{ id: 'credit_card' }],
-            installments: 1,
-            default_installments: 1,
-          };
-
     const preference = {
       items: [
         {
           title: `Suscripción Khaleesi - Plan ${
             plan === 'premium' ? 'Completo' : 'Básico'
-          }${metodo === 'credito' ? ' (con recargo)' : ''}`,
+          }`,
           quantity: 1,
           unit_price: precio,
           currency_id: 'ARS',
@@ -928,8 +901,11 @@ exports.crearPagoSuscripcion = onCall(
       payer: email ? { email } : undefined,
       external_reference: externalReference,
       notification_url: `${WEBHOOK_URL}?uid=${uid}&plan=${plan}`,
-      payment_methods,
-      metadata: { userId: uid, plan, metodo, tipo: 'suscripcion' },
+      // 1 sola cuota: sin costo de financiación de cuotas (nada extra que te
+      // descuenten por cuotas). El cliente paga con débito, dinero en cuenta o
+      // tarjeta en 1 pago.
+      payment_methods: { installments: 1, default_installments: 1 },
+      metadata: { userId: uid, plan, tipo: 'suscripcion' },
     };
 
     try {

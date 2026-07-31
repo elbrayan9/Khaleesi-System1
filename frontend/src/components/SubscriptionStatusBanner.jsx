@@ -9,10 +9,10 @@ import { useNavigate } from 'react-router-dom';
 const SubscriptionStatusBanner = () => {
   const { datosNegocio, mostrarMensaje } = useAppContext();
   const navigate = useNavigate();
-  const [procesando, setProcesando] = useState(null); // 'debito' | 'credito' | null
+  const [procesando, setProcesando] = useState(false);
 
-  const handlePagarSuscripcion = async (metodo) => {
-    setProcesando(metodo);
+  const handlePagarSuscripcion = async () => {
+    setProcesando(true);
     try {
       const { getFunctions, httpsCallable } = await import(
         'firebase/functions'
@@ -23,7 +23,7 @@ const SubscriptionStatusBanner = () => {
         'crearPagoSuscripcion',
       );
       const plan = datosNegocio?.plan === 'basic' ? 'basic' : 'premium';
-      const res = await crearPagoSuscripcion({ plan, metodo });
+      const res = await crearPagoSuscripcion({ plan });
       const url = res.data?.initPoint || res.data?.sandboxInitPoint;
       if (!url) throw new Error('No se recibió el link de pago.');
       window.open(url, '_blank', 'noopener,noreferrer');
@@ -37,7 +37,7 @@ const SubscriptionStatusBanner = () => {
         'error',
       );
     } finally {
-      setProcesando(null);
+      setProcesando(false);
     }
   };
 
@@ -91,33 +91,17 @@ const SubscriptionStatusBanner = () => {
         {bannerContent.icon}
         <span className="text-zinc-200">{bannerContent.message}</span>
       </div>
-      <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:items-end">
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <motion.button
-            className="flex items-center justify-center gap-2 rounded-md bg-green-600 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
-            whileHover={{ scale: procesando ? 1 : 1.05 }}
-            whileTap={{ scale: procesando ? 1 : 0.95 }}
-            onClick={() => handlePagarSuscripcion('debito')}
-            disabled={!!procesando}
-          >
-            <CreditCard size={14} />
-            {procesando === 'debito'
-              ? 'Generando…'
-              : 'Débito / dinero en cuenta'}
-          </motion.button>
-          <motion.button
-            className="flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-            whileHover={{ scale: procesando ? 1 : 1.05 }}
-            whileTap={{ scale: procesando ? 1 : 0.95 }}
-            onClick={() => handlePagarSuscripcion('credito')}
-            disabled={!!procesando}
-          >
-            <CreditCard size={14} />
-            {procesando === 'credito'
-              ? 'Generando…'
-              : 'Crédito (con recargo)'}
-          </motion.button>
-        </div>
+      <div className="flex w-full flex-col items-stretch gap-1 sm:w-auto sm:items-end">
+        <motion.button
+          className="flex w-full items-center justify-center gap-2 rounded-md bg-green-600 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          whileHover={{ scale: procesando ? 1 : 1.05 }}
+          whileTap={{ scale: procesando ? 1 : 0.95 }}
+          onClick={handlePagarSuscripcion}
+          disabled={procesando}
+        >
+          <CreditCard size={14} />
+          {procesando ? 'Generando…' : 'Activar Suscripción'}
+        </motion.button>
         <button
           onClick={() => navigate('/payment-instructions')}
           className="text-[11px] text-zinc-400 underline hover:text-zinc-200"

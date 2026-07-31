@@ -10,7 +10,7 @@ const PaymentInstructions = () => {
   const { handleNotifyPayment, isLoading, datosNegocio, mostrarMensaje } =
     useAppContext();
   const [notified, setNotified] = useState(false);
-  const [procesando, setProcesando] = useState(null); // 'debito' | 'credito'
+  const [procesando, setProcesando] = useState(false);
   const navigate = useNavigate();
 
   const handleNotificationClick = async () => {
@@ -20,8 +20,8 @@ const PaymentInstructions = () => {
     }
   };
 
-  const handlePagarSuscripcion = async (metodo) => {
-    setProcesando(metodo);
+  const handlePagarSuscripcion = async () => {
+    setProcesando(true);
     try {
       const { getFunctions, httpsCallable } = await import(
         'firebase/functions'
@@ -32,7 +32,7 @@ const PaymentInstructions = () => {
         'crearPagoSuscripcion',
       );
       const plan = datosNegocio?.plan === 'basic' ? 'basic' : 'premium';
-      const res = await crearPagoSuscripcion({ plan, metodo });
+      const res = await crearPagoSuscripcion({ plan });
       const url = res.data?.initPoint || res.data?.sandboxInitPoint;
       if (!url) throw new Error('No se recibió el link de pago.');
       window.open(url, '_blank', 'noopener,noreferrer');
@@ -46,7 +46,7 @@ const PaymentInstructions = () => {
         'error',
       );
     } finally {
-      setProcesando(null);
+      setProcesando(false);
     }
   };
 
@@ -78,32 +78,16 @@ const PaymentInstructions = () => {
           <p className="mb-3 text-sm text-zinc-300">
             Pagás con Mercado Pago y tu cuenta se reactiva sola, sin esperar.
           </p>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <motion.button
-              onClick={() => handlePagarSuscripcion('debito')}
-              disabled={!!procesando}
-              className="flex flex-1 items-center justify-center gap-2 rounded-md bg-green-600 px-4 py-3 font-semibold text-white hover:bg-green-700 disabled:opacity-60"
-              whileHover={{ scale: procesando ? 1 : 1.02 }}
-              whileTap={{ scale: procesando ? 1 : 0.98 }}
-            >
-              <CreditCard size={16} />
-              {procesando === 'debito'
-                ? 'Generando…'
-                : 'Débito / dinero en cuenta'}
-            </motion.button>
-            <motion.button
-              onClick={() => handlePagarSuscripcion('credito')}
-              disabled={!!procesando}
-              className="flex flex-1 items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-3 font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
-              whileHover={{ scale: procesando ? 1 : 1.02 }}
-              whileTap={{ scale: procesando ? 1 : 0.98 }}
-            >
-              <CreditCard size={16} />
-              {procesando === 'credito'
-                ? 'Generando…'
-                : 'Crédito (con recargo)'}
-            </motion.button>
-          </div>
+          <motion.button
+            onClick={handlePagarSuscripcion}
+            disabled={procesando}
+            className="flex w-full items-center justify-center gap-2 rounded-md bg-green-600 px-4 py-3 font-semibold text-white hover:bg-green-700 disabled:opacity-60"
+            whileHover={{ scale: procesando ? 1 : 1.02 }}
+            whileTap={{ scale: procesando ? 1 : 0.98 }}
+          >
+            <CreditCard size={16} />
+            {procesando ? 'Generando…' : 'Activar Suscripción'}
+          </motion.button>
         </div>
 
         <p className="mb-3 text-sm font-medium text-zinc-400">
