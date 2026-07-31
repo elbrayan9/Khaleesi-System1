@@ -4,6 +4,12 @@ import { formatCurrency } from '../utils/helpers';
 import PaymentMethodSelect from './PaymentMethodSelect';
 import ReceiptTypeSelect from './ReceiptTypeSelect';
 import CobroMercadoPagoModal from './CobroMercadoPagoModal';
+import CobroPointModal from './CobroPointModal';
+import { useAppContext } from '../context/AppContext.jsx';
+
+// Cache por sesión de los posnet detectados por sucursal (evita relistar en
+// cada apertura del modal). undefined = no consultado todavía.
+const posnetCachePorSucursal = {};
 
 function PaymentModal({
   isOpen,
@@ -31,6 +37,42 @@ function PaymentModal({
   // facturado a AFIP. Va aparte en la venta y en el ticket.
   const [propina, setPropina] = useState(0);
   const [showMP, setShowMP] = useState(false); // modal de cobro Mercado Pago
+  const [showPoint, setShowPoint] = useState(false); // modal de cobro posnet
+  const [posnetDevices, setPosnetDevices] = useState([]); // posnet detectados
+
+  const { sucursalActual } = useAppContext();
+
+  // Detección "dormida" de posnet Point: solo si la cuenta tiene uno vinculado
+  // se mostrará el botón. Se cachea por sesión y sucursal.
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const sucId = sucursalActual?.id || null;
+    const key = sucId || '_';
+    if (posnetCachePorSucursal[key] !== undefined) {
+      setPosnetDevices(posnetCachePorSucursal[key]);
+      return undefined;
+    }
+    let cancelado = false;
+    (async () => {
+      try {
+        const { getFunctions, httpsCallable } = await import(
+          'firebase/functions'
+        );
+        const functions = getFunctions();
+        const listar = httpsCallable(functions, 'listarDispositivosPoint');
+        const res = await listar({ sucursalId: sucId });
+        const devs = res.data?.devices || [];
+        posnetCachePorSucursal[key] = devs;
+        if (!cancelado) setPosnetDevices(devs);
+      } catch (_) {
+        posnetCachePorSucursal[key] = [];
+        if (!cancelado) setPosnetDevices([]);
+      }
+    })();
+    return () => {
+      cancelado = true;
+    };
+  }, [isOpen, sucursalActual]);
 
   useEffect(() => {
     // Resetea el modal cada vez que se abre
@@ -122,6 +164,15 @@ function PaymentModal({
       { metodo: 'mercado_pago', monto: montoRestante },
     ]);
     setShowMP(false);
+  };
+
+  // El posnet confirmó el pago: mismo tratamiento que un cobro Mercado Pago.
+  const handlePointPagado = () => {
+    setPagos((prev) => [
+      ...prev,
+      { metodo: 'mercado_pago', monto: montoRestante },
+    ]);
+    setShowPoint(false);
   };
 
   // Lógica para el botón de confirmar
@@ -222,6 +273,17 @@ function PaymentModal({
             className="mb-4 flex w-full items-center justify-center gap-2 rounded-lg border border-sky-600 bg-sky-600/10 px-4 py-2 font-semibold text-sky-400 transition-colors hover:bg-sky-600 hover:text-white"
           >
             Cobrar con Mercado Pago (QR / Link)
+          </button>
+        )}
+
+        {/* COBRO CON POSNET (Mercado Pago Point) — solo si hay uno vinculado */}
+        {montoRestante > 0 && posnetDevices.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowPoint(true)}
+            className="mb-4 flex w-full items-center justify-center gap-2 rounded-lg border border-indigo-500 bg-indigo-500/10 px-4 py-2 font-semibold text-indigo-300 transition-colors hover:bg-indigo-500 hover:text-white"
+          >
+            Cobrar con posnet (Point)
           </button>
         )}
 
@@ -363,6 +425,16 @@ function PaymentModal({
           cliente={cliente}
           onClose={() => setShowMP(false)}
           onPagado={handleMpPagado}
+        />
+      )}
+
+      {showPoint && (
+        <CobroPointModal
+          monto={montoRestante}
+          descripcion={`Venta ${cliente?.nombre || ''}`.trim()}
+          devices={posnetDevices}
+          onClose={() => setShowPoint(false)}
+          onPagado={handlePointPagado}
         />
       )}
     </div>

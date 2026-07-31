@@ -858,6 +858,284 @@ exports.mpWebhook = onRequest(async (req, res) => {
 });
 
 // ===============================================
+// MERCADO PAGO POINT (posnet): cobro integrado en el aparato
+// ===============================================
+// Lee el Access Token del comercio (sucursal primero, luego negocio). Es el
+// mismo criterio que usa crearPagoMP / mpWebhook.
+async function leerAccessTokenComercio(uid, sucursalId) {
+  let token = null;
+  try {
+    if (sucursalId) {
+      const sucDoc = await db.collection('sucursales').doc(sucursalId).get();
+      if (sucDoc.exists) {
+        const d = sucDoc.data();
+        token = d?.configuracion?.mpAccessToken || d?.mpAccessToken || null;
+      }
+    }
+    if (!token) {
+      const negDoc = await db.collection('datosNegocio').doc(uid).get();
+      if (negDoc.exists) token = negDoc.data()?.mpAccessToken || null;
+    }
+  } catch (e) {
+    console.error('[Point] Error leyendo Access Token:', e);
+  }
+  return token;
+}
+
+const POINT_API = 'https://api.mercadopago.com/point/integration-api';
+
+// Lista los posnet Point vinculados a la cuenta del comercio. Si no hay token o
+// no hay aparatos, devuelve lista vacía (así el frontend no muestra el botón).
+exports.listarDispositivosPoint = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
+  }
+  const uid = request.auth.uid;
+  const { sucursalId = null } = request.data || {};
+  const token = await leerAccessTokenComercio(uid, sucursalId);
+  if (!token) return { success: true, devices: [] };
+  try {
+    const r = await fetch(`${POINT_API}/devices`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      console.error('[Point] Error listando devices:', data);
+      return { success: true, devices: [] };
+    }
+    const devices = (data.devices || []).map((d) => ({
+      id: d.id,
+      operatingMode: d.operating_mode || null,
+    }));
+    return { success: true, devices };
+  } catch (e) {
+    console.error('[Point] Error de red listando devices:', e);
+    return { success: true, devices: [] };
+  }
+});
+
+// Envía una intención de pago al posnet: el aparato muestra el monto y el
+// cliente paga con tarjeta. Registra el cobro pendiente en cobros_mp (misma
+// colección que el QR) para reutilizar la confirmación en tiempo real.
+exports.crearPagoPoint = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
+  }
+  const uid = request.auth.uid;
+  const {
+    deviceId,
+    monto,
+    descripcion = 'Venta',
+    sucursalId = null,
+    ventaId = null,
+  } = request.data || {};
+
+  if (!deviceId) {
+    throw new HttpsError('invalid-argument', 'Falta el posnet (deviceId).');
+  }
+  const montoNum = Number(monto);
+  if (!montoNum || montoNum <= 0) {
+    throw new HttpsError('invalid-argument', 'Monto inválido.');
+  }
+
+  const token = await leerAccessTokenComercio(uid, sucursalId);
+  if (!token) {
+    throw new HttpsError(
+      'failed-precondition',
+      'Falta configurar el Access Token de Mercado Pago en Configuración.',
+    );
+  }
+
+  const externalReference = ventaId || `point_${uid}_${Date.now()}`;
+
+  // Aseguramos que el aparato esté en modo integrado (PDV). Best-effort: si
+  // falla igual intentamos crear la intención.
+  try {
+    await fetch(`${POINT_API}/devices/${deviceId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ operating_mode: 'PDV' }),
+    });
+  } catch (e) {
+    console.warn('[Point] No se pudo fijar modo PDV:', e?.message || e);
+  }
+
+  // Registramos el cobro pendiente (para el listener en tiempo real).
+  try {
+    await db.collection('cobros_mp').doc(externalReference).set({
+      userId: uid,
+      sucursalId: sucursalId || null,
+      monto: parseFloat(montoNum.toFixed(2)),
+      descripcion: String(descripcion),
+      estado: 'pendiente',
+      via: 'point',
+      deviceId,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch (e) {
+    console.error('[Point] Error creando cobro pendiente:', e);
+  }
+
+  // En la API de Point el monto va en centavos (entero).
+  const amountCents = Math.round(montoNum * 100);
+
+  try {
+    const r = await fetch(`${POINT_API}/devices/${deviceId}/payment-intents`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        amount: amountCents,
+        additional_info: {
+          external_reference: externalReference,
+          print_on_terminal: true,
+        },
+      }),
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      console.error('[Point] Rechazo al crear payment-intent:', data);
+      throw new HttpsError(
+        'invalid-argument',
+        `Mercado Pago Point: ${
+          data?.message || 'no se pudo enviar el cobro al posnet.'
+        }`,
+      );
+    }
+    try {
+      await db
+        .collection('cobros_mp')
+        .doc(externalReference)
+        .set({ paymentIntentId: data.id || null }, { merge: true });
+    } catch (_) {
+      /* no crítico */
+    }
+    return {
+      success: true,
+      externalReference,
+      paymentIntentId: data.id,
+      deviceId,
+    };
+  } catch (error) {
+    if (error.code) throw error;
+    console.error('[Point] Error de red creando payment-intent:', error);
+    throw new HttpsError(
+      'internal',
+      'No se pudo contactar con Mercado Pago Point.',
+    );
+  }
+});
+
+// Consulta el estado de la intención del posnet (polling desde el frontend).
+// Cuando termina aprobada, marca el cobro como pagado en cobros_mp.
+exports.consultarPagoPoint = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
+  }
+  const uid = request.auth.uid;
+  const {
+    paymentIntentId,
+    externalReference = null,
+    sucursalId = null,
+  } = request.data || {};
+  if (!paymentIntentId) {
+    throw new HttpsError('invalid-argument', 'Falta paymentIntentId.');
+  }
+  const token = await leerAccessTokenComercio(uid, sucursalId);
+  if (!token) {
+    throw new HttpsError(
+      'failed-precondition',
+      'Falta el Access Token de Mercado Pago.',
+    );
+  }
+  try {
+    const r = await fetch(`${POINT_API}/payment-intents/${paymentIntentId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      console.error('[Point] Error consultando payment-intent:', data);
+      return { success: false, state: 'ERROR' };
+    }
+    const state = data.state || data.status || 'OPEN';
+    const aprobado =
+      state === 'FINISHED' &&
+      (!data.payment || data.payment.status === 'approved');
+
+    if (aprobado && externalReference) {
+      await db
+        .collection('cobros_mp')
+        .doc(externalReference)
+        .set(
+          {
+            estado: 'pagado',
+            paymentId: String(data.payment?.id || paymentIntentId),
+            montoPagado: data.amount ? data.amount / 100 : null,
+            metodoMP: 'point',
+            actualizadoEn: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true },
+        );
+    }
+    return { success: true, state, aprobado };
+  } catch (e) {
+    console.error('[Point] Error de red consultando payment-intent:', e);
+    return { success: false, state: 'ERROR' };
+  }
+});
+
+// Cancela la intención de pago en el posnet (si el cajero aborta el cobro).
+exports.cancelarPagoPoint = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
+  }
+  const uid = request.auth.uid;
+  const {
+    deviceId,
+    paymentIntentId,
+    externalReference = null,
+    sucursalId = null,
+  } = request.data || {};
+  if (!deviceId || !paymentIntentId) {
+    throw new HttpsError('invalid-argument', 'Faltan datos para cancelar.');
+  }
+  const token = await leerAccessTokenComercio(uid, sucursalId);
+  if (!token) {
+    throw new HttpsError(
+      'failed-precondition',
+      'Falta el Access Token de Mercado Pago.',
+    );
+  }
+  try {
+    await fetch(
+      `${POINT_API}/devices/${deviceId}/payment-intents/${paymentIntentId}`,
+      { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (externalReference) {
+      await db
+        .collection('cobros_mp')
+        .doc(externalReference)
+        .set(
+          {
+            estado: 'cancelado',
+            actualizadoEn: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true },
+        );
+    }
+    return { success: true };
+  } catch (e) {
+    console.error('[Point] Error cancelando payment-intent:', e);
+    return { success: false };
+  }
+});
+
+// ===============================================
 // SUSCRIPCIONES: cobro con Mercado Pago (a la cuenta de la plataforma)
 // ===============================================
 const PLANES_PRECIO = { basic: 15000, premium: 25000 };
