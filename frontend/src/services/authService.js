@@ -16,6 +16,32 @@ import { doc, setDoc } from 'firebase/firestore';
 const auth = getAuth();
 
 /**
+ * Valida que la contraseña cumpla la política de seguridad mínima.
+ * Se aplica también acá (no solo en la UI) para que ningún camino de registro
+ * pueda crear una cuenta con una contraseña débil.
+ * @param {string} password
+ * @throws {Error} si no cumple.
+ */
+export const validarPasswordFuerte = (password) => {
+  const pass = String(password || '');
+  const requisitos = [
+    [pass.length >= 8, 'al menos 8 caracteres'],
+    [/[A-Z]/.test(pass), 'una mayúscula'],
+    [/[a-z]/.test(pass), 'una minúscula'],
+    [/[0-9]/.test(pass), 'un número'],
+    [/[!@#$%^&*(),.?":{}|<>]/.test(pass), 'un carácter especial'],
+  ];
+  const faltantes = requisitos.filter(([ok]) => !ok).map(([, txt]) => txt);
+  if (faltantes.length > 0) {
+    const err = new Error(
+      `La contraseña debe incluir ${faltantes.join(', ')}.`,
+    );
+    err.code = 'auth/weak-password-policy';
+    throw err;
+  }
+};
+
+/**
  * Registra un nuevo usuario y crea su perfil de negocio inicial.
  * @param {string} email - Email del usuario.
  * @param {string} password - Contraseña del usuario.
@@ -28,6 +54,9 @@ export const signUpWithBusiness = async (
   nombreNegocio,
   plan = 'basic',
 ) => {
+  // Defensa en profundidad: validamos la fortaleza también acá.
+  validarPasswordFuerte(password);
+
   const userCredential = await createUserWithEmailAndPassword(
     auth,
     email,
