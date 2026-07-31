@@ -4,11 +4,9 @@ import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { motion } from 'framer-motion';
 import { Info, AlertTriangle, CreditCard } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 
 const SubscriptionStatusBanner = () => {
   const { datosNegocio, mostrarMensaje } = useAppContext();
-  const navigate = useNavigate();
   const [procesando, setProcesando] = useState(false);
 
   const handlePagarSuscripcion = async () => {
@@ -102,12 +100,6 @@ const SubscriptionStatusBanner = () => {
           <CreditCard size={14} />
           {procesando ? 'Generando…' : 'Activar Suscripción'}
         </motion.button>
-        <button
-          onClick={() => navigate('/payment-instructions')}
-          className="text-[11px] text-zinc-400 underline hover:text-zinc-200"
-        >
-          Ver otras formas de pago
-        </button>
       </div>
     </motion.div>
   );
