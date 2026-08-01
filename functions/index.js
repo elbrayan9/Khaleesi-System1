@@ -17,7 +17,7 @@ const MP_PLATFORM_TOKEN = defineSecret('MP_PLATFORM_TOKEN');
 // =======================
 // Funciones de administración
 // =======================
-exports.addAdminRole = onCall(async (request) => {
+exports.addAdminRole = onCall({ enforceAppCheck: true }, async (request) => {
   if (!request.auth || request.auth.token.admin !== true) {
     throw new HttpsError(
       'permission-denied',
@@ -44,7 +44,7 @@ exports.addAdminRole = onCall(async (request) => {
   }
 });
 
-exports.listAllUsers = onCall(async (request) => {
+exports.listAllUsers = onCall({ enforceAppCheck: true }, async (request) => {
   if (!request.auth || request.auth.token.admin !== true) {
     throw new HttpsError(
       'permission-denied',
@@ -77,7 +77,7 @@ exports.listAllUsers = onCall(async (request) => {
   }
 });
 
-exports.getUserDetails = onCall(async (request) => {
+exports.getUserDetails = onCall({ enforceAppCheck: true }, async (request) => {
   if (!request.auth || request.auth.token.admin !== true) {
     throw new HttpsError(
       'permission-denied',
@@ -152,7 +152,7 @@ exports.getUserDetails = onCall(async (request) => {
   }
 });
 
-exports.updateUserSubscription = onCall(async (request) => {
+exports.updateUserSubscription = onCall({ enforceAppCheck: true }, async (request) => {
   if (!request.auth || request.auth.token.admin !== true) {
     throw new HttpsError(
       'permission-denied',
@@ -215,7 +215,7 @@ exports.updateUserSubscription = onCall(async (request) => {
 // =======================
 // Actualización masiva de productos
 // =======================
-exports.bulkUpdateProducts = onCall(async (request) => {
+exports.bulkUpdateProducts = onCall({ enforceAppCheck: true }, async (request) => {
   if (!request.auth) {
     throw new HttpsError(
       'unauthenticated',
@@ -399,7 +399,9 @@ const OOS_MESSAGE =
 
 // functions/index.js
 
-exports.askGemini = onCall({ secrets: [GEMINI_KEY] }, async (request) => {
+exports.askGemini = onCall(
+  { secrets: [GEMINI_KEY], enforceAppCheck: true },
+  async (request) => {
   if (!request.auth) {
     throw new HttpsError(
       'unauthenticated',
@@ -634,7 +636,7 @@ exports.checkExpiredSubscriptions = onSchedule(
 );
 // functions/index.js
 
-exports.notifyAdminOfPayment = onCall(async (request) => {
+exports.notifyAdminOfPayment = onCall({ enforceAppCheck: true }, async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
   }
@@ -659,22 +661,22 @@ exports.notifyAdminOfPayment = onCall(async (request) => {
 // Facturación Electrónica (AFIP)
 // =======================
 const afipController = require('./afipController');
-exports.createInvoice = onCall(async (request) => {
+exports.createInvoice = onCall({ enforceAppCheck: true }, async (request) => {
   return await afipController.createInvoice(request);
 });
 
-exports.getContribuyente = onCall(async (request) => {
+exports.getContribuyente = onCall({ enforceAppCheck: true }, async (request) => {
   return await afipController.getContribuyente(request);
 });
 
-exports.checkAfipStatus = onCall(async (request) => {
+exports.checkAfipStatus = onCall({ enforceAppCheck: true }, async (request) => {
   return await afipController.getServerStatus(request);
 });
 
 // ===============================================
 // MERCADO PAGO: crear link/QR de pago (Checkout Pro)
 // ===============================================
-exports.crearPagoMP = onCall(async (request) => {
+exports.crearPagoMP = onCall({ enforceAppCheck: true }, async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
   }
@@ -886,7 +888,7 @@ const POINT_API = 'https://api.mercadopago.com/point/integration-api';
 
 // Lista los posnet Point vinculados a la cuenta del comercio. Si no hay token o
 // no hay aparatos, devuelve lista vacía (así el frontend no muestra el botón).
-exports.listarDispositivosPoint = onCall(async (request) => {
+exports.listarDispositivosPoint = onCall({ enforceAppCheck: true }, async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
   }
@@ -917,7 +919,7 @@ exports.listarDispositivosPoint = onCall(async (request) => {
 // Envía una intención de pago al posnet: el aparato muestra el monto y el
 // cliente paga con tarjeta. Registra el cobro pendiente en cobros_mp (misma
 // colección que el QR) para reutilizar la confirmación en tiempo real.
-exports.crearPagoPoint = onCall(async (request) => {
+exports.crearPagoPoint = onCall({ enforceAppCheck: true }, async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
   }
@@ -1033,7 +1035,7 @@ exports.crearPagoPoint = onCall(async (request) => {
 
 // Consulta el estado de la intención del posnet (polling desde el frontend).
 // Cuando termina aprobada, marca el cobro como pagado en cobros_mp.
-exports.consultarPagoPoint = onCall(async (request) => {
+exports.consultarPagoPoint = onCall({ enforceAppCheck: true }, async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
   }
@@ -1090,7 +1092,7 @@ exports.consultarPagoPoint = onCall(async (request) => {
 });
 
 // Cancela la intención de pago en el posnet (si el cajero aborta el cobro).
-exports.cancelarPagoPoint = onCall(async (request) => {
+exports.cancelarPagoPoint = onCall({ enforceAppCheck: true }, async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
   }
@@ -1141,7 +1143,7 @@ exports.cancelarPagoPoint = onCall(async (request) => {
 const PLANES_PRECIO = { basic: 15000, premium: 25000 };
 
 exports.crearPagoSuscripcion = onCall(
-  { secrets: [MP_PLATFORM_TOKEN] },
+  { secrets: [MP_PLATFORM_TOKEN], enforceAppCheck: true },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
@@ -1307,7 +1309,7 @@ exports.mpWebhookSuscripcion = onRequest(
 /**
  * Recopila todos los datos de un usuario desde varias colecciones y los devuelve.
  */
-exports.backupUserData = onCall(async (request) => {
+exports.backupUserData = onCall({ enforceAppCheck: true }, async (request) => {
   if (!request.auth) {
     throw new HttpsError(
       'unauthenticated',
