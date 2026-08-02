@@ -34,6 +34,18 @@ const PrintReceipt = React.forwardRef(
     `}
         </style>
 
+        {datosNegocio?.logoUrl && (
+          <img
+            src={datosNegocio.logoUrl}
+            alt="Logo"
+            style={{
+              display: 'block',
+              margin: '0 auto 6px',
+              maxWidth: '40mm',
+              maxHeight: '22mm',
+            }}
+          />
+        )}
         <h4>{datosNegocio?.nombre || 'Mi Negocio'}</h4>
         <p>{datosNegocio?.direccion}</p>
         <p>CUIT: {datosNegocio?.cuit}</p>

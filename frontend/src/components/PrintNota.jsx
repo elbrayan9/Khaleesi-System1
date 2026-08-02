@@ -55,6 +55,18 @@ const PrintNota = React.forwardRef(
     return (
       <div ref={ref} className="hidden print:block" id="nota-imprimir-react">
         <style>{printStyles}</style>
+        {datosNegocio?.logoUrl && (
+          <img
+            src={datosNegocio.logoUrl}
+            alt="Logo"
+            style={{
+              display: 'block',
+              margin: '0 auto 6px',
+              maxWidth: '40mm',
+              maxHeight: '22mm',
+            }}
+          />
+        )}
         <h4>{datosNegocio?.nombre || 'Nombre del Negocio'}</h4>
         <p>{datosNegocio?.direccion || 'Dirección'}</p>
         {datosNegocio?.cuit && <p>CUIT: {datosNegocio.cuit}</p>}
