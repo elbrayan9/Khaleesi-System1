@@ -1138,6 +1138,292 @@ exports.cancelarPagoPoint = onCall({ enforceAppCheck: true }, async (request) =>
 });
 
 // ===============================================
+// MERCADO PAGO: QR interoperable (Transferencias 3.0 / In-Store)
+// Cualquier billetera o banco lo escanea. Usa una "Caja/POS" de la cuenta del
+// comercio (se crea sola la primera vez y se guarda en la sucursal).
+// ===============================================
+const MP_API = 'https://api.mercadopago.com';
+
+// Asegura que exista Tienda + Caja (POS) para el comercio y devuelve sus datos.
+async function asegurarPosQr(token, uid, sucursalId) {
+  const sucRef = sucursalId
+    ? db.collection('sucursales').doc(sucursalId)
+    : null;
+  let cfg = {};
+  if (sucRef) {
+    const s = await sucRef.get();
+    cfg = (s.exists && s.data()?.configuracion) || {};
+  }
+  if (cfg.mpQrExternalPosId && cfg.mpQrUserId) {
+    return {
+      userId: cfg.mpQrUserId,
+      externalPosId: cfg.mpQrExternalPosId,
+      qrImage: cfg.mpQrImage || null,
+    };
+  }
+
+  // 1) Collector user_id
+  const meR = await fetch(`${MP_API}/users/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const me = await meR.json();
+  if (!meR.ok || !me.id) {
+    throw new HttpsError(
+      'failed-precondition',
+      'No se pudo leer la cuenta de Mercado Pago (revisá el Access Token).',
+    );
+  }
+  const userId = me.id;
+  const baseExt =
+    String(sucursalId || uid)
+      .replace(/[^\w-]/g, '')
+      .slice(0, 28) || String(uid).slice(0, 28);
+  const storeExternalId = `khaleesi_store_${baseExt}`;
+  const posExternalId = `khaleesi_pos_${baseExt}`;
+
+  // 2) Tienda (si ya existe, MP devuelve error y seguimos)
+  try {
+    await fetch(`${MP_API}/users/${userId}/stores`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        name: 'Khaleesi',
+        external_id: storeExternalId,
+        location: {
+          street_number: '0',
+          street_name: 'Local',
+          city_name: 'CABA',
+          state_name: 'Buenos Aires',
+          latitude: -34.6,
+          longitude: -58.4,
+        },
+      }),
+    });
+  } catch (e) {
+    console.warn('[QR] Store (posible ya existente):', e?.message || e);
+  }
+
+  // 3) Caja (POS). Si ya existe, la buscamos.
+  let qrImage = null;
+  const posR = await fetch(`${MP_API}/pos`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      name: 'Khaleesi Caja',
+      fixed_amount: false,
+      external_id: posExternalId,
+      external_store_id: storeExternalId,
+      category: 621102,
+    }),
+  });
+  const pos = await posR.json();
+  if (posR.ok && pos.external_id) {
+    qrImage = pos.qr?.image || null;
+  } else {
+    const listR = await fetch(
+      `${MP_API}/pos?external_id=${posExternalId}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    const list = await listR.json();
+    const found = list?.results?.[0];
+    if (!found) {
+      console.error('[QR] No se pudo crear/obtener POS:', pos);
+      throw new HttpsError(
+        'failed-precondition',
+        `Mercado Pago: ${pos?.message || 'no se pudo crear la caja QR.'}`,
+      );
+    }
+    qrImage = found.qr?.image || null;
+  }
+
+  if (sucRef) {
+    await sucRef.set(
+      {
+        configuracion: {
+          mpQrUserId: userId,
+          mpQrExternalPosId: posExternalId,
+          mpQrImage: qrImage,
+        },
+      },
+      { merge: true },
+    );
+  }
+  return { userId, externalPosId: posExternalId, qrImage };
+}
+
+// Genera el QR interoperable para una venta (asocia el monto a la Caja).
+exports.crearQrInteroperable = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
+    }
+    const uid = request.auth.uid;
+    const {
+      monto,
+      descripcion = 'Venta',
+      sucursalId = null,
+      ventaId = null,
+    } = request.data || {};
+    const montoNum = Number(monto);
+    if (!montoNum || montoNum <= 0) {
+      throw new HttpsError('invalid-argument', 'Monto inválido.');
+    }
+
+    const token = await leerAccessTokenComercio(uid, sucursalId);
+    if (!token) {
+      throw new HttpsError(
+        'failed-precondition',
+        'Falta configurar el Access Token de Mercado Pago en Configuración.',
+      );
+    }
+
+    const { userId, externalPosId, qrImage } = await asegurarPosQr(
+      token,
+      uid,
+      sucursalId,
+    );
+
+    const externalReference = ventaId || `qr_${uid}_${Date.now()}`;
+    const WEBHOOK_QR_URL =
+      'https://us-central1-khaleesy-system.cloudfunctions.net/mpWebhookQr';
+
+    try {
+      await db.collection('cobros_mp').doc(externalReference).set({
+        userId: uid,
+        sucursalId: sucursalId || null,
+        monto: parseFloat(montoNum.toFixed(2)),
+        descripcion: String(descripcion),
+        estado: 'pendiente',
+        via: 'qr_interoperable',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      console.error('[QR] Error creando cobro pendiente:', e);
+    }
+
+    const montoFinal = parseFloat(montoNum.toFixed(2));
+    const orderBody = {
+      external_reference: externalReference,
+      title: String(descripcion).substring(0, 200) || 'Venta',
+      description: String(descripcion).substring(0, 200) || 'Venta',
+      notification_url: `${WEBHOOK_QR_URL}?uid=${uid}&suc=${sucursalId || ''}`,
+      total_amount: montoFinal,
+      items: [
+        {
+          title: String(descripcion).substring(0, 200) || 'Venta',
+          quantity: 1,
+          unit_measure: 'unit',
+          unit_price: montoFinal,
+          total_amount: montoFinal,
+        },
+      ],
+    };
+
+    const orderR = await fetch(
+      `${MP_API}/instore/orders/qr/seller/collectors/${userId}/pos/${externalPosId}/orders`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(orderBody),
+      },
+    );
+    if (!orderR.ok) {
+      const err = await orderR.json().catch(() => ({}));
+      console.error('[QR] Error creando orden:', err);
+      throw new HttpsError(
+        'invalid-argument',
+        `Mercado Pago: ${err?.message || 'no se pudo generar el QR.'}`,
+      );
+    }
+
+    return { success: true, externalReference, qrImage };
+  },
+);
+
+// Webhook del QR interoperable: confirma el pago y marca el cobro como pagado.
+exports.mpWebhookQr = onRequest(async (req, res) => {
+  try {
+    const uid = req.query.uid;
+    const sucId = req.query.suc;
+    const topic = req.body?.type || req.query.type || req.query.topic;
+    const resourceId =
+      req.body?.data?.id || req.query['data.id'] || req.query.id;
+    if (!uid || !resourceId) return res.status(200).send('ignored');
+
+    const token = await leerAccessTokenComercio(uid, sucId);
+    if (!token) return res.status(200).send('sin token');
+
+    // Notificación de pago directo.
+    if (topic === 'payment') {
+      const pr = await fetch(`${MP_API}/v1/payments/${resourceId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const pago = await pr.json();
+      if (pr.ok && pago.external_reference && pago.status === 'approved') {
+        await db
+          .collection('cobros_mp')
+          .doc(pago.external_reference)
+          .set(
+            {
+              estado: 'pagado',
+              paymentId: String(resourceId),
+              montoPagado: pago.transaction_amount || null,
+              metodoMP: 'qr_interoperable',
+              actualizadoEn: admin.firestore.FieldValue.serverTimestamp(),
+            },
+            { merge: true },
+          );
+      }
+      return res.status(200).send('ok');
+    }
+
+    // Notificación de merchant_order (lo típico del QR).
+    if (topic === 'merchant_order') {
+      const mr = await fetch(`${MP_API}/merchant_orders/${resourceId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const mo = await mr.json();
+      if (mr.ok && mo.external_reference) {
+        const pagado =
+          mo.order_status === 'paid' ||
+          (mo.total_amount > 0 && (mo.paid_amount || 0) >= mo.total_amount);
+        if (pagado) {
+          await db
+            .collection('cobros_mp')
+            .doc(mo.external_reference)
+            .set(
+              {
+                estado: 'pagado',
+                paymentId: String(mo.payments?.[0]?.id || resourceId),
+                montoPagado: mo.paid_amount || mo.total_amount || null,
+                metodoMP: 'qr_interoperable',
+                actualizadoEn: admin.firestore.FieldValue.serverTimestamp(),
+              },
+              { merge: true },
+            );
+        }
+      }
+      return res.status(200).send('ok');
+    }
+
+    return res.status(200).send('ignored');
+  } catch (error) {
+    console.error('[QR webhook] Error:', error);
+    return res.status(200).send('error');
+  }
+});
+
+// ===============================================
 // SUSCRIPCIONES: cobro con Mercado Pago (a la cuenta de la plataforma)
 // ===============================================
 const PLANES_PRECIO = { basic: 15000, premium: 25000 };

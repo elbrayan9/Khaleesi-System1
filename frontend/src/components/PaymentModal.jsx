@@ -5,6 +5,7 @@ import PaymentMethodSelect from './PaymentMethodSelect';
 import ReceiptTypeSelect from './ReceiptTypeSelect';
 import CobroMercadoPagoModal from './CobroMercadoPagoModal';
 import CobroPointModal from './CobroPointModal';
+import CobroQrInteroperableModal from './CobroQrInteroperableModal';
 import { useAppContext } from '../context/AppContext.jsx';
 
 // Cache por sesión de los posnet detectados por sucursal (evita relistar en
@@ -37,6 +38,7 @@ function PaymentModal({
   // facturado a AFIP. Va aparte en la venta y en el ticket.
   const [propina, setPropina] = useState(0);
   const [showMP, setShowMP] = useState(false); // modal de cobro Mercado Pago
+  const [showQr, setShowQr] = useState(false); // modal QR interoperable
   const [showPoint, setShowPoint] = useState(false); // modal de cobro posnet
   const [posnetDevices, setPosnetDevices] = useState([]); // posnet detectados
 
@@ -175,6 +177,15 @@ function PaymentModal({
     setShowPoint(false);
   };
 
+  // El QR interoperable confirmó el pago.
+  const handleQrPagado = () => {
+    setPagos((prev) => [
+      ...prev,
+      { metodo: 'mercado_pago', monto: montoRestante },
+    ]);
+    setShowQr(false);
+  };
+
   // Lógica para el botón de confirmar
   const handleConfirmar = () => {
     // Pasamos pagos, tipo de factura, vuelto y propina al AppContext.
@@ -273,6 +284,17 @@ function PaymentModal({
             className="mb-4 flex w-full items-center justify-center gap-2 rounded-lg border border-sky-600 bg-sky-600/10 px-4 py-2 font-semibold text-sky-400 transition-colors hover:bg-sky-600 hover:text-white"
           >
             Cobrar con Mercado Pago (QR / Link)
+          </button>
+        )}
+
+        {/* COBRO CON QR INTEROPERABLE (todas las billeteras / bancos) */}
+        {montoRestante > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowQr(true)}
+            className="mb-4 flex w-full items-center justify-center gap-2 rounded-lg border border-teal-500 bg-teal-500/10 px-4 py-2 font-semibold text-teal-300 transition-colors hover:bg-teal-500 hover:text-white"
+          >
+            Cobrar con QR (todas las billeteras)
           </button>
         )}
 
@@ -435,6 +457,15 @@ function PaymentModal({
           devices={posnetDevices}
           onClose={() => setShowPoint(false)}
           onPagado={handlePointPagado}
+        />
+      )}
+
+      {showQr && (
+        <CobroQrInteroperableModal
+          monto={montoRestante}
+          descripcion={`Venta ${cliente?.nombre || ''}`.trim()}
+          onClose={() => setShowQr(false)}
+          onPagado={handleQrPagado}
         />
       )}
     </div>
