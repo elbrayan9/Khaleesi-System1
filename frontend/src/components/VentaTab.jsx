@@ -411,8 +411,10 @@ function VentaTab() {
                 <i className="fas fa-barcode"></i>
               </button>
             </div>
-            {/* Balanza en vivo (solo si el navegador soporta Web Serial) */}
-            {typeof navigator !== 'undefined' && 'serial' in navigator && (
+            {/* Balanza en vivo: habilitada en Configuración + soporte del navegador */}
+            {datosNegocio?.habilitarBalanzaEnVivo &&
+              typeof navigator !== 'undefined' &&
+              'serial' in navigator && (
               <button
                 type="button"
                 onClick={() => setShowBalanza(true)}

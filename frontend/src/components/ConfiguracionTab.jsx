@@ -45,6 +45,8 @@ function ConfiguracionTab() {
   const [direccion, setDireccion] = useState('');
   const [cuit, setCuit] = useState('');
   const [ventaRapidaHabilitada, setVentaRapidaHabilitada] = useState(false);
+  const [balanzaEnVivoHabilitada, setBalanzaEnVivoHabilitada] =
+    useState(false);
   const [umbralStockBajo, setUmbralStockBajo] = useState(10);
   const [recibirReporteDiario, setRecibirReporteDiario] = useState(false);
   const [whatsappDueño, setWhatsappDueño] = useState('');
@@ -78,6 +80,7 @@ function ConfiguracionTab() {
       setDireccion(datosNegocio.direccion || '');
       setCuit(datosNegocio.cuit || '');
       setVentaRapidaHabilitada(datosNegocio.habilitarVentaRapida || false);
+      setBalanzaEnVivoHabilitada(datosNegocio.habilitarBalanzaEnVivo || false);
       setUmbralStockBajo(datosNegocio.umbralStockBajo || 10);
       setRecibirReporteDiario(datosNegocio.recibirReporteDiario || false);
       setWhatsappDueño(datosNegocio.whatsappDueño || '');
@@ -271,6 +274,7 @@ function ConfiguracionTab() {
       direccion: direccion.trim(),
       cuit: cuit.trim(),
       habilitarVentaRapida: ventaRapidaHabilitada,
+      habilitarBalanzaEnVivo: balanzaEnVivoHabilitada,
       umbralStockBajo: Number(umbralStockBajo) || 0,
       recibirReporteDiario: recibirReporteDiario,
       whatsappDueño: whatsappDueño.trim(),
@@ -1139,6 +1143,31 @@ function ConfiguracionTab() {
                 id="toggle-venta-rapida"
                 checked={ventaRapidaHabilitada}
                 onChange={(e) => setVentaRapidaHabilitada(e.target.checked)}
+                className="peer sr-only"
+              />
+              <div className="peer h-6 w-11 rounded-full bg-zinc-600 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:border after:bg-white after:transition-all after:content-[''] peer-checked:bg-blue-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:ring-2 peer-focus:ring-blue-500"></div>
+            </label>
+          </div>
+
+          <div className="mt-3 flex items-center justify-between rounded-md bg-zinc-700/50 p-3">
+            <div>
+              <label
+                htmlFor="toggle-balanza-vivo"
+                className="font-medium text-zinc-100"
+              >
+                Habilitar Balanza en vivo
+              </label>
+              <p className="text-xs text-zinc-400">
+                Muestra el botón para conectar la balanza por USB y pesar en la
+                venta (solo Chrome/Edge en computadora).
+              </p>
+            </div>
+            <label className="relative inline-flex cursor-pointer items-center">
+              <input
+                type="checkbox"
+                id="toggle-balanza-vivo"
+                checked={balanzaEnVivoHabilitada}
+                onChange={(e) => setBalanzaEnVivoHabilitada(e.target.checked)}
                 className="peer sr-only"
               />
               <div className="peer h-6 w-11 rounded-full bg-zinc-600 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:border after:bg-white after:transition-all after:content-[''] peer-checked:bg-blue-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:ring-2 peer-focus:ring-blue-500"></div>
