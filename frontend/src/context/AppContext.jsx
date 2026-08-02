@@ -1343,18 +1343,33 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
             .catch((e) => console.error('Error registrando cargo CC:', e));
         }
 
-        // 4. Impresión automática del ticket térmico (si está habilitada)
+        // 4. Impresión automática del ticket térmico (si está habilitada).
+        //    Método según preferencia: 'bluetooth' (celular) o USB (por defecto).
         if (thermalPrinter.isAutoPrintEnabled()) {
           const ventaParaTicket = { id: ventaId, ...newSaleData };
-          thermalPrinter
-            .printVentaTicket(ventaParaTicket, datosNegocio, cliente)
-            .catch((error) => {
-              console.error('Error imprimiendo ticket térmico:', error);
-              mostrarMensaje?.(
-                `No se pudo imprimir el ticket: ${error.message}`,
-                'warning',
-              );
-            });
+          const onPrintError = (error) => {
+            console.error('Error imprimiendo ticket térmico:', error);
+            mostrarMensaje?.(
+              `No se pudo imprimir el ticket: ${error.message}`,
+              'warning',
+            );
+          };
+          if (localStorage.getItem('impresoraMetodo') === 'bluetooth') {
+            import('../services/bluetoothPrinter')
+              .then(({ imprimirTicketBluetooth }) =>
+                imprimirTicketBluetooth(
+                  ventaParaTicket,
+                  datosNegocio,
+                  cliente,
+                  formatCurrency,
+                ),
+              )
+              .catch(onPrintError);
+          } else {
+            thermalPrinter
+              .printVentaTicket(ventaParaTicket, datosNegocio, cliente)
+              .catch(onPrintError);
+          }
         }
       }
     } catch (error) {

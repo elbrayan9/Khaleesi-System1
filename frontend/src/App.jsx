@@ -128,7 +128,19 @@ function App() {
         nombre: ventaObjeto.clienteNombre || 'Consumidor Final',
         cuit: ventaObjeto.clienteCuit || '',
       };
-      await printVentaTicket(ventaObjeto, datosNegocio, cliente);
+      if (localStorage.getItem('impresoraMetodo') === 'bluetooth') {
+        const { imprimirTicketBluetooth } = await import(
+          './services/bluetoothPrinter'
+        );
+        await imprimirTicketBluetooth(
+          ventaObjeto,
+          datosNegocio,
+          cliente,
+          formatCurrency,
+        );
+      } else {
+        await printVentaTicket(ventaObjeto, datosNegocio, cliente);
+      }
     } catch (error) {
       console.error('Error imprimiendo ticket térmico:', error);
       mostrarMensaje(`No se pudo imprimir el ticket: ${error.message}`, 'error');
