@@ -39,6 +39,15 @@ function ImpresoraTermicaConfig() {
     () => localStorage.getItem('impresoraMetodo') === 'bluetooth',
   );
 
+  // Impresora normal (hoja A4).
+  const [autoPrintA4, setAutoPrintA4] = useState(
+    () => localStorage.getItem('autoPrintA4') === '1',
+  );
+  const handleToggleA4 = (checked) => {
+    setAutoPrintA4(checked);
+    localStorage.setItem('autoPrintA4', checked ? '1' : '0');
+  };
+
   const handleBtConectar = async () => {
     setBusy(true);
     try {
@@ -206,10 +215,10 @@ function ImpresoraTermicaConfig() {
         </div>
       )}
 
-      {/* IMPRESORA BLUETOOTH (celular) */}
+      {/* IMPRESORA BLUETOOTH (térmica, PC o celular) */}
       <h3 className="mb-3 mt-6 flex items-center gap-2 text-lg font-medium text-white sm:text-xl">
         <Bluetooth className="h-5 w-5 text-blue-400" />
-        Impresora Bluetooth (celular)
+        Impresora térmica Bluetooth (PC o celular)
       </h3>
 
       {!btSupported ? (
@@ -265,7 +274,7 @@ function ImpresoraTermicaConfig() {
                 Usar Bluetooth para imprimir
               </label>
               <p className="text-xs text-zinc-400">
-                En vez de USB. Ideal para celular o tablet.
+                En vez de USB. Funciona en PC y en celular/tablet.
               </p>
             </div>
             <label className="relative inline-flex cursor-pointer items-center">
@@ -281,6 +290,39 @@ function ImpresoraTermicaConfig() {
           </div>
         </div>
       )}
+
+      {/* IMPRESORA NORMAL (hoja A4) */}
+      <h3 className="mb-3 mt-6 flex items-center gap-2 text-lg font-medium text-white sm:text-xl">
+        <Printer className="h-5 w-5 text-blue-400" />
+        Impresora normal (hoja A4)
+      </h3>
+      <div className="space-y-3 rounded-md bg-zinc-700/50 p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <label
+              htmlFor="toggle-autoprint-a4"
+              className="font-medium text-zinc-100"
+            >
+              Imprimir la factura A4 automáticamente al cobrar
+            </label>
+            <p className="text-xs text-zinc-400">
+              Usa la impresora que tengas configurada en el sistema (USB, WiFi o
+              Bluetooth). Al confirmar la venta, se manda a imprimir la factura /
+              comprobante en hoja A4.
+            </p>
+          </div>
+          <label className="relative inline-flex cursor-pointer items-center">
+            <input
+              type="checkbox"
+              id="toggle-autoprint-a4"
+              checked={autoPrintA4}
+              onChange={(e) => handleToggleA4(e.target.checked)}
+              className="peer sr-only"
+            />
+            <div className="peer h-6 w-11 rounded-full bg-zinc-600 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:border after:bg-white after:transition-all after:content-[''] peer-checked:bg-blue-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:ring-2 peer-focus:ring-blue-500"></div>
+          </label>
+        </div>
+      </div>
     </>
   );
 }

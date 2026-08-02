@@ -1343,17 +1343,18 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
             .catch((e) => console.error('Error registrando cargo CC:', e));
         }
 
-        // 4. Impresión automática del ticket térmico (si está habilitada).
-        //    Método según preferencia: 'bluetooth' (celular) o USB (por defecto).
+        // 4. Impresión automática al cobrar.
+        const ventaParaTicket = { id: ventaId, ...newSaleData };
+        const onPrintError = (error) => {
+          console.error('Error imprimiendo:', error);
+          mostrarMensaje?.(
+            `No se pudo imprimir: ${error.message}`,
+            'warning',
+          );
+        };
+
+        // 4a. Ticket térmico (58mm): USB o Bluetooth según preferencia.
         if (thermalPrinter.isAutoPrintEnabled()) {
-          const ventaParaTicket = { id: ventaId, ...newSaleData };
-          const onPrintError = (error) => {
-            console.error('Error imprimiendo ticket térmico:', error);
-            mostrarMensaje?.(
-              `No se pudo imprimir el ticket: ${error.message}`,
-              'warning',
-            );
-          };
           if (localStorage.getItem('impresoraMetodo') === 'bluetooth') {
             import('../services/bluetoothPrinter')
               .then(({ imprimirTicketBluetooth }) =>
@@ -1370,6 +1371,25 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
               .printVentaTicket(ventaParaTicket, datosNegocio, cliente)
               .catch(onPrintError);
           }
+        }
+
+        // 4b. Factura/comprobante A4 en impresora normal (si está habilitado).
+        if (localStorage.getItem('autoPrintA4') === '1') {
+          const tf = ventaParaTicket.tipoFactura;
+          const tipoDoc = ['A', 'B', 'C'].includes(tf)
+            ? `Factura ${tf}`
+            : 'Ticket X';
+          import('../services/pdfService')
+            .then(({ generarPdfVenta }) =>
+              generarPdfVenta(
+                ventaParaTicket,
+                datosNegocio,
+                cliente,
+                tipoDoc,
+                'print',
+              ),
+            )
+            .catch(onPrintError);
         }
       }
     } catch (error) {
