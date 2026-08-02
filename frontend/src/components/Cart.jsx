@@ -70,11 +70,24 @@ function Cart({
               key={item.cartId}
               className="mb-2 flex items-center justify-between border-b border-zinc-700 pb-2 text-sm last:border-b-0"
             >
-              {/* --- VISUALIZACIÓN CORREGIDA --- */}
-              <div className="flex-grow pr-2">
-                <p className="font-medium text-zinc-100">{item.nombre}</p>
-                <div className="flex items-center gap-2">
-                  {item.vendidoPor !== 'ticketBalanza' && (
+              {/* --- VISUALIZACIÓN CON FOTO --- */}
+              <div className="flex flex-grow items-center gap-2 pr-2">
+                {item.imagenUrl ? (
+                  <img
+                    src={item.imagenUrl}
+                    alt={item.nombre}
+                    className="h-9 w-9 flex-none rounded object-cover ring-1 ring-zinc-700"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="h-9 w-9 flex-none rounded bg-zinc-700/50" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium text-zinc-100">
+                    {item.nombre}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    {item.vendidoPor !== 'ticketBalanza' && (
                     <div className="flex items-center rounded bg-zinc-700">
                       <button
                         onClick={() => handleUpdateQuantity(item.cartId, -1)}
@@ -106,6 +119,7 @@ function Cart({
                       </span>
                     )}
                   </p>
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-2">

@@ -19,6 +19,7 @@ const SearchBar = forwardRef(
       displayKey,
       filterKeys,
       inputId,
+      imageKey, // opcional: muestra miniatura en cada resultado
     },
     ref,
   ) => {
@@ -100,10 +101,21 @@ const SearchBar = forwardRef(
               {filteredItems.map((item) => (
                 <div
                   key={item.id}
-                  className="cursor-pointer px-4 py-2 text-zinc-300 hover:bg-zinc-700"
+                  className="flex cursor-pointer items-center gap-2 px-4 py-2 text-zinc-300 hover:bg-zinc-700"
                   onClick={() => handleItemSelect(item)}
                 >
-                  {item[displayKey]}
+                  {imageKey &&
+                    (item[imageKey] ? (
+                      <img
+                        src={item[imageKey]}
+                        alt=""
+                        className="h-8 w-8 flex-none rounded object-cover ring-1 ring-zinc-700"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="h-8 w-8 flex-none rounded bg-zinc-700/50" />
+                    ))}
+                  <span className="truncate">{item[displayKey]}</span>
                 </div>
               ))}
             </motion.div>

@@ -445,6 +445,7 @@ function VentaTab() {
                 displayKey="nombre"
                 filterKeys={['nombre', 'codigoBarras']}
                 inputId="producto-buscar-manual-react"
+                imageKey="imagenUrl"
               />
             </div>
             <div className="mb-3 grid grid-cols-2 gap-3">
