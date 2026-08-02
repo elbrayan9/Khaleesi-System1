@@ -51,6 +51,16 @@ function ConfiguracionTab() {
   const [ingresosBrutos, setIngresosBrutos] = useState('EXENTO');
   const [inicioActividades, setInicioActividades] = useState('');
   const [mpAccessToken, setMpAccessToken] = useState('');
+  // Config de códigos de balanza (con defaults = comportamiento clásico).
+  const [balanzaConfig, setBalanzaConfig] = useState({
+    prefijo: '20',
+    modo: 'precio', // 'precio' | 'peso'
+    codInicio: 2,
+    codLen: 5,
+    valInicio: 7,
+    valLen: 5,
+    decimales: 2,
+  });
 
   useEffect(() => {
     if (datosNegocio) {
@@ -69,6 +79,16 @@ function ConfiguracionTab() {
       setIngresosBrutos(datosNegocio.ingresosBrutos || 'EXENTO');
       setInicioActividades(datosNegocio.inicioActividades || '');
       setMpAccessToken(datosNegocio.mpAccessToken || '');
+      const bc = datosNegocio.balanzaConfig || {};
+      setBalanzaConfig({
+        prefijo: bc.prefijo ?? '20',
+        modo: bc.modo === 'peso' ? 'peso' : 'precio',
+        codInicio: bc.codInicio ?? 2,
+        codLen: bc.codLen ?? 5,
+        valInicio: bc.valInicio ?? 7,
+        valLen: bc.valLen ?? 5,
+        decimales: bc.decimales ?? 2,
+      });
     }
   }, [datosNegocio]);
 
@@ -212,6 +232,17 @@ function ConfiguracionTab() {
       ingresosBrutos: ingresosBrutos.trim(),
       inicioActividades: inicioActividades.trim(),
       mpAccessToken: mpAccessToken.trim() || null,
+      balanzaConfig: {
+        prefijo: String(balanzaConfig.prefijo || '20').trim(),
+        modo: balanzaConfig.modo === 'peso' ? 'peso' : 'precio',
+        codInicio: Number(balanzaConfig.codInicio) || 2,
+        codLen: Number(balanzaConfig.codLen) || 5,
+        valInicio: Number(balanzaConfig.valInicio) || 7,
+        valLen: Number(balanzaConfig.valLen) || 5,
+        decimales: Number.isFinite(Number(balanzaConfig.decimales))
+          ? Number(balanzaConfig.decimales)
+          : 2,
+      },
     };
     handleGuardarDatosNegocio(updatedData);
   };
@@ -507,6 +538,131 @@ function ConfiguracionTab() {
                 Para cobrar con QR/link de Mercado Pago. Se obtiene en Mercado
                 Pago → Tus integraciones → Credenciales (usá las de prueba para
                 testear).
+              </p>
+            </div>
+
+            {/* BALANZA — formato de código de barras */}
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-sm font-medium text-zinc-300">
+                Balanza — formato del código de barras
+              </label>
+              <p className="mb-2 text-xs text-zinc-400">
+                Para etiquetas que imprime la balanza. Los valores por defecto
+                sirven para la mayoría (prefijo 20, precio en el código). Cambialo
+                solo si tu balanza usa otro formato.
+              </p>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div>
+                  <label className="mb-1 block text-xs text-zinc-400">
+                    Prefijo
+                  </label>
+                  <input
+                    type="text"
+                    value={balanzaConfig.prefijo}
+                    onChange={(e) =>
+                      setBalanzaConfig((c) => ({ ...c, prefijo: e.target.value }))
+                    }
+                    className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-zinc-400">
+                    El código trae
+                  </label>
+                  <select
+                    value={balanzaConfig.modo}
+                    onChange={(e) =>
+                      setBalanzaConfig((c) => ({ ...c, modo: e.target.value }))
+                    }
+                    className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100"
+                  >
+                    <option value="precio">Precio</option>
+                    <option value="peso">Peso (Kg)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-zinc-400">
+                    Decimales
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={balanzaConfig.decimales}
+                    onChange={(e) =>
+                      setBalanzaConfig((c) => ({
+                        ...c,
+                        decimales: e.target.value,
+                      }))
+                    }
+                    className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-zinc-400">
+                    Cód: inicio / largo
+                  </label>
+                  <div className="flex gap-1">
+                    <input
+                      type="number"
+                      min="0"
+                      value={balanzaConfig.codInicio}
+                      onChange={(e) =>
+                        setBalanzaConfig((c) => ({
+                          ...c,
+                          codInicio: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100"
+                    />
+                    <input
+                      type="number"
+                      min="1"
+                      value={balanzaConfig.codLen}
+                      onChange={(e) =>
+                        setBalanzaConfig((c) => ({
+                          ...c,
+                          codLen: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-zinc-400">
+                    Valor: inicio / largo
+                  </label>
+                  <div className="flex gap-1">
+                    <input
+                      type="number"
+                      min="0"
+                      value={balanzaConfig.valInicio}
+                      onChange={(e) =>
+                        setBalanzaConfig((c) => ({
+                          ...c,
+                          valInicio: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100"
+                    />
+                    <input
+                      type="number"
+                      min="1"
+                      value={balanzaConfig.valLen}
+                      onChange={(e) =>
+                        setBalanzaConfig((c) => ({
+                          ...c,
+                          valLen: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100"
+                    />
+                  </div>
+                </div>
+              </div>
+              <p className="mt-2 text-xs text-zinc-400">
+                Si elegís <strong>Peso</strong>, el sistema calcula el precio con
+                el precio por Kg del producto y descuenta el peso real del stock.
               </p>
             </div>
           </div>

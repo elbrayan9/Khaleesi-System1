@@ -82,28 +82,57 @@ function VentaTab() {
     if (!codigo || !codigo.trim()) return;
     const barcode = codigo.trim();
 
-    // --- LÓGICA INTELIGENTE PARA CÓDIGOS DE BALANZA ---
-    // Asumimos un formato estándar: 13 dígitos que empieza con '20'
-    if (barcode.length === 13 && barcode.startsWith('20')) {
-      const productCode = barcode.substring(2, 7); // Los 5 dígitos del producto
-      const priceInCents = parseInt(barcode.substring(7, 12), 10); // Los 5 dígitos del precio
+    // --- LÓGICA PARA CÓDIGOS DE BALANZA (configurable) ---
+    // Layout configurable en Configuración (con defaults = formato clásico:
+    // prefijo 20, código en 2..7, precio en 7..12, 2 decimales).
+    const bc = datosNegocio?.balanzaConfig || {};
+    const prefijo = String(bc.prefijo ?? '20');
+    const modo = bc.modo === 'peso' ? 'peso' : 'precio';
+    const codInicio = Number(bc.codInicio ?? 2);
+    const codLen = Number(bc.codLen ?? 5);
+    const valInicio = Number(bc.valInicio ?? 7);
+    const valLen = Number(bc.valLen ?? 5);
+    const decimales = Number.isFinite(Number(bc.decimales))
+      ? Number(bc.decimales)
+      : 2;
 
-      if (!isNaN(priceInCents)) {
+    if (barcode.length === 13 && prefijo && barcode.startsWith(prefijo)) {
+      const productCode = barcode.substring(codInicio, codInicio + codLen);
+      const rawValue = parseInt(
+        barcode.substring(valInicio, valInicio + valLen),
+        10,
+      );
+
+      if (!isNaN(rawValue)) {
         const product = productos.find((p) => p.codigoBarras === productCode);
 
         if (product) {
-          const price = priceInCents / 100.0;
-          // Creamos un item especial con el precio del ticket
-          const itemFromScale = {
-            ...product,
-            precioFinal: price,
-            cantidad: 1, // Es 1 ticket
-            vendidoPor: 'ticketBalanza', // Un identificador especial
-          };
-          handleAddToCart(itemFromScale, 1, 0); // Lo añadimos al carrito
-          if (barcodeInputRef.current) barcodeInputRef.current.value = '';
-          safeFocus();
-          return; // Terminamos la ejecución aquí
+          const factor = Math.pow(10, decimales);
+
+          if (modo === 'peso') {
+            // El código trae el PESO: usamos el precio por Kg del producto y
+            // descontamos el peso real del stock (item por peso).
+            const pesoKg = rawValue / factor;
+            if (pesoKg > 0) {
+              handleAddToCart({ ...product, vendidoPor: 'peso' }, pesoKg, 0);
+              if (barcodeInputRef.current) barcodeInputRef.current.value = '';
+              safeFocus();
+              return;
+            }
+          } else {
+            // El código trae el PRECIO ya calculado por la balanza.
+            const price = rawValue / factor;
+            const itemFromScale = {
+              ...product,
+              precioFinal: price,
+              cantidad: 1, // Es 1 ticket
+              vendidoPor: 'ticketBalanza',
+            };
+            handleAddToCart(itemFromScale, 1, 0);
+            if (barcodeInputRef.current) barcodeInputRef.current.value = '';
+            safeFocus();
+            return;
+          }
         }
       }
     }
