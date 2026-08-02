@@ -9,7 +9,11 @@ import {
   Database,
   Trash2,
   CreditCard,
+  ImagePlus,
+  X,
 } from 'lucide-react';
+import { resizeImage } from '../utils/image.js';
+import { subirLogoNegocio } from '../services/storageService';
 import ImportDataTab from './ImportDataTab';
 import ImpresoraTermicaConfig from './ImpresoraTermicaConfig';
 import Swal from 'sweetalert2';
@@ -32,6 +36,7 @@ function ConfiguracionTab() {
     isPremium,
     isAdmin,
     plan,
+    mostrarMensaje,
   } = useAppContext();
 
   const [activeTab, setActiveTab] = useState('general'); // 'general' | 'import' | 'subscription'
@@ -51,6 +56,11 @@ function ConfiguracionTab() {
   const [ingresosBrutos, setIngresosBrutos] = useState('EXENTO');
   const [inicioActividades, setInicioActividades] = useState('');
   const [mpAccessToken, setMpAccessToken] = useState('');
+  // Logo del negocio (para la factura).
+  const [logoUrl, setLogoUrl] = useState('');
+  const [logoFile, setLogoFile] = useState(null);
+  const [logoPreview, setLogoPreview] = useState('');
+  const [subiendoLogo, setSubiendoLogo] = useState(false);
   // Config de códigos de balanza (con defaults = comportamiento clásico).
   const [balanzaConfig, setBalanzaConfig] = useState({
     prefijo: '20',
@@ -79,6 +89,9 @@ function ConfiguracionTab() {
       setIngresosBrutos(datosNegocio.ingresosBrutos || 'EXENTO');
       setInicioActividades(datosNegocio.inicioActividades || '');
       setMpAccessToken(datosNegocio.mpAccessToken || '');
+      setLogoUrl(datosNegocio.logoUrl || '');
+      setLogoPreview(datosNegocio.logoUrl || '');
+      setLogoFile(null);
       const bc = datosNegocio.balanzaConfig || {};
       setBalanzaConfig({
         prefijo: bc.prefijo ?? '20',
@@ -215,7 +228,44 @@ function ConfiguracionTab() {
     }
   };
 
-  const handleLocalGuardar = () => {
+  const handleLogoChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      mostrarMensaje?.('El archivo debe ser una imagen.', 'warning');
+      return;
+    }
+    setLogoFile(file);
+    setLogoPreview(URL.createObjectURL(file));
+  };
+
+  const handleQuitarLogo = () => {
+    setLogoFile(null);
+    setLogoUrl('');
+    setLogoPreview('');
+  };
+
+  const handleLocalGuardar = async () => {
+    // Si eligió un logo nuevo, lo redimensionamos y subimos.
+    let finalLogoUrl = logoUrl || null;
+    if (logoFile) {
+      if (!currentUser?.uid) {
+        mostrarMensaje?.('Sesión no válida para subir el logo.', 'error');
+        return;
+      }
+      setSubiendoLogo(true);
+      try {
+        const blob = await resizeImage(logoFile, 400, 0.85);
+        finalLogoUrl = await subirLogoNegocio(currentUser.uid, blob);
+      } catch (err) {
+        console.error('Error subiendo logo:', err);
+        mostrarMensaje?.('No se pudo subir el logo. Probá de nuevo.', 'error');
+        setSubiendoLogo(false);
+        return;
+      }
+      setSubiendoLogo(false);
+    }
+
     const updatedData = {
       nombre: nombre.trim(),
       direccion: direccion.trim(),
@@ -232,6 +282,7 @@ function ConfiguracionTab() {
       ingresosBrutos: ingresosBrutos.trim(),
       inicioActividades: inicioActividades.trim(),
       mpAccessToken: mpAccessToken.trim() || null,
+      logoUrl: finalLogoUrl,
       balanzaConfig: {
         prefijo: String(balanzaConfig.prefijo || '20').trim(),
         modo: balanzaConfig.modo === 'peso' ? 'peso' : 'precio',
@@ -514,6 +565,51 @@ function ConfiguracionTab() {
               />
               <p className="mt-1 text-xs text-zinc-400">
                 Si configuras este número (con + y código de país), el reporte de Cierre de Caja armará un link listo para enviar a este contacto.
+              </p>
+            </div>
+
+            {/* LOGO DEL NEGOCIO (para la factura) */}
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-sm font-medium text-zinc-300">
+                Logo del local (aparece en la factura)
+              </label>
+              <div className="flex items-center gap-3">
+                {logoPreview ? (
+                  <div className="relative">
+                    <img
+                      src={logoPreview}
+                      alt="Logo"
+                      className="h-16 w-16 rounded-md bg-white object-contain p-1 ring-1 ring-zinc-600"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleQuitarLogo}
+                      className="absolute -right-2 -top-2 rounded-full bg-red-600 p-0.5 text-white hover:bg-red-700"
+                      title="Quitar logo"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex h-16 w-16 items-center justify-center rounded-md bg-zinc-700 text-zinc-500 ring-1 ring-zinc-600">
+                    <ImagePlus className="h-6 w-6" />
+                  </div>
+                )}
+                <label className="cursor-pointer rounded-md bg-zinc-600 px-3 py-2 text-sm font-medium text-zinc-100 hover:bg-zinc-500">
+                  {logoPreview ? 'Cambiar logo' : 'Subir logo'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleLogoChange}
+                  />
+                </label>
+                {subiendoLogo && (
+                  <span className="text-sm text-zinc-400">Subiendo…</span>
+                )}
+              </div>
+              <p className="mt-1 text-xs text-zinc-400">
+                Se guarda al tocar “Guardar Cambios”. Ideal cuadrado (ej. 400×400).
               </p>
             </div>
 

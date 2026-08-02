@@ -9,6 +9,26 @@ import {
 } from '../utils/helpers';
 import { subirComprobantePdf } from './storageService';
 
+// Carga una imagen (logo) desde una URL y la devuelve lista para jsPDF.
+const cargarLogoParaPdf = async (url) => {
+  const resp = await fetch(url);
+  const blob = await resp.blob();
+  const dataUrl = await new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onload = () => res(fr.result);
+    fr.onerror = rej;
+    fr.readAsDataURL(blob);
+  });
+  const dims = await new Promise((res) => {
+    const im = new Image();
+    im.onload = () => res({ w: im.naturalWidth || 1, h: im.naturalHeight || 1 });
+    im.onerror = () => res({ w: 1, h: 1 });
+    im.src = dataUrl;
+  });
+  const format = blob.type.includes('png') ? 'PNG' : 'JPEG';
+  return { dataUrl, format, ...dims };
+};
+
 /**
  * Genera un recibo de venta en formato PDF con diseño oficial de AFIP.
  * @param {object} venta - El objeto completo de la venta.
@@ -195,9 +215,26 @@ export const generarPdfVenta = async (
   const leftColX = margin + 5;
   let currentY = margin + 10;
 
+  // Logo del negocio (opcional), a la izquierda del nombre.
+  let nameX = leftColX;
+  if (datosNegocio?.logoUrl) {
+    try {
+      const logo = await cargarLogoParaPdf(datosNegocio.logoUrl);
+      const maxW = 16;
+      const maxH = 14;
+      const ratio = Math.min(maxW / logo.w, maxH / logo.h);
+      const lw = logo.w * ratio;
+      const lh = logo.h * ratio;
+      doc.addImage(logo.dataUrl, logo.format, margin + 2, margin + 2, lw, lh);
+      nameX = margin + 2 + lw + 3;
+    } catch (e) {
+      console.warn('No se pudo cargar el logo para el PDF:', e);
+    }
+  }
+
   // Nombre Fantasía (Grande)
   doc.setFontSize(18);
-  doc.text(datosNegocio?.nombre || 'Mi Negocio', leftColX, currentY);
+  doc.text(datosNegocio?.nombre || 'Mi Negocio', nameX, currentY);
   currentY += 8;
 
   // Datos Emisor

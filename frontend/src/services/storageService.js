@@ -37,3 +37,18 @@ export const subirImagenProducto = async (userId, blob, nombre) => {
   await uploadBytes(fileRef, blob, { contentType: blob.type || 'image/jpeg' });
   return getDownloadURL(fileRef);
 };
+
+/**
+ * Sube el logo del negocio (para la factura) y devuelve su URL de descarga.
+ * @param {string} userId - dueño.
+ * @param {Blob} blob - la imagen (ya redimensionada).
+ * @returns {Promise<string>} URL pública (por token) del logo.
+ */
+export const subirLogoNegocio = async (userId, blob) => {
+  if (!userId) throw new Error('Falta el usuario para subir el logo.');
+  if (!blob) throw new Error('No hay logo para subir.');
+  const path = `logos/${userId}/${Date.now()}_logo.jpg`;
+  const fileRef = ref(storage, path);
+  await uploadBytes(fileRef, blob, { contentType: blob.type || 'image/jpeg' });
+  return getDownloadURL(fileRef);
+};
