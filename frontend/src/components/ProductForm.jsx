@@ -1,11 +1,42 @@
 // src/components/ProductForm.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
+import { ImagePlus, X } from 'lucide-react';
 import { useAppContext } from '../context/AppContext'; // Importar hook
+import { subirImagenProducto } from '../services/storageService';
+
+// Redimensiona/comprime una imagen a máx 800px y JPEG, para que Storage quede
+// liviano y la carga sea rápida. Si algo falla, devuelve el archivo original.
+const resizeImage = (file, maxSize = 800) =>
+  new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > height && width > maxSize) {
+        height = Math.round((height * maxSize) / width);
+        width = maxSize;
+      } else if (height > maxSize) {
+        width = Math.round((width * maxSize) / height);
+        height = maxSize;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      URL.revokeObjectURL(url);
+      canvas.toBlob((blob) => resolve(blob || file), 'image/jpeg', 0.8);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(file);
+    };
+    img.src = url;
+  });
 
 function ProductForm({ onSave, productToEdit, onCancelEdit }) {
   // mostrarMensaje ya no es prop
-  const { mostrarMensaje } = useAppContext(); // Obtener mostrarMensaje del contexto
+  const { mostrarMensaje, currentUser } = useAppContext(); // contexto
 
   const [nombre, setNombre] = useState('');
   const [codigoBarras, setCodigoBarras] = useState('');
@@ -16,6 +47,10 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) {
   const barcodeInputRef = useRef(null);
   const [categoria, setCategoria] = useState('');
   const [vendidoPor, setVendidoPor] = useState('unidad');
+  const [imagenUrl, setImagenUrl] = useState(''); // URL guardada (edición)
+  const [imagenFile, setImagenFile] = useState(null); // archivo nuevo a subir
+  const [preview, setPreview] = useState(''); // lo que se muestra
+  const [subiendo, setSubiendo] = useState(false);
 
   const handleApplyPercentage = () => {
     const percentage = parseFloat(increasePercentage);
@@ -40,6 +75,9 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) {
       setStock(productToEdit.stock.toString());
       setCategoria(productToEdit.categoria || '');
       setVendidoPor(productToEdit.vendidoPor || 'unidad');
+      setImagenUrl(productToEdit.imagenUrl || '');
+      setPreview(productToEdit.imagenUrl || '');
+      setImagenFile(null);
     } else {
       setNombre('');
       setCodigoBarras('');
@@ -48,13 +86,33 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) {
       setStock('');
       setCategoria('');
       setVendidoPor('unidad');
+      setImagenUrl('');
+      setPreview('');
+      setImagenFile(null);
     }
     if (!productToEdit && barcodeInputRef.current) {
       barcodeInputRef.current.focus();
     }
   }, [productToEdit]);
 
-  const handleSubmit = (e) => {
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      mostrarMensaje('El archivo debe ser una imagen.', 'warning');
+      return;
+    }
+    setImagenFile(file);
+    setPreview(URL.createObjectURL(file));
+  };
+
+  const handleQuitarImagen = () => {
+    setImagenFile(null);
+    setImagenUrl('');
+    setPreview('');
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const parsedPrecio = parseFloat(precio);
     const parsedCosto = parseFloat(costo) || 0;
@@ -72,6 +130,31 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) {
       );
       return;
     }
+
+    // Si eligió una imagen nueva, la redimensionamos y subimos a Storage.
+    let finalImagenUrl = imagenUrl || null;
+    if (imagenFile) {
+      if (!currentUser?.uid) {
+        mostrarMensaje('Sesión no válida para subir la imagen.', 'error');
+        return;
+      }
+      setSubiendo(true);
+      try {
+        const blob = await resizeImage(imagenFile);
+        finalImagenUrl = await subirImagenProducto(
+          currentUser.uid,
+          blob,
+          nombre.trim(),
+        );
+      } catch (err) {
+        console.error('Error subiendo imagen de producto:', err);
+        mostrarMensaje('No se pudo subir la imagen. Probá de nuevo.', 'error');
+        setSubiendo(false);
+        return;
+      }
+      setSubiendo(false);
+    }
+
     // onSave se llama igual, pero ProductosTab le pasará el handler del contexto
     onSave({
       id: productToEdit ? productToEdit.id : null,
@@ -82,6 +165,7 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) {
       stock: parsedStock,
       categoria: categoria.trim() || null,
       vendidoPor: vendidoPor,
+      imagenUrl: finalImagenUrl,
     });
     // El reseteo del formulario y de `editingProduct` lo maneja el contexto/ProductosTab tras una operación exitosa.
   };
@@ -269,14 +353,59 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) {
             required
           />
         </div>
+        {/* Foto del producto (opcional) */}
+        <div className="sm:col-span-2 lg:col-span-6">
+          <label className="mb-1 block text-sm font-medium text-zinc-300">
+            Foto del producto (opcional):
+          </label>
+          <div className="flex items-center gap-3">
+            {preview ? (
+              <div className="relative">
+                <img
+                  src={preview}
+                  alt="Vista previa"
+                  className="h-16 w-16 rounded-md object-cover ring-1 ring-zinc-600"
+                />
+                <button
+                  type="button"
+                  onClick={handleQuitarImagen}
+                  className="absolute -right-2 -top-2 rounded-full bg-red-600 p-0.5 text-white hover:bg-red-700"
+                  title="Quitar foto"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex h-16 w-16 items-center justify-center rounded-md bg-zinc-700 text-zinc-500 ring-1 ring-zinc-600">
+                <ImagePlus className="h-6 w-6" />
+              </div>
+            )}
+            <label className="cursor-pointer rounded-md bg-zinc-600 px-3 py-2 text-sm font-medium text-zinc-100 hover:bg-zinc-500">
+              {preview ? 'Cambiar foto' : 'Subir foto'}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+            </label>
+            {subiendo && (
+              <span className="text-sm text-zinc-400">Subiendo…</span>
+            )}
+          </div>
+        </div>
+
         <div className="mt-4 flex flex-col gap-2 border-t border-zinc-700 pt-4 sm:col-span-2 sm:flex-row sm:justify-end lg:col-span-6">
           <motion.button
             type="submit"
-            className={`order-1 w-full rounded-md px-3 py-2 font-bold text-white transition duration-150 ease-in-out lg:w-auto ${productToEdit ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-blue-600 hover:bg-blue-700'}`}
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
+            disabled={subiendo}
+            className={`order-1 w-full rounded-md px-3 py-2 font-bold text-white transition duration-150 ease-in-out disabled:opacity-60 lg:w-auto ${productToEdit ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+            whileHover={{ scale: subiendo ? 1 : 1.03 }}
+            whileTap={{ scale: subiendo ? 1 : 0.97 }}
           >
-            {productToEdit ? (
+            {subiendo ? (
+              'Subiendo…'
+            ) : productToEdit ? (
               <>
                 <i className="fas fa-save mr-2"></i>Guardar
               </>

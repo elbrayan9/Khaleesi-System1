@@ -13,5 +13,17 @@ service firebase.storage {
         && request.resource.size < 5 * 1024 * 1024
         && request.resource.contentType == 'application/pdf';
     }
+
+    // Imágenes de productos:
+    // - Escribe SOLO el dueño en su propia carpeta.
+    // - Lectura pública (para el catálogo/consulta de precios por QR).
+    // - Límite de 5 MB y solo imágenes.
+    match /productos/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
   }
 }

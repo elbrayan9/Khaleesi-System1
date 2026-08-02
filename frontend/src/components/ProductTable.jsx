@@ -82,6 +82,7 @@ function ProductTable({
               ID {getSortIcon('id')}
             </button>
           </TableHead>
+          <TableHead className="w-[56px]">Foto</TableHead>
           <TableHead>
             <button
               onClick={() => requestSort('nombre')}
@@ -115,7 +116,7 @@ function ProductTable({
         {products.length === 0 ? (
           <TableRow className="border-b-zinc-700 hover:bg-transparent">
             <TableCell
-              colSpan={6}
+              colSpan={9}
               className="h-24 text-center italic text-zinc-400"
             >
               No hay productos disponibles.
@@ -148,6 +149,20 @@ function ProductTable({
                     : p.id.substring(0, 8) + '...'
                   : 'SIN ID'}
                 {p._id_original_invalid ? ' (!)' : ''}
+              </TableCell>
+
+              {/* Foto (miniatura) */}
+              <TableCell>
+                {p.imagenUrl ? (
+                  <img
+                    src={p.imagenUrl}
+                    alt={p.nombre}
+                    className="h-10 w-10 rounded object-cover ring-1 ring-zinc-700"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="h-10 w-10 rounded bg-zinc-700/40" />
+                )}
               </TableCell>
 
               {/* El resto de las celdas siguen igual */}
