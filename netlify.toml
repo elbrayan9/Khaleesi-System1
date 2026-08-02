@@ -10,5 +10,5 @@
     X-Frame-Options = "SAMEORIGIN"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
-    Permissions-Policy = "geolocation=(), microphone=(), camera=()"
+    Permissions-Policy = "geolocation=(), microphone=(), camera=(self)"
     Content-Security-Policy = "script-src 'self' https://www.google.com https://www.gstatic.com https://*.firebaseio.com https://www.googleapis.com https://www.googletagmanager.com https://apis.google.com https://identitytoolkit.googleapis.com; object-src 'self'"

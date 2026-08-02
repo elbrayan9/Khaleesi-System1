@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Cart from './Cart.jsx';
 import PaymentModal from './PaymentModal.jsx';
 import BalanzaEnVivoModal from './BalanzaEnVivoModal.jsx';
+import EscanerCamaraModal from './EscanerCamaraModal.jsx';
 import SearchBar from './SearchBar.jsx';
 import { useAppContext } from '../context/AppContext.jsx';
 import SelectorVendedor from './SelectorVendedor';
@@ -58,6 +59,7 @@ function VentaTab() {
   const [descripcionManual, setDescripcionManual] = useState('');
   const [montoManual, setMontoManual] = useState('');
   const [showBalanza, setShowBalanza] = useState(false); // modal balanza en vivo
+  const [showEscaner, setShowEscaner] = useState(false); // escáner por cámara
 
   // --- REFERENCIAS A ELEMENTOS DEL DOM ---
   const barcodeInputRef = useRef(null);
@@ -411,6 +413,16 @@ function VentaTab() {
                 <i className="fas fa-barcode"></i>
               </button>
             </div>
+            {/* Escanear con la cámara (si el navegador lo soporta) */}
+            {typeof window !== 'undefined' && 'BarcodeDetector' in window && (
+              <button
+                type="button"
+                onClick={() => setShowEscaner(true)}
+                className="mt-2 flex w-full items-center justify-center gap-2 rounded-md border border-sky-500 bg-sky-500/10 px-4 py-2 text-sm font-semibold text-sky-300 transition-colors hover:bg-sky-500 hover:text-white"
+              >
+                <i className="fas fa-camera"></i> Escanear con cámara
+              </button>
+            )}
             {/* Balanza en vivo: habilitada en Configuración + soporte del navegador */}
             {datosNegocio?.habilitarBalanzaEnVivo &&
               typeof navigator !== 'undefined' &&
@@ -602,6 +614,16 @@ function VentaTab() {
 
       {showBalanza && (
         <BalanzaEnVivoModal onClose={() => setShowBalanza(false)} />
+      )}
+
+      {showEscaner && (
+        <EscanerCamaraModal
+          onDetected={(codigo) => {
+            setShowEscaner(false);
+            handleAgregarPorCodigo(codigo);
+          }}
+          onClose={() => setShowEscaner(false)}
+        />
       )}
     </div>
   );
