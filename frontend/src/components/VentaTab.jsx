@@ -454,8 +454,10 @@ function VentaTab() {
                 <i className="fas fa-barcode"></i>
               </button>
             </div>
-            {/* Escanear con la cámara (si el navegador lo soporta) */}
-            {typeof window !== 'undefined' && 'BarcodeDetector' in window && (
+            {/* Escanear con la cámara (si el dispositivo tiene cámara) */}
+            {typeof navigator !== 'undefined' &&
+              navigator.mediaDevices &&
+              navigator.mediaDevices.getUserMedia && (
               <button
                 type="button"
                 onClick={() => setShowEscaner(true)}

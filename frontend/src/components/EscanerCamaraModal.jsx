@@ -1,89 +1,68 @@
 // src/components/EscanerCamaraModal.jsx
 //
-// Escáner de códigos de barras / QR con la cámara, usando la API nativa
-// BarcodeDetector (Chrome/Edge en desktop y Android). Si no está soportada,
-// muestra un aviso. Al detectar un código llama a onDetected(codigo).
+// Escáner de códigos de barras / QR con la cámara, usando ZXing (funciona en
+// cualquier navegador con cámara: PC, Android, iOS). Al detectar un código
+// llama a onDetected(codigo).
 
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Camera } from 'lucide-react';
+import { BrowserMultiFormatReader } from '@zxing/browser';
 
 function EscanerCamaraModal({ onDetected, onClose }) {
   const videoRef = useRef(null);
-  const streamRef = useRef(null);
-  const rafRef = useRef(null);
-  const detenidoRef = useRef(false);
+  const controlsRef = useRef(null);
+  const doneRef = useRef(false);
   const [error, setError] = useState('');
-  const soportado =
-    typeof window !== 'undefined' && 'BarcodeDetector' in window;
 
   useEffect(() => {
-    if (!soportado) {
+    const hasCamera =
+      typeof navigator !== 'undefined' &&
+      navigator.mediaDevices &&
+      navigator.mediaDevices.getUserMedia;
+    if (!hasCamera) {
       setError(
-        'Tu navegador no soporta el escáner por cámara. Usá Chrome o Edge (en compu o Android).',
+        'Este dispositivo no tiene cámara disponible o el navegador no la permite.',
       );
       return undefined;
     }
 
-    let detector;
-    const iniciar = async () => {
-      try {
-        // Formatos comunes de retail.
-        const formats = [
-          'ean_13',
-          'ean_8',
-          'code_128',
-          'code_39',
-          'upc_a',
-          'upc_e',
-          'qr_code',
-          'itf',
-        ];
-        // eslint-disable-next-line no-undef
-        detector = new BarcodeDetector({ formats });
-
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' },
-        });
-        streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play();
-        }
-
-        const tick = async () => {
-          if (detenidoRef.current || !videoRef.current) return;
-          try {
-            const codes = await detector.detect(videoRef.current);
-            if (codes && codes.length > 0) {
-              const value = codes[0].rawValue;
-              if (value) {
-                detenidoRef.current = true;
-                onDetected?.(String(value).trim());
-                return;
-              }
+    const reader = new BrowserMultiFormatReader();
+    reader
+      .decodeFromConstraints(
+        { video: { facingMode: { ideal: 'environment' } } },
+        videoRef.current,
+        (result, err, controls) => {
+          controlsRef.current = controls;
+          if (result && !doneRef.current) {
+            doneRef.current = true;
+            try {
+              controls.stop();
+            } catch (_) {
+              /* ignore */
             }
-          } catch (_) {
-            /* seguimos intentando */
+            onDetected?.(String(result.getText()).trim());
           }
-          rafRef.current = requestAnimationFrame(tick);
-        };
-        rafRef.current = requestAnimationFrame(tick);
-      } catch (e) {
+        },
+      )
+      .then((controls) => {
+        controlsRef.current = controls;
+      })
+      .catch((e) => {
         setError(
           e?.name === 'NotAllowedError'
-            ? 'No diste permiso a la cámara. Habilitalo en el candado del navegador.'
+            ? 'No diste permiso a la cámara. Habilitalo en el candado del navegador y recargá.'
             : e?.message || 'No se pudo abrir la cámara.',
         );
-      }
-    };
-    iniciar();
+      });
 
     return () => {
-      detenidoRef.current = true;
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      const s = streamRef.current;
-      if (s) s.getTracks().forEach((t) => t.stop());
+      doneRef.current = true;
+      try {
+        controlsRef.current?.stop();
+      } catch (_) {
+        /* ignore */
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -125,7 +104,6 @@ function EscanerCamaraModal({ onDetected, onClose }) {
                   muted
                   playsInline
                 />
-                {/* Guía visual */}
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                   <div className="h-24 w-4/5 rounded-lg border-2 border-sky-400/80" />
                 </div>
