@@ -8,6 +8,7 @@ import {
   ArrowDown,
   Minus,
   Notebook,
+  MessageCircle,
 } from 'lucide-react';
 import {
   Table,
@@ -18,6 +19,7 @@ import {
   TableRow,
 } from '@/components/ui/table'; //
 import { formatCurrency } from '../utils/helpers';
+import { useAppContext } from '../context/AppContext.jsx';
 
 function ClientTable({
   clients = [],
@@ -28,6 +30,30 @@ function ClientTable({
   getSaldoCliente,
   onCuentaCorriente,
 }) {
+  const { datosNegocio, mostrarMensaje } = useAppContext();
+
+  // Abre WhatsApp con un recordatorio de deuda para el cliente.
+  const recordarDeuda = (cliente, saldo) => {
+    let tel = String(cliente.telefono || '').replace(/\D/g, '');
+    if (!tel) {
+      mostrarMensaje?.(
+        'Este cliente no tiene teléfono cargado.',
+        'warning',
+      );
+      return;
+    }
+    if (!tel.startsWith('54')) tel = `549${tel}`;
+    const negocio = datosNegocio?.nombre || 'nuestro comercio';
+    const texto =
+      `Hola ${cliente.nombre || ''}! 👋 Te recordamos que tenés un saldo ` +
+      `pendiente de $${formatCurrency(saldo)} en ${negocio}. ` +
+      `Cualquier duda, avisanos. ¡Gracias!`;
+    window.open(
+      `https://wa.me/${tel}?text=${encodeURIComponent(texto)}`,
+      '_blank',
+      'noopener,noreferrer',
+    );
+  };
   const getSortIcon = (key) => {
     if (!sortConfig || sortConfig.key !== key)
       return (
@@ -128,6 +154,23 @@ function ClientTable({
                 })()}
               </TableCell>
               <TableCell className="whitespace-nowrap text-center">
+                {(() => {
+                  const saldo = getSaldoCliente ? getSaldoCliente(c.id) : 0;
+                  if (saldo > 0)
+                    return (
+                      <motion.button
+                        onClick={() => recordarDeuda(c, saldo)}
+                        className="mr-3 rounded p-1 text-green-400 hover:text-green-300"
+                        title="Recordar deuda por WhatsApp"
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        disabled={isActionDisabled(c)}
+                      >
+                        <MessageCircle className="inline-block h-4 w-4" />
+                      </motion.button>
+                    );
+                  return null;
+                })()}
                 {onCuentaCorriente && (
                   <motion.button
                     onClick={() => onCuentaCorriente(c)}
