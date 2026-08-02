@@ -385,6 +385,47 @@ function VentaTab() {
             Agregar Productos
           </h3>
 
+          {/* Acceso rápido: productos marcados como favoritos */}
+          {productos.some((p) => p.favorito) && (
+            <div>
+              <h4 className="text-md mb-2 font-medium text-white">
+                ⭐ Acceso rápido
+              </h4>
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
+                {productos
+                  .filter((p) => p.favorito)
+                  .map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => handleAddToCart(p, 1, 0)}
+                      className="flex flex-col items-center gap-1 rounded-lg border border-zinc-700 bg-zinc-900/50 p-2 text-center transition-colors hover:border-blue-500 hover:bg-zinc-700"
+                      title={`Agregar ${p.nombre}`}
+                    >
+                      {p.imagenUrl ? (
+                        <img
+                          src={p.imagenUrl}
+                          alt={p.nombre}
+                          className="h-12 w-12 rounded object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="flex h-12 w-12 items-center justify-center rounded bg-zinc-700 text-xs font-bold text-zinc-400">
+                          {(p.nombre || '?').substring(0, 2).toUpperCase()}
+                        </div>
+                      )}
+                      <span className="line-clamp-2 text-xs font-medium text-zinc-200">
+                        {p.nombre}
+                      </span>
+                      <span className="text-xs text-zinc-400">
+                        ${formatCurrency(p.precio)}
+                      </span>
+                    </button>
+                  ))}
+              </div>
+            </div>
+          )}
+
           {/* --- AGREGAR POR CÓDIGO DE BARRAS --- */}
           <div>
             <label

@@ -51,6 +51,7 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) {
   const [imagenFile, setImagenFile] = useState(null); // archivo nuevo a subir
   const [preview, setPreview] = useState(''); // lo que se muestra
   const [subiendo, setSubiendo] = useState(false);
+  const [favorito, setFavorito] = useState(false); // acceso rápido en la venta
 
   const handleApplyPercentage = () => {
     const percentage = parseFloat(increasePercentage);
@@ -78,6 +79,7 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) {
       setImagenUrl(productToEdit.imagenUrl || '');
       setPreview(productToEdit.imagenUrl || '');
       setImagenFile(null);
+      setFavorito(productToEdit.favorito || false);
     } else {
       setNombre('');
       setCodigoBarras('');
@@ -89,6 +91,7 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) {
       setImagenUrl('');
       setPreview('');
       setImagenFile(null);
+      setFavorito(false);
     }
     if (!productToEdit && barcodeInputRef.current) {
       barcodeInputRef.current.focus();
@@ -166,6 +169,7 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) {
       categoria: categoria.trim() || null,
       vendidoPor: vendidoPor,
       imagenUrl: finalImagenUrl,
+      favorito: favorito,
     });
     // El reseteo del formulario y de `editingProduct` lo maneja el contexto/ProductosTab tras una operación exitosa.
   };
@@ -334,6 +338,15 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) {
             <option value="unidad">Unidad</option>
             <option value="peso">Peso (Kg)</option>
           </select>
+          <label className="mt-2 flex cursor-pointer items-center gap-2 text-sm text-zinc-300">
+            <input
+              type="checkbox"
+              checked={favorito}
+              onChange={(e) => setFavorito(e.target.checked)}
+              className="h-4 w-4 rounded border-zinc-600 bg-zinc-700 text-blue-500"
+            />
+            Acceso rápido (botón en la venta) ⭐
+          </label>
         </div>
         <div>
           <label
