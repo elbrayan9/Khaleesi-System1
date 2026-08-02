@@ -1,4 +1,4 @@
-import React, { useState } from 'react'; // Se añade useState
+import React, { useState, useEffect } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import AppLogo from './AppLogo.jsx';
@@ -9,7 +9,6 @@ import {
   ShoppingCart,
   Package,
   Users,
-  LineChart,
   FileText,
   Settings,
   LogOut,
@@ -17,6 +16,12 @@ import {
   UserPlus,
   Truck,
   BarChart3,
+  Wallet,
+  ClipboardList,
+  FileMinus,
+  Menu,
+  PanelLeftClose,
+  PanelLeft,
 } from 'lucide-react';
 import ChatbotModal from './ChatbotModal.jsx';
 import SubscriptionStatusBanner from './SubscriptionStatusBanner.jsx';
@@ -24,186 +29,231 @@ import SucursalSelector from './SucursalSelector.jsx';
 import ThemeToggle from './ThemeToggle.jsx';
 
 function Layout() {
-  // Dentro de function Layout() { ... }
   const [isChatOpen, setIsChatOpen] = useState(false);
-  // Se obtiene 'isAdmin' para mostrar el enlace condicionalmente
+  const [isChatButtonHovered, setIsChatButtonHovered] = useState(false);
   const { handleLogout, isAdmin, canAccessMultisucursal, canAccessAI } =
     useAppContext();
   const navigate = useNavigate();
-
-  // Se usa 'useLocation' para detectar la ruta activa. Es la forma correcta en React Router.
   const location = useLocation();
   const currentPath = location.pathname;
-  const [isChatButtonHovered, setIsChatButtonHovered] = useState(false);
 
-  // Se definen las pestañas base que todos los usuarios ven
-  const tabsData = [
+  // Colapsado (solo desktop, se recuerda) y drawer abierto (mobile).
+  const [collapsed, setCollapsed] = useState(
+    () => localStorage.getItem('sidebarCollapsed') === '1',
+  );
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth >= 768,
+  );
+
+  useEffect(() => {
+    localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0');
+  }, [collapsed]);
+
+  useEffect(() => {
+    const onResize = () => setIsDesktop(window.innerWidth >= 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  // Cierra el drawer al navegar (mobile).
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [currentPath]);
+
+  // El colapsado solo aplica en desktop; en el drawer mobile va completo.
+  const mini = isDesktop && collapsed;
+
+  // Navegación agrupada por categoría.
+  const groups = [
     {
-      id: 'venta',
-      label: 'Nueva Venta',
-      Icon: ShoppingCart,
-      shortLabel: 'Venta',
-      path: '/dashboard',
+      title: 'Operar',
+      items: [
+        { label: 'Nueva Venta', Icon: ShoppingCart, path: '/dashboard' },
+        { label: 'Caja y Reportes', Icon: Wallet, path: '/dashboard/reportes' },
+      ],
     },
     {
-      id: 'productos',
-      label: 'Productos',
-      Icon: Package,
-      shortLabel: 'Productos',
-      path: '/dashboard/productos',
+      title: 'Catálogo',
+      items: [
+        { label: 'Productos', Icon: Package, path: '/dashboard/productos' },
+        { label: 'Proveedores', Icon: Truck, path: '/dashboard/proveedores' },
+        { label: 'Pedidos', Icon: ClipboardList, path: '/dashboard/pedidos' },
+      ],
     },
     {
-      id: 'clientes',
-      label: 'Clientes',
-      Icon: Users,
-      shortLabel: 'Clientes',
-      path: '/dashboard/clientes',
+      title: 'Gente',
+      items: [
+        { label: 'Clientes', Icon: Users, path: '/dashboard/clientes' },
+        { label: 'Vendedores', Icon: UserPlus, path: '/dashboard/vendedores' },
+      ],
     },
     {
-      id: 'vendedores',
-      label: 'Vendedores',
-      Icon: UserPlus,
-      shortLabel: 'Vendedores',
-      path: '/dashboard/vendedores',
+      title: 'Documentos',
+      items: [
+        {
+          label: 'Presupuestos',
+          Icon: FileText,
+          path: '/dashboard/presupuestos',
+        },
+        { label: 'Notas C/D', Icon: FileMinus, path: '/dashboard/notas' },
+      ],
     },
     {
-      id: 'proveedores',
-      label: 'Proveedores',
-      Icon: /* Puedes usar un ícono que te guste, ej: Truck */ Package,
-      shortLabel: 'Provs',
-      path: '/dashboard/proveedores',
+      title: 'Análisis',
+      items: [
+        {
+          label: 'Estadísticas',
+          Icon: BarChart3,
+          path: '/dashboard/estadisticas',
+        },
+      ],
     },
     {
-      id: 'pedidos',
-      label: 'Pedidos',
-      Icon: /*ClipboardList*/ Truck,
-      shortLabel: 'Pedidos',
-      path: '/dashboard/pedidos',
-    },
-    {
-      id: 'presupuestos',
-      label: 'Presupuestos',
-      Icon: FileText,
-      shortLabel: 'Presup',
-      path: '/dashboard/presupuestos',
-    },
-    {
-      id: 'estadisticas',
-      label: 'Estadísticas',
-      Icon: BarChart3,
-      shortLabel: 'Stats',
-      path: '/dashboard/estadisticas',
-    },
-    {
-      id: 'reportes',
-      label: 'Caja y Reportes',
-      Icon: LineChart,
-      shortLabel: 'Caja',
-      path: '/dashboard/reportes',
-    },
-    {
-      id: 'notas_cd',
-      label: 'Notas C/D',
-      Icon: FileText,
-      shortLabel: 'Notas',
-      path: '/dashboard/notas',
-    },
-    {
-      id: 'configuracion',
-      label: 'Configuración',
-      Icon: Settings,
-      shortLabel: 'Config',
-      path: '/dashboard/configuracion',
+      title: 'Sistema',
+      items: [
+        {
+          label: 'Configuración',
+          Icon: Settings,
+          path: '/dashboard/configuracion',
+        },
+        ...(isAdmin
+          ? [{ label: 'Panel Admin', Icon: Shield, path: '/admin' }]
+          : []),
+      ],
     },
   ];
 
-  // Si el usuario es admin, se añade dinámicamente la pestaña del panel
-  if (isAdmin) {
-    tabsData.push({
-      id: 'admin',
-      label: 'Panel Admin',
-      Icon: Shield, // Ícono para la nueva pestaña
-      shortLabel: 'Admin',
-      path: '/admin',
-    });
-  }
-
-  const onLogoClick = () => {
-    navigate('/dashboard');
+  const NavItem = ({ label, Icon, path }) => {
+    const active = currentPath === path;
+    return (
+      <Link
+        to={path}
+        title={mini ? label : undefined}
+        className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-150 ${
+          mini ? 'justify-center' : ''
+        } ${
+          active
+            ? 'bg-blue-600/15 text-blue-500 dark:text-blue-400'
+            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+        }`}
+      >
+        <Icon className="h-5 w-5 flex-none" strokeWidth={active ? 2.5 : 2} />
+        {!mini && <span className="truncate">{label}</span>}
+      </Link>
+    );
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground transition-colors duration-300">
-      <header className="p-3 md:p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <AppLogo
-              onLogoClick={onLogoClick}
-              className="text-foreground hover:text-blue-400"
-            />
-            <h1 className="hidden text-xl font-bold text-foreground sm:text-2xl md:block">
-              Khaleesi System
-            </h1>
-            <h1 className="text-xl font-bold text-foreground sm:text-2xl md:hidden">
-              POS
-            </h1>
+    <div className="flex min-h-screen bg-background text-foreground transition-colors duration-300">
+      {/* Overlay del drawer en mobile */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={() => setMobileOpen(false)}
+          aria-hidden="true"
+        />
+      )}
 
-            {canAccessMultisucursal && (
-              <div className="ml-4 border-l border-border pl-4">
-                <SucursalSelector />
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-          </div>
-        </div>
-
-        <div className="border-b border-border">
-          <nav
-            className="-mb-px flex flex-wrap justify-center sm:justify-start"
-            aria-label="Tabs"
+      {/* SIDEBAR */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-border bg-background transition-all duration-200 md:static md:z-auto md:translate-x-0 ${
+          mini ? 'md:w-16' : 'md:w-60'
+        } ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
+      >
+        {/* Encabezado del sidebar */}
+        <div
+          className={`flex h-16 items-center gap-2 border-b border-border px-3 ${
+            mini ? 'justify-center' : 'justify-between'
+          }`}
+        >
+          {!mini && (
+            <div className="flex flex-1 items-center gap-2 overflow-hidden">
+              <AppLogo
+                onLogoClick={() => navigate('/dashboard')}
+                className="text-foreground"
+              />
+              <span className="truncate text-lg font-bold">Khaleesi</span>
+            </div>
+          )}
+          <button
+            onClick={() => setCollapsed((c) => !c)}
+            className="hidden rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground md:block"
+            aria-label={mini ? 'Expandir menú' : 'Colapsar menú'}
+            title={mini ? 'Expandir' : 'Colapsar'}
           >
-            {tabsData.map((tab) => (
-              <motion.div key={tab.id}>
-                <Link
-                  to={tab.path}
-                  className={`tab-button flex items-center px-3 py-2 text-center text-sm font-medium transition-colors duration-150 ${currentPath === tab.path ? 'active-nav-link' : 'inactive-nav-link'}`}
-                >
-                  <tab.Icon
-                    className="mr-1 h-4 w-4 sm:mr-1.5"
-                    strokeWidth={currentPath === tab.path ? 2.5 : 2}
-                  />
-                  <span className="hidden sm:inline">{tab.label}</span>
-                  <span className="sm:hidden">{tab.shortLabel}</span>
-                </Link>
-              </motion.div>
-            ))}
-            <motion.button
-              onClick={() => {
-                handleLogout();
-                navigate('/login');
-              }}
-              className="tab-button inactive-nav-link ml-auto flex items-center px-3 py-2 text-center text-sm font-medium text-red-400 transition-colors duration-150 hover:border-red-500 hover:text-red-300"
-            >
-              <LogOut className="mr-1 h-4 w-4 sm:mr-1.5" strokeWidth={2} />
-              <span className="hidden sm:inline">Salir</span>
-              <span className="sm:hidden">Salir</span>
-            </motion.button>
-          </nav>
+            {mini ? (
+              <PanelLeft className="h-5 w-5" />
+            ) : (
+              <PanelLeftClose className="h-5 w-5" />
+            )}
+          </button>
         </div>
-      </header>
 
-      <main className="flex-1 overflow-y-auto p-3 md:p-6">
-        <SubscriptionStatusBanner />
-        <Outlet />
-      </main>
+        {/* Navegación */}
+        <nav className="flex-1 space-y-1 overflow-y-auto p-2">
+          {groups.map((group, gi) => (
+            <div key={group.title} className={gi > 0 ? 'pt-3' : ''}>
+              {mini
+                ? gi > 0 && <div className="mx-2 mb-2 border-t border-border" />
+                : (
+                  <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {group.title}
+                  </p>
+                )}
+              <div className="space-y-1">
+                {group.items.map((item) => (
+                  <NavItem key={item.path} {...item} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </nav>
 
-      <Footer simple={true} />
-      {/* --- INICIO DEL CÓDIGO AÑADIDO --- */}
+        {/* Salir */}
+        <div className="border-t border-border p-2">
+          <button
+            onClick={() => {
+              handleLogout();
+              navigate('/login');
+            }}
+            title={mini ? 'Salir' : undefined}
+            className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-red-400 transition-colors duration-150 hover:bg-red-500/10 hover:text-red-300 ${
+              mini ? 'justify-center' : ''
+            }`}
+          >
+            <LogOut className="h-5 w-5 flex-none" />
+            {!mini && <span>Salir</span>}
+          </button>
+        </div>
+      </aside>
 
-      {/* Nuevo código del botón con animación */}
+      {/* COLUMNA PRINCIPAL */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* Barra superior */}
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background px-3 md:px-6">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setMobileOpen(true)}
+              className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground md:hidden"
+              aria-label="Abrir menú"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            {canAccessMultisucursal && <SucursalSelector />}
+          </div>
+          <ThemeToggle />
+        </header>
+
+        <main className="flex-1 overflow-y-auto p-3 md:p-6">
+          <SubscriptionStatusBanner />
+          <Outlet />
+        </main>
+
+        <Footer simple={true} />
+      </div>
+
+      {/* Asistente IA (flotante) */}
       {canAccessAI && (
         <motion.div
           className="fixed bottom-6 right-6 z-40"
@@ -212,13 +262,12 @@ function Layout() {
         >
           <button
             onClick={() => setIsChatOpen(true)}
-            className={`flex items-center justify-center gap-2 rounded-full shadow-lg transition-all duration-300 ease-in-out ${isChatButtonHovered ? 'w-36 bg-blue-600' : 'w-14 bg-blue-700'} h-14 text-white focus:outline-none`}
+            className={`flex h-14 items-center justify-center gap-2 rounded-full text-white shadow-lg transition-all duration-300 ease-in-out focus:outline-none ${
+              isChatButtonHovered ? 'w-36 bg-blue-600' : 'w-14 bg-blue-700'
+            }`}
             aria-label="Abrir asistente de chat"
           >
-            {/* El ícono siempre es visible */}
             <Bot size={24} className="flex-shrink-0" />
-
-            {/* El texto solo aparece si el mouse está encima y se anima con Framer Motion */}
             <AnimatePresence>
               {isChatButtonHovered && (
                 <motion.span
@@ -236,11 +285,7 @@ function Layout() {
         </motion.div>
       )}
 
-      {/* El componente del modal del chatbot */}
-      {/* Se muestra solo si isChatOpen es true */}
       <ChatbotModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
-
-      {/* --- FIN DEL CÓDIGO AÑADIDO --- */}
     </div>
   );
 }
