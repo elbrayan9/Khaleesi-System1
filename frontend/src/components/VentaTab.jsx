@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Cart from './Cart.jsx';
 import PaymentModal from './PaymentModal.jsx';
+import BalanzaEnVivoModal from './BalanzaEnVivoModal.jsx';
 import SearchBar from './SearchBar.jsx';
 import { useAppContext } from '../context/AppContext.jsx';
 import SelectorVendedor from './SelectorVendedor';
@@ -56,6 +57,7 @@ function VentaTab() {
   // --- Estados para la Venta Rápida ---
   const [descripcionManual, setDescripcionManual] = useState('');
   const [montoManual, setMontoManual] = useState('');
+  const [showBalanza, setShowBalanza] = useState(false); // modal balanza en vivo
 
   // --- REFERENCIAS A ELEMENTOS DEL DOM ---
   const barcodeInputRef = useRef(null);
@@ -409,6 +411,16 @@ function VentaTab() {
                 <i className="fas fa-barcode"></i>
               </button>
             </div>
+            {/* Balanza en vivo (solo si el navegador soporta Web Serial) */}
+            {typeof navigator !== 'undefined' && 'serial' in navigator && (
+              <button
+                type="button"
+                onClick={() => setShowBalanza(true)}
+                className="mt-2 flex w-full items-center justify-center gap-2 rounded-md border border-indigo-500 bg-indigo-500/10 px-4 py-2 text-sm font-semibold text-indigo-300 transition-colors hover:bg-indigo-500 hover:text-white"
+              >
+                <i className="fas fa-balance-scale"></i> Balanza en vivo
+              </button>
+            )}
           </div>
 
           <hr className="border-zinc-700" />
@@ -584,6 +596,10 @@ function VentaTab() {
         mostrarMensaje={mostrarMensaje}
         condicionEmisor={datosNegocio?.condicionIva}
       />
+
+      {showBalanza && (
+        <BalanzaEnVivoModal onClose={() => setShowBalanza(false)} />
+      )}
     </div>
   );
 }
