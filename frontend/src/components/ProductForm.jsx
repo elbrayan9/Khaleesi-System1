@@ -1,9 +1,10 @@
 // src/components/ProductForm.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { ImagePlus, X } from 'lucide-react';
+import { ImagePlus, X, Camera } from 'lucide-react';
 import { useAppContext } from '../context/AppContext'; // Importar hook
 import { subirImagenProducto } from '../services/storageService';
+import EscanerCamaraModal from './EscanerCamaraModal.jsx';
 
 // Redimensiona/comprime una imagen a máx 800px y JPEG, para que Storage quede
 // liviano y la carga sea rápida. Si algo falla, devuelve el archivo original.
@@ -52,6 +53,7 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) {
   const [preview, setPreview] = useState(''); // lo que se muestra
   const [subiendo, setSubiendo] = useState(false);
   const [favorito, setFavorito] = useState(false); // acceso rápido en la venta
+  const [showEscaner, setShowEscaner] = useState(false); // escáner por cámara
 
   const handleApplyPercentage = () => {
     const percentage = parseFloat(increasePercentage);
@@ -219,6 +221,17 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) {
             onKeyDown={handleKeyDown}
             className={inputClasses}
           />
+          {typeof navigator !== 'undefined' &&
+            navigator.mediaDevices &&
+            navigator.mediaDevices.getUserMedia && (
+              <button
+                type="button"
+                onClick={() => setShowEscaner(true)}
+                className="mt-1 flex items-center gap-1 text-xs font-medium text-sky-400 hover:text-sky-300"
+              >
+                <Camera className="h-3.5 w-3.5" /> Escanear con cámara
+              </button>
+            )}
         </div>
         <div className="lg:col-span-2">
           <label
@@ -441,6 +454,16 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) {
           )}
         </div>
       </div>
+
+      {showEscaner && (
+        <EscanerCamaraModal
+          onDetected={(codigo) => {
+            setCodigoBarras(codigo);
+            setShowEscaner(false);
+          }}
+          onClose={() => setShowEscaner(false)}
+        />
+      )}
     </form>
   );
 }

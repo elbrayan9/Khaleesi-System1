@@ -85,6 +85,7 @@ function EscanerCamaraModal({ onDetected, onClose }) {
             <Camera className="h-5 w-5 text-sky-400" /> Escanear con cámara
           </h3>
           <button
+            type="button"
             onClick={onClose}
             className="rounded p-1 text-zinc-400 hover:bg-zinc-700 hover:text-white"
           >
