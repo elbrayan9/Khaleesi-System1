@@ -1,6 +1,7 @@
 // frontend/src/components/EstadisticasTab.jsx
 import React, { useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
+import InsightsIAPanel from './InsightsIAPanel.jsx';
 import { motion } from 'framer-motion';
 import { formatCurrency } from '../utils/helpers';
 import {
@@ -192,6 +193,7 @@ const EstadisticasTab = () => {
       exit={{ opacity: 0 }}
       className="space-y-6 pb-6"
     >
+      <InsightsIAPanel />
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="flex items-center gap-3 text-2xl font-bold text-white">
