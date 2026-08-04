@@ -22,11 +22,19 @@ import {
   Menu,
   PanelLeftClose,
   PanelLeft,
+  Lock,
 } from 'lucide-react';
 import ChatbotModal from './ChatbotModal.jsx';
 import SubscriptionStatusBanner from './SubscriptionStatusBanner.jsx';
 import SucursalSelector from './SucursalSelector.jsx';
 import ThemeToggle from './ThemeToggle.jsx';
+
+// Rutas permitidas en "modo cajero" (el resto se oculta).
+const CAJERO_PATHS = [
+  '/dashboard',
+  '/dashboard/productos',
+  '/dashboard/clientes',
+];
 
 function Layout() {
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -63,6 +71,38 @@ function Layout() {
 
   // El colapsado solo aplica en desktop; en el drawer mobile va completo.
   const mini = isDesktop && collapsed;
+
+  // Modo cajero: oculta secciones sensibles hasta ingresar un PIN.
+  const [modoCajero, setModoCajero] = useState(
+    () => localStorage.getItem('modoCajero') === '1',
+  );
+  const entrarCajero = () => {
+    if (!localStorage.getItem('cajeroPin')) {
+      const nuevo = window.prompt(
+        'Creá un PIN para el modo cajero (lo pedirá para salir):',
+      );
+      if (!nuevo || !nuevo.trim()) return;
+      localStorage.setItem('cajeroPin', nuevo.trim());
+    }
+    localStorage.setItem('modoCajero', '1');
+    setModoCajero(true);
+    navigate('/dashboard');
+  };
+  const salirCajero = () => {
+    const intento = window.prompt('Ingresá el PIN para salir del modo cajero:');
+    if (intento === null) return;
+    if (intento.trim() === (localStorage.getItem('cajeroPin') || '')) {
+      localStorage.setItem('modoCajero', '0');
+      setModoCajero(false);
+    } else {
+      window.alert('PIN incorrecto.');
+    }
+  };
+  useEffect(() => {
+    if (modoCajero && !CAJERO_PATHS.includes(currentPath)) {
+      navigate('/dashboard');
+    }
+  }, [modoCajero, currentPath, navigate]);
 
   // Navegación agrupada por categoría.
   const groups = [
@@ -192,7 +232,15 @@ function Layout() {
 
         {/* Navegación */}
         <nav className="flex-1 space-y-1 overflow-y-auto p-2">
-          {groups.map((group, gi) => (
+          {(modoCajero
+            ? groups
+                .map((g) => ({
+                  ...g,
+                  items: g.items.filter((i) => CAJERO_PATHS.includes(i.path)),
+                }))
+                .filter((g) => g.items.length)
+            : groups
+          ).map((group, gi) => (
             <div key={group.title} className={gi > 0 ? 'pt-3' : ''}>
               {mini
                 ? gi > 0 && <div className="mx-2 mb-2 border-t border-border" />
@@ -242,7 +290,26 @@ function Layout() {
             </button>
             {canAccessMultisucursal && <SucursalSelector />}
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-2">
+            {modoCajero ? (
+              <button
+                onClick={salirCajero}
+                className="flex items-center gap-1 rounded-md bg-amber-500/15 px-2.5 py-1.5 text-xs font-semibold text-amber-400 hover:bg-amber-500/25"
+                title="Salir de modo cajero"
+              >
+                <Lock className="h-4 w-4" /> Cajero
+              </button>
+            ) : (
+              <button
+                onClick={entrarCajero}
+                className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+                title="Entrar en modo cajero"
+              >
+                <Lock className="h-5 w-5" />
+              </button>
+            )}
+            <ThemeToggle />
+          </div>
         </header>
 
         <main className="flex-1 overflow-y-auto p-3 md:p-6">
