@@ -166,7 +166,32 @@ function ProductTable({
               </TableCell>
 
               {/* El resto de las celdas siguen igual */}
-              <TableCell className="text-zinc-200">{p.nombre}</TableCell>
+              <TableCell className="text-zinc-200">
+                {p.nombre}
+                {p.fechaVencimiento &&
+                  (() => {
+                    const dias = Math.ceil(
+                      (new Date(p.fechaVencimiento) - new Date()) / 86400000,
+                    );
+                    const cls =
+                      dias < 0
+                        ? 'text-red-400'
+                        : dias <= 30
+                          ? 'text-amber-400'
+                          : 'text-zinc-500';
+                    const txt =
+                      dias < 0
+                        ? 'Vencido'
+                        : `Vence ${new Date(
+                            p.fechaVencimiento,
+                          ).toLocaleDateString('es-AR')}`;
+                    return (
+                      <span className={`block text-[11px] ${cls}`}>
+                        ⏰ {txt}
+                      </span>
+                    );
+                  })()}
+              </TableCell>
               <TableCell className="font-mono text-zinc-400">
                 {p.codigoBarras || 'N/A'}
               </TableCell>

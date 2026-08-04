@@ -53,6 +53,7 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) {
   const [preview, setPreview] = useState(''); // lo que se muestra
   const [subiendo, setSubiendo] = useState(false);
   const [favorito, setFavorito] = useState(false); // acceso rápido en la venta
+  const [fechaVencimiento, setFechaVencimiento] = useState(''); // opcional
   const [showEscaner, setShowEscaner] = useState(false); // escáner por cámara
 
   const handleApplyPercentage = () => {
@@ -82,6 +83,7 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) {
       setPreview(productToEdit.imagenUrl || '');
       setImagenFile(null);
       setFavorito(productToEdit.favorito || false);
+      setFechaVencimiento(productToEdit.fechaVencimiento || '');
     } else {
       setNombre('');
       setCodigoBarras('');
@@ -94,6 +96,7 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) {
       setPreview('');
       setImagenFile(null);
       setFavorito(false);
+      setFechaVencimiento('');
     }
     if (!productToEdit && barcodeInputRef.current) {
       barcodeInputRef.current.focus();
@@ -172,6 +175,7 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) {
       vendidoPor: vendidoPor,
       imagenUrl: finalImagenUrl,
       favorito: favorito,
+      fechaVencimiento: fechaVencimiento || null,
     });
     // El reseteo del formulario y de `editingProduct` lo maneja el contexto/ProductosTab tras una operación exitosa.
   };
@@ -360,6 +364,15 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) {
             />
             Acceso rápido (botón en la venta) ⭐
           </label>
+          <label className="mt-2 block text-xs text-zinc-400">
+            Vencimiento (opcional):
+          </label>
+          <input
+            type="date"
+            value={fechaVencimiento}
+            onChange={(e) => setFechaVencimiento(e.target.value)}
+            className={inputClasses}
+          />
         </div>
         <div>
           <label
