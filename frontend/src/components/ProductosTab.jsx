@@ -339,6 +339,41 @@ function ProductosTab() {
                 ))}
               </TableBody>
             </Table>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const texto =
+                    '¡Hola! Necesito reponer estos productos:\n' +
+                    productosConStockBajo
+                      .map((p) => `• ${p.nombre} (stock: ${p.stock})`)
+                      .join('\n');
+                  window.open(
+                    'https://wa.me/?text=' + encodeURIComponent(texto),
+                    '_blank',
+                    'noopener,noreferrer',
+                  );
+                }}
+                className="rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-700"
+              >
+                Enviar al proveedor (WhatsApp)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const texto = productosConStockBajo
+                    .map((p) => `${p.nombre} (stock: ${p.stock})`)
+                    .join('\n');
+                  navigator.clipboard
+                    ?.writeText(texto)
+                    .then(() => mostrarMensaje?.('Lista copiada.', 'success'))
+                    .catch(() => {});
+                }}
+                className="rounded-md bg-zinc-600 px-3 py-2 text-sm font-semibold text-zinc-100 hover:bg-zinc-500"
+              >
+                Copiar lista
+              </button>
+            </div>
           </div>
         </motion.div>
       )}
