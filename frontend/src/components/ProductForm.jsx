@@ -54,6 +54,7 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) {
   const [subiendo, setSubiendo] = useState(false);
   const [favorito, setFavorito] = useState(false); // acceso rápido en la venta
   const [fechaVencimiento, setFechaVencimiento] = useState(''); // opcional
+  const [descuentoPromo, setDescuentoPromo] = useState(''); // % promo opcional
   const [showEscaner, setShowEscaner] = useState(false); // escáner por cámara
 
   const handleApplyPercentage = () => {
@@ -84,6 +85,9 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) {
       setImagenFile(null);
       setFavorito(productToEdit.favorito || false);
       setFechaVencimiento(productToEdit.fechaVencimiento || '');
+      setDescuentoPromo(
+        productToEdit.descuentoPromo ? String(productToEdit.descuentoPromo) : '',
+      );
     } else {
       setNombre('');
       setCodigoBarras('');
@@ -97,6 +101,7 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) {
       setImagenFile(null);
       setFavorito(false);
       setFechaVencimiento('');
+      setDescuentoPromo('');
     }
     if (!productToEdit && barcodeInputRef.current) {
       barcodeInputRef.current.focus();
@@ -176,6 +181,7 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) {
       imagenUrl: finalImagenUrl,
       favorito: favorito,
       fechaVencimiento: fechaVencimiento || null,
+      descuentoPromo: parseFloat(descuentoPromo) || 0,
     });
     // El reseteo del formulario y de `editingProduct` lo maneja el contexto/ProductosTab tras una operación exitosa.
   };
@@ -371,6 +377,18 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) {
             type="date"
             value={fechaVencimiento}
             onChange={(e) => setFechaVencimiento(e.target.value)}
+            className={inputClasses}
+          />
+          <label className="mt-2 block text-xs text-zinc-400">
+            Promo % (descuento automático, opcional):
+          </label>
+          <input
+            type="number"
+            min="0"
+            max="100"
+            value={descuentoPromo}
+            onChange={(e) => setDescuentoPromo(e.target.value)}
+            placeholder="0"
             className={inputClasses}
           />
         </div>

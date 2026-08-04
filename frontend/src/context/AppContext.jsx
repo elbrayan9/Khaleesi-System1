@@ -606,7 +606,8 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
   // Carrito (agregar desde producto con descuento por línea)
   const handleAddToCart = (producto, cantidad, descuento = 0) => {
     if (!producto || cantidad <= 0) return;
-    const descuentoNum = Number(descuento) || 0;
+    // Si no hay descuento manual, aplica la promo del producto (si tiene).
+    const descuentoNum = Number(descuento) || Number(producto.descuentoPromo) || 0;
     if (descuentoNum < 0 || descuentoNum > 100) {
       mostrarMensaje?.('El descuento debe estar entre 0 y 100.', 'warning');
       return;
