@@ -25,6 +25,7 @@ import ReportesTab from './components/ReportesTab.jsx';
 import NotasCDTab from './components/NotasCDTab.jsx';
 import ConfiguracionTab from './components/ConfiguracionTab.jsx';
 import PrintReceipt from './components/PrintReceipt.jsx';
+import ScannerPistola from './screens/ScannerPistola.jsx';
 import PrintNota from './components/PrintNota.jsx';
 import SaleDetailModal from './components/SaleDetailModal.jsx';
 import NotaDetailModal from './components/NotaDetailModal.jsx';
@@ -444,6 +445,7 @@ function App() {
                 }
               />
               <Route path="configuracion" element={<ConfiguracionTab />} />
+              <Route path="pistola" element={<ScannerPistola />} />
             </Route>
             {/* Rutas de Admin también protegidas */}
             <Route path="/admin" element={<AdminPanel />} />

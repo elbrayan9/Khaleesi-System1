@@ -23,6 +23,7 @@ import {
   PanelLeftClose,
   PanelLeft,
   Lock,
+  ScanLine,
 } from 'lucide-react';
 import ChatbotModal from './ChatbotModal.jsx';
 import SubscriptionStatusBanner from './SubscriptionStatusBanner.jsx';
@@ -34,6 +35,7 @@ const CAJERO_PATHS = [
   '/dashboard',
   '/dashboard/productos',
   '/dashboard/clientes',
+  '/dashboard/pistola',
 ];
 
 function Layout() {
@@ -110,6 +112,7 @@ function Layout() {
       title: 'Operar',
       items: [
         { label: 'Nueva Venta', Icon: ShoppingCart, path: '/dashboard' },
+        { label: 'Pistola (celu)', Icon: ScanLine, path: '/dashboard/pistola' },
         { label: 'Caja y Reportes', Icon: Wallet, path: '/dashboard/reportes' },
       ],
     },

@@ -5,6 +5,8 @@ import PaymentModal from './PaymentModal.jsx';
 import BalanzaEnVivoModal from './BalanzaEnVivoModal.jsx';
 import EscanerCamaraModal from './EscanerCamaraModal.jsx';
 import SearchBar from './SearchBar.jsx';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../firebaseConfig';
 import { useAppContext } from '../context/AppContext.jsx';
 import SelectorVendedor from './SelectorVendedor';
 import ShiftManager from './ShiftManager';
@@ -152,6 +154,23 @@ function VentaTab() {
       barcodeInputRef.current?.select();
     }
   };
+
+  // Relay "celu como pistola": escucha códigos escaneados desde el celu y los
+  // agrega a la venta en tiempo real.
+  useEffect(() => {
+    const sucId = sucursalActual?.id;
+    if (!sucId) return undefined;
+    const ultimoTs = { current: Date.now() };
+    const unsub = onSnapshot(doc(db, 'scannerRelay', sucId), (snap) => {
+      const d = snap.data();
+      if (d?.codigo && d?.ts && d.ts > ultimoTs.current) {
+        ultimoTs.current = d.ts;
+        handleAgregarPorCodigo(String(d.codigo));
+      }
+    });
+    return () => unsub();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sucursalActual]);
 
   // REEMPLAZA 'handleAgregarManual' con esta versión:
   const handleAgregarManual = () => {
