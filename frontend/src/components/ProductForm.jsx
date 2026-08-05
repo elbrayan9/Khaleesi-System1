@@ -1,9 +1,10 @@
 // src/components/ProductForm.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { ImagePlus, X } from 'lucide-react';
+import { ImagePlus, X, Search } from 'lucide-react';
 import { useAppContext } from '../context/AppContext'; // Importar hook
 import { subirImagenProducto } from '../services/storageService';
+import { buscarDatosProducto } from '../services/productLookup';
 
 // Redimensiona/comprime una imagen a máx 800px y JPEG, para que Storage quede
 // liviano y la carga sea rápida. Si algo falla, devuelve el archivo original.
@@ -54,6 +55,38 @@ function ProductForm({ onSave, productToEdit, onCancelEdit, initialBarcode }) {
   const [favorito, setFavorito] = useState(false); // acceso rápido en la venta
   const [fechaVencimiento, setFechaVencimiento] = useState(''); // opcional
   const [descuentoPromo, setDescuentoPromo] = useState(''); // % promo opcional
+  const [buscando, setBuscando] = useState(false); // lookup por código
+
+  // Trae nombre/foto del código desde la base pública (Open Food Facts).
+  const buscarDatos = async (codeArg) => {
+    const c = String(codeArg || codigoBarras || '').trim();
+    if (!c) return;
+    setBuscando(true);
+    try {
+      const info = await buscarDatosProducto(c);
+      if (info && info.nombre) {
+        setNombre((prev) => prev || info.nombre);
+        if (info.imagenUrl && !imagenUrl && !imagenFile) {
+          setImagenUrl(info.imagenUrl);
+          setPreview(info.imagenUrl);
+        }
+        mostrarMensaje?.('Datos encontrados y cargados.', 'success');
+      } else {
+        mostrarMensaje?.(
+          'No se encontraron datos para ese código. Completá a mano.',
+          'info',
+        );
+      }
+    } finally {
+      setBuscando(false);
+    }
+  };
+
+  // Al llegar un código nuevo por escaneo, busca los datos solo.
+  useEffect(() => {
+    if (initialBarcode && !productToEdit) buscarDatos(initialBarcode);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialBarcode]);
 
   const handleApplyPercentage = () => {
     const percentage = parseFloat(increasePercentage);
@@ -229,6 +262,15 @@ function ProductForm({ onSave, productToEdit, onCancelEdit, initialBarcode }) {
             onKeyDown={handleKeyDown}
             className={inputClasses}
           />
+          <button
+            type="button"
+            onClick={() => buscarDatos()}
+            disabled={buscando}
+            className="mt-1 flex items-center gap-1 text-xs font-medium text-emerald-400 hover:text-emerald-300 disabled:opacity-50"
+          >
+            <Search className="h-3.5 w-3.5" />
+            {buscando ? 'Buscando…' : 'Buscar datos del código'}
+          </button>
         </div>
         <div className="lg:col-span-2">
           <label
