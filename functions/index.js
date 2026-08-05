@@ -624,6 +624,60 @@ exports.identificarProductoFoto = onCall(
 );
 
 // ===============================================
+// Leer factura/remito de proveedor desde una foto (visión de Gemini)
+// ===============================================
+exports.leerFacturaProveedor = onCall(
+  { secrets: [GEMINI_KEY], enforceAppCheck: true },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
+    }
+    const { imageBase64, mimeType = 'image/jpeg' } = request.data || {};
+    if (!imageBase64 || typeof imageBase64 !== 'string') {
+      throw new HttpsError('invalid-argument', 'Falta la imagen.');
+    }
+    await enforceDailyLimit(request.auth.uid, 25);
+    const apiKey = GEMINI_KEY.value();
+    if (!apiKey) throw new HttpsError('internal', 'Falta la clave de Gemini.');
+    try {
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+      const prompt =
+        'Esta es una foto de una factura o remito de proveedor. Extraé los ' +
+        'renglones de productos. Respondé SOLO un JSON array (sin markdown): ' +
+        '[{"nombre":"descripcion del producto","cantidad":numero,"costo":numero}]. ' +
+        'cantidad = unidades compradas; costo = precio unitario (sin IVA si se ' +
+        'distingue), o 0 si no se ve. Ignorá totales, impuestos, descuentos y los ' +
+        'datos del proveedor/cliente.';
+      const result = await model.generateContent([
+        { inlineData: { data: imageBase64, mimeType } },
+        prompt,
+      ]);
+      const raw = (result.response.text() || '').trim();
+      let items = [];
+      try {
+        items = JSON.parse(raw.replace(/```json|```/g, '').trim());
+      } catch (_) {
+        items = [];
+      }
+      if (!Array.isArray(items)) items = [];
+      items = items
+        .slice(0, 100)
+        .map((it) => ({
+          nombre: String(it.nombre || '').trim(),
+          cantidad: Number(it.cantidad) || 0,
+          costo: Number(it.costo) || 0,
+        }))
+        .filter((it) => it.nombre);
+      return { items };
+    } catch (error) {
+      console.error('[leerFacturaProveedor] error:', error);
+      throw new HttpsError('internal', 'No se pudo leer la factura.');
+    }
+  },
+);
+
+// ===============================================
 // FUNCIONES AUTOMÁTICAS (CRON JOBS)
 // ===============================================
 /**

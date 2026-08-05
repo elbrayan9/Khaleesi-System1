@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import ProductForm from './ProductForm.jsx';
 import ProductTable from './ProductTable.jsx';
 import EscanerCamaraModal from './EscanerCamaraModal.jsx';
+import CargarFacturaModal from './CargarFacturaModal.jsx';
 import PaginationControls from './PaginationControls.jsx';
 import {
   Table,
@@ -72,6 +73,7 @@ function ProductosTab() {
   const [isImporting, setIsImporting] = useState(false);
   const [qrModalProduct, setQrModalProduct] = useState(null);
   const [showCargaEscaner, setShowCargaEscaner] = useState(false);
+  const [showFactura, setShowFactura] = useState(false);
   const [initialBarcode, setInitialBarcode] = useState('');
 
   const handleCargaEscaneada = (code) => {
@@ -408,6 +410,13 @@ function ProductosTab() {
             <i className="fas fa-camera"></i> Cargar con cámara
           </button>
         )}
+      <button
+        type="button"
+        onClick={() => setShowFactura(true)}
+        className="mb-3 flex w-full items-center justify-center gap-2 rounded-md border border-emerald-500 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-300 hover:bg-emerald-500 hover:text-white sm:ml-2 sm:w-auto"
+      >
+        <i className="fas fa-file-invoice"></i> Cargar factura (foto)
+      </button>
       <ProductForm
         onSave={handleSave}
         productToEdit={editingProduct}
@@ -420,6 +429,9 @@ function ProductosTab() {
           onDetected={handleCargaEscaneada}
           onClose={() => setShowCargaEscaner(false)}
         />
+      )}
+      {showFactura && (
+        <CargarFacturaModal onClose={() => setShowFactura(false)} />
       )}
       <div className="overflow-hidden rounded-lg bg-zinc-800 p-4 shadow-md sm:p-5">
         <div className="mb-3 space-y-4 border-b border-zinc-700 pb-3">
