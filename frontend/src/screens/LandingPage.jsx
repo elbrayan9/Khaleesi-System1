@@ -28,6 +28,12 @@ import {
   XCircle,
   Menu,
   X,
+  Sparkles,
+  Camera,
+  CreditCard,
+  Printer,
+  MessageCircle,
+  Scale,
 } from 'lucide-react';
 import AppLogo from '../components/AppLogo';
 import Footer from '../components/Footer';
@@ -101,9 +107,9 @@ const LandingPage = () => {
     },
     {
       icon: <Bot className="h-6 w-6 text-blue-400" />,
-      title: 'Asistente IA',
+      title: 'Asistente IA que trabaja por vos',
       description:
-        'Tu copiloto inteligente. Pregúntale sobre ventas, stock o consejos para mejorar tu negocio.',
+        'Pedile por chat "subí 10 de stock a la Coca" y lo hace (con tu confirmación). Sugiere qué reponer y te arma el resumen del día.',
       color: 'rgba(6, 182, 212, 0.5)', // Cyan (Tech/AI)
     },
     {
@@ -168,6 +174,48 @@ const LandingPage = () => {
       description:
         'Interfaz adaptable a tu preferencia visual. Trabaja cómodo de día o de noche.',
       color: 'rgba(255, 255, 255, 0.3)', // White/Neutral
+    },
+    {
+      icon: <Camera className="h-6 w-6 text-blue-400" />,
+      title: 'Cargá productos con la cámara',
+      description:
+        'Escaneá el código y trae nombre, marca y foto solo. ¿No está en las bases? La IA lo identifica desde una foto: nombre, código, categoría y foto de una.',
+      color: 'rgba(6, 182, 212, 0.5)', // Cyan
+    },
+    {
+      icon: <Sparkles className="h-6 w-6 text-blue-400" />,
+      title: 'Cargá la factura con una foto',
+      description:
+        'Sacale una foto a la factura del proveedor y la IA carga todos los productos y suma el stock automáticamente.',
+      color: 'rgba(6, 182, 212, 0.5)', // Cyan
+    },
+    {
+      icon: <CreditCard className="h-6 w-6 text-blue-400" />,
+      title: 'Cobros modernos',
+      description:
+        'QR y link de Mercado Pago, QR interoperable que leen todas las billeteras y bancos, y cuenta corriente (fiado) para tus clientes.',
+      color: 'rgba(16, 185, 129, 0.5)', // Emerald
+    },
+    {
+      icon: <Printer className="h-6 w-6 text-blue-400" />,
+      title: 'Impresión térmica y A4',
+      description:
+        'Ticket 58mm por USB o Bluetooth (en PC o celu) y factura A4 automática al cobrar. Con tu logo.',
+      color: 'rgba(59, 130, 246, 0.5)', // Blue
+    },
+    {
+      icon: <Scale className="h-6 w-6 text-blue-400" />,
+      title: 'Balanza integrada',
+      description:
+        'Códigos de balanza configurables y balanza en vivo por USB: pesás y el precio y el stock salen solos.',
+      color: 'rgba(99, 102, 241, 0.5)', // Indigo
+    },
+    {
+      icon: <MessageCircle className="h-6 w-6 text-blue-400" />,
+      title: 'El celu como pistola + WhatsApp',
+      description:
+        'Escaneá con la cámara del celu y cae en la venta de la PC. Mandá comprobantes y recordatorios de deuda por WhatsApp.',
+      color: 'rgba(16, 185, 129, 0.5)', // Emerald
     },
   ];
 
@@ -893,7 +941,15 @@ const LandingPage = () => {
                   </li>
                   <li className="flex items-center gap-2 font-medium text-white">
                     <CheckCircle className="h-5 w-5 flex-shrink-0 text-blue-400" />
-                    Asistente de IA Avanzado
+                    IA: cargá productos y facturas con una foto
+                  </li>
+                  <li className="flex items-center gap-2 font-medium text-white">
+                    <CheckCircle className="h-5 w-5 flex-shrink-0 text-blue-400" />
+                    IA: reposición inteligente y resumen del día
+                  </li>
+                  <li className="flex items-center gap-2 font-medium text-white">
+                    <CheckCircle className="h-5 w-5 flex-shrink-0 text-blue-400" />
+                    IA: asistente que ejecuta acciones por vos
                   </li>
                   <li className="flex items-center gap-2 text-zinc-300">
                     <CheckCircle className="h-5 w-5 flex-shrink-0 text-green-500" />
