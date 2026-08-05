@@ -762,6 +762,40 @@ exports.asistenteAccion = onCall(
 );
 
 // ===============================================
+// Resumen del día con IA (para el dueño)
+// ===============================================
+exports.resumenDiario = onCall(
+  { secrets: [GEMINI_KEY], enforceAppCheck: true },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
+    }
+    const datos = request.data?.datos;
+    if (!datos || typeof datos !== 'string') {
+      throw new HttpsError('invalid-argument', 'Faltan los datos.');
+    }
+    await enforceDailyLimit(request.auth.uid, 20);
+    const apiKey = GEMINI_KEY.value();
+    if (!apiKey) throw new HttpsError('internal', 'Falta la clave de Gemini.');
+    try {
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+      const prompt =
+        'Sos asesor de un comercio. Con estos datos del día de HOY, escribí un ' +
+        'resumen corto y claro en español para el dueño (2 a 4 líneas), tono ' +
+        'cercano, y 1 o 2 alertas o consejos si corresponde. Sin markdown.\n\n' +
+        'Datos:\n' +
+        datos.slice(0, 4000);
+      const result = await model.generateContent(prompt);
+      return { texto: (result.response.text() || '').trim() };
+    } catch (error) {
+      console.error('[resumenDiario] error:', error);
+      throw new HttpsError('internal', 'No se pudo generar el resumen.');
+    }
+  },
+);
+
+// ===============================================
 // FUNCIONES AUTOMÁTICAS (CRON JOBS)
 // ===============================================
 /**

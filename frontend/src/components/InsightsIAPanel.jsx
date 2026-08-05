@@ -8,6 +8,65 @@ function InsightsIAPanel() {
   const [cargando, setCargando] = useState(false);
   const [respuesta, setRespuesta] = useState('');
   const [error, setError] = useState('');
+  const [cargandoDia, setCargandoDia] = useState(false);
+  const [resumenDia, setResumenDia] = useState('');
+
+  const resumenDelDia = async () => {
+    setCargandoDia(true);
+    setResumenDia('');
+    try {
+      const hoy = new Date().toLocaleDateString('es-AR');
+      const ventasHoy = ventas.filter(
+        (v) =>
+          new Date(v.timestamp || v.createdAt || 0).toLocaleDateString(
+            'es-AR',
+          ) === hoy,
+      );
+      const totalHoy = ventasHoy.reduce((s, v) => s + (v.total || 0), 0);
+      const cantPorProd = {};
+      ventasHoy.forEach((v) =>
+        (v.items || []).forEach((it) => {
+          cantPorProd[it.nombre] =
+            (cantPorProd[it.nombre] || 0) + (it.cantidad || 0);
+        }),
+      );
+      const top = Object.entries(cantPorProd)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([n, c]) => `${n} (${c})`);
+      const umbral = datosNegocio?.umbralStockBajo || 10;
+      const bajos = productos
+        .filter((p) => p.stock <= umbral)
+        .map((p) => p.nombre)
+        .slice(0, 10);
+      const datos =
+        `Fecha: ${hoy}. Ventas hoy: ${ventasHoy.length} por $${totalHoy.toFixed(
+          0,
+        )}. Más vendidos hoy: ${top.join(', ') || 'sin ventas aún'}. ` +
+        `Stock bajo: ${bajos.join(', ') || 'ninguno'}.`;
+
+      const { getFunctions, httpsCallable } = await import(
+        'firebase/functions'
+      );
+      const fn = httpsCallable(getFunctions(), 'resumenDiario');
+      const res = await fn({ datos });
+      setResumenDia(res.data?.texto || 'Sin datos.');
+    } catch (e) {
+      setError(e?.message || 'No se pudo generar el resumen.');
+    } finally {
+      setCargandoDia(false);
+    }
+  };
+
+  const enviarWhatsapp = () => {
+    let tel = String(datosNegocio?.whatsappDueño || '').replace(/\D/g, '');
+    if (tel && !tel.startsWith('54')) tel = `549${tel}`;
+    window.open(
+      `https://wa.me/${tel}?text=${encodeURIComponent(resumenDia)}`,
+      '_blank',
+      'noopener,noreferrer',
+    );
+  };
 
   const analizar = async () => {
     setCargando(true);
@@ -80,15 +139,39 @@ function InsightsIAPanel() {
         <h3 className="flex items-center gap-2 text-lg font-semibold text-white">
           <Sparkles className="h-5 w-5 text-indigo-400" /> Análisis con IA
         </h3>
-        <button
-          type="button"
-          onClick={analizar}
-          disabled={cargando}
-          className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-60"
-        >
-          {cargando ? 'Analizando…' : 'Analizar mis ventas'}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={resumenDelDia}
+            disabled={cargandoDia}
+            className="rounded-md bg-zinc-600 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-500 disabled:opacity-60"
+          >
+            {cargandoDia ? 'Generando…' : 'Resumen del día'}
+          </button>
+          <button
+            type="button"
+            onClick={analizar}
+            disabled={cargando}
+            className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-60"
+          >
+            {cargando ? 'Analizando…' : 'Analizar mis ventas'}
+          </button>
+        </div>
       </div>
+      {resumenDia && (
+        <div className="mt-3 rounded-md bg-zinc-900/50 p-3">
+          <p className="whitespace-pre-wrap text-sm text-zinc-200">
+            {resumenDia}
+          </p>
+          <button
+            type="button"
+            onClick={enviarWhatsapp}
+            className="mt-2 rounded-md bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700"
+          >
+            Enviar por WhatsApp
+          </button>
+        </div>
+      )}
       {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
       {respuesta && (
         <p className="mt-3 whitespace-pre-wrap text-sm text-zinc-200">
