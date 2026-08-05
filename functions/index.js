@@ -566,6 +566,49 @@ exports.askGemini = onCall(
     throw new HttpsError('internal', `Error interno: ${error.message}`);
   }
 });
+
+// ===============================================
+// Identificar producto desde una foto (visión de Gemini)
+// ===============================================
+exports.identificarProductoFoto = onCall(
+  { secrets: [GEMINI_KEY], enforceAppCheck: true },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
+    }
+    const { imageBase64, mimeType = 'image/jpeg' } = request.data || {};
+    if (!imageBase64 || typeof imageBase64 !== 'string') {
+      throw new HttpsError('invalid-argument', 'Falta la imagen.');
+    }
+    await enforceDailyLimit(request.auth.uid, 40);
+
+    const apiKey = GEMINI_KEY.value();
+    if (!apiKey) {
+      throw new HttpsError('internal', 'Falta la clave de Gemini.');
+    }
+    try {
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+      const prompt =
+        'Mirá la foto de este producto de comercio/almacén y respondé SOLO con ' +
+        'el nombre comercial, incluyendo marca y tamaño/variante si se ven ' +
+        '(ej: "Desodorante Rexona Men 150ml"). Sin explicaciones, sin comillas. ' +
+        'Si no se distingue, respondé "NO_SE".';
+      const result = await model.generateContent([
+        { inlineData: { data: imageBase64, mimeType } },
+        prompt,
+      ]);
+      const texto = (result.response.text() || '').trim();
+      return {
+        nombre: !texto || texto.toUpperCase().includes('NO_SE') ? '' : texto,
+      };
+    } catch (error) {
+      console.error('[identificarProductoFoto] error:', error);
+      throw new HttpsError('internal', 'No se pudo identificar el producto.');
+    }
+  },
+);
+
 // ===============================================
 // FUNCIONES AUTOMÁTICAS (CRON JOBS)
 // ===============================================

@@ -11,4 +11,4 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "geolocation=(), microphone=(), camera=(self)"
-    Content-Security-Policy = "script-src 'self' blob: https://cdn.jsdelivr.net https://unpkg.com https://www.google.com https://www.gstatic.com https://*.firebaseio.com https://www.googleapis.com https://www.googletagmanager.com https://apis.google.com https://identitytoolkit.googleapis.com; worker-src 'self' blob: https://cdn.jsdelivr.net https://unpkg.com; object-src 'self'"
+    Content-Security-Policy = "script-src 'self' https://www.google.com https://www.gstatic.com https://*.firebaseio.com https://www.googleapis.com https://www.googletagmanager.com https://apis.google.com https://identitytoolkit.googleapis.com; object-src 'self'"

@@ -1,19 +1,18 @@
 // src/components/EscanerNombreModal.jsx
 //
-// OCR con la cámara: lee el nombre impreso en el envase (Tesseract.js) para
-// cargar productos que no están en las bases por código de barras.
+// Identifica un producto desde una foto usando la visión de Gemini (Cloud
+// Function identificarProductoFoto). Para productos que no están en las bases
+// por código de barras. Devuelve el nombre + la foto capturada.
 
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Camera } from 'lucide-react';
-import Tesseract from 'tesseract.js';
 
 function EscanerNombreModal({ onDetected, onClose }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const [error, setError] = useState('');
   const [procesando, setProcesando] = useState(false);
-  const [progreso, setProgreso] = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -43,39 +42,32 @@ function EscanerNombreModal({ onDetected, onClose }) {
     const v = videoRef.current;
     if (!v || !v.videoWidth) return;
     setProcesando(true);
-    setProgreso(0);
     setError('');
     try {
       const canvas = document.createElement('canvas');
       canvas.width = v.videoWidth;
       canvas.height = v.videoHeight;
       canvas.getContext('2d').drawImage(v, 0, 0);
-      const { data } = await Tesseract.recognize(canvas, 'spa', {
-        logger: (m) => {
-          if (m.status === 'recognizing text')
-            setProgreso(Math.round((m.progress || 0) * 100));
-        },
-      });
-      const lineas = (data.text || '')
-        .split('\n')
-        .map((s) => s.trim())
-        .filter((s) => s.length >= 3 && /[a-zA-ZáéíóúñÁÉÍÓÚÑ]/.test(s));
-      const cand =
-        lineas.sort((a, b) => b.length - a.length)[0] ||
-        (data.text || '').trim();
-      if (cand) {
-        // Devolvemos también la foto capturada para usarla como imagen.
+      const base64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+
+      const { getFunctions, httpsCallable } = await import(
+        'firebase/functions'
+      );
+      const fn = httpsCallable(getFunctions(), 'identificarProductoFoto');
+      const res = await fn({ imageBase64: base64, mimeType: 'image/jpeg' });
+      const nombre = res.data?.nombre || '';
+      if (nombre) {
         canvas.toBlob(
-          (blob) => onDetected?.(cand.slice(0, 80), blob),
+          (blob) => onDetected?.(nombre, blob),
           'image/jpeg',
           0.85,
         );
       } else {
-        setError('No se pudo leer el texto. Acercá la cámara al nombre.');
+        setError('No se pudo identificar. Probá con mejor luz y enfoque.');
         setProcesando(false);
       }
     } catch (e) {
-      setError(e?.message || 'Error al leer el texto.');
+      setError(e?.message || 'No se pudo identificar el producto.');
       setProcesando(false);
     }
   };
@@ -94,7 +86,7 @@ function EscanerNombreModal({ onDetected, onClose }) {
       >
         <div className="flex items-center justify-between border-b border-zinc-700 px-4 py-3">
           <h3 className="flex items-center gap-2 text-lg font-semibold text-white">
-            <Camera className="h-5 w-5 text-indigo-400" /> Escanear nombre
+            <Camera className="h-5 w-5 text-indigo-400" /> Identificar con foto
           </h3>
           <button
             type="button"
@@ -117,7 +109,8 @@ function EscanerNombreModal({ onDetected, onClose }) {
             />
           </div>
           <p className="mt-2 text-center text-xs text-zinc-400">
-            Apuntá al <strong>nombre grande</strong> del envase y capturá.
+            Encuadrá el <strong>frente del producto</strong> y capturá. La IA lo
+            identifica.
           </p>
           <button
             type="button"
@@ -125,7 +118,7 @@ function EscanerNombreModal({ onDetected, onClose }) {
             disabled={procesando}
             className="mt-3 w-full rounded-md bg-indigo-600 px-4 py-2.5 font-semibold text-white hover:bg-indigo-500 disabled:opacity-60"
           >
-            {procesando ? `Leyendo… ${progreso}%` : 'Capturar nombre'}
+            {procesando ? 'Identificando…' : 'Capturar e identificar'}
           </button>
         </div>
       </motion.div>
