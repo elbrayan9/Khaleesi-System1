@@ -1,10 +1,11 @@
 // src/components/ProductForm.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { ImagePlus, X, Search } from 'lucide-react';
+import { ImagePlus, X, Search, Camera } from 'lucide-react';
 import { useAppContext } from '../context/AppContext'; // Importar hook
 import { subirImagenProducto } from '../services/storageService';
 import { buscarDatosProducto } from '../services/productLookup';
+import EscanerNombreModal from './EscanerNombreModal.jsx';
 
 // Redimensiona/comprime una imagen a máx 800px y JPEG, para que Storage quede
 // liviano y la carga sea rápida. Si algo falla, devuelve el archivo original.
@@ -56,6 +57,7 @@ function ProductForm({ onSave, productToEdit, onCancelEdit, initialBarcode }) {
   const [fechaVencimiento, setFechaVencimiento] = useState(''); // opcional
   const [descuentoPromo, setDescuentoPromo] = useState(''); // % promo opcional
   const [buscando, setBuscando] = useState(false); // lookup por código
+  const [showNombreOCR, setShowNombreOCR] = useState(false); // OCR del nombre
 
   // Trae nombre/foto del código desde la base pública (Open Food Facts).
   const buscarDatos = async (codeArg) => {
@@ -270,6 +272,14 @@ function ProductForm({ onSave, productToEdit, onCancelEdit, initialBarcode }) {
           >
             <Search className="h-3.5 w-3.5" />
             {buscando ? 'Buscando…' : 'Buscar datos del código'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowNombreOCR(true)}
+            className="mt-1 flex items-center gap-1 text-xs font-medium text-indigo-400 hover:text-indigo-300"
+          >
+            <Camera className="h-3.5 w-3.5" /> Escanear nombre (si no lo
+            encuentra)
           </button>
         </div>
         <div className="lg:col-span-2">
@@ -515,6 +525,15 @@ function ProductForm({ onSave, productToEdit, onCancelEdit, initialBarcode }) {
         </div>
       </div>
 
+      {showNombreOCR && (
+        <EscanerNombreModal
+          onDetected={(texto) => {
+            setNombre(texto);
+            setShowNombreOCR(false);
+          }}
+          onClose={() => setShowNombreOCR(false)}
+        />
+      )}
     </form>
   );
 }
