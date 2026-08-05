@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import ProductForm from './ProductForm.jsx';
 import ProductTable from './ProductTable.jsx';
+import EscanerCamaraModal from './EscanerCamaraModal.jsx';
 import PaginationControls from './PaginationControls.jsx';
 import {
   Table,
@@ -70,6 +71,24 @@ function ProductosTab() {
   // Un estado para saber si estamos procesando un archivo
   const [isImporting, setIsImporting] = useState(false);
   const [qrModalProduct, setQrModalProduct] = useState(null);
+  const [showCargaEscaner, setShowCargaEscaner] = useState(false);
+  const [initialBarcode, setInitialBarcode] = useState('');
+
+  const handleCargaEscaneada = (code) => {
+    setShowCargaEscaner(false);
+    const existente = productos.find(
+      (p) => String(p.codigoBarras) === String(code),
+    );
+    if (existente) {
+      handleEditProduct(existente);
+      setInitialBarcode('');
+      mostrarMensaje('Producto encontrado: editalo.', 'info');
+    } else {
+      handleCancelEditProduct();
+      setInitialBarcode(String(code));
+      mostrarMensaje('Código nuevo: completá el producto.', 'info');
+    }
+  };
   const [selectedProductIds, setSelectedProductIds] = useState(new Set());
   const [printOptions, setPrintOptions] = useState({
     // <--- AÑADE ESTE ESTADO
@@ -378,12 +397,30 @@ function ProductosTab() {
         </motion.div>
       )}
       {/* --- FIN DEL NUEVO PANEL DE ALERTAS --- */}
+      {typeof navigator !== 'undefined' &&
+        navigator.mediaDevices &&
+        navigator.mediaDevices.getUserMedia && (
+          <button
+            type="button"
+            onClick={() => setShowCargaEscaner(true)}
+            className="mb-3 flex w-full items-center justify-center gap-2 rounded-md border border-sky-500 bg-sky-500/10 px-4 py-2 text-sm font-semibold text-sky-300 hover:bg-sky-500 hover:text-white sm:w-auto"
+          >
+            <i className="fas fa-camera"></i> Cargar con cámara
+          </button>
+        )}
       <ProductForm
         onSave={handleSave}
         productToEdit={editingProduct}
         onCancelEdit={handleCancelEdit}
         mostrarMensaje={mostrarMensaje}
+        initialBarcode={initialBarcode}
       />
+      {showCargaEscaner && (
+        <EscanerCamaraModal
+          onDetected={handleCargaEscaneada}
+          onClose={() => setShowCargaEscaner(false)}
+        />
+      )}
       <div className="overflow-hidden rounded-lg bg-zinc-800 p-4 shadow-md sm:p-5">
         <div className="mb-3 space-y-4 border-b border-zinc-700 pb-3">
           <div className="flex flex-col items-center justify-between gap-2 sm:flex-row">

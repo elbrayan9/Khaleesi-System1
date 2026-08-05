@@ -35,7 +35,7 @@ const resizeImage = (file, maxSize = 800) =>
     img.src = url;
   });
 
-function ProductForm({ onSave, productToEdit, onCancelEdit }) {
+function ProductForm({ onSave, productToEdit, onCancelEdit, initialBarcode }) {
   // mostrarMensaje ya no es prop
   const { mostrarMensaje, currentUser } = useAppContext(); // contexto
 
@@ -90,7 +90,7 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) {
       );
     } else {
       setNombre('');
-      setCodigoBarras('');
+      setCodigoBarras(initialBarcode || '');
       setPrecio('');
       setCosto('');
       setStock('');
@@ -106,7 +106,7 @@ function ProductForm({ onSave, productToEdit, onCancelEdit }) {
     if (!productToEdit && barcodeInputRef.current) {
       barcodeInputRef.current.focus();
     }
-  }, [productToEdit]);
+  }, [productToEdit, initialBarcode]);
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
