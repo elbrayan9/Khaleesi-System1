@@ -590,18 +590,28 @@ exports.identificarProductoFoto = onCall(
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({ model: MODEL_NAME });
       const prompt =
-        'Mirá la foto de este producto de comercio/almacén y respondé SOLO con ' +
-        'el nombre comercial, incluyendo marca y tamaño/variante si se ven ' +
-        '(ej: "Desodorante Rexona Men 150ml"). Sin explicaciones, sin comillas. ' +
-        'Si no se distingue, respondé "NO_SE".';
+        'Mirá la foto de este producto de comercio/almacén. Respondé SOLO un ' +
+        'JSON (sin texto extra ni markdown) con este formato: ' +
+        '{"nombre": "nombre comercial con marca y tamaño/variante si se ven", ' +
+        '"codigo": "codigo de barras EAN o UPC si es legible, solo digitos, o vacio"}. ' +
+        'Si no distinguís el producto, poné nombre vacío.';
       const result = await model.generateContent([
         { inlineData: { data: imageBase64, mimeType } },
         prompt,
       ]);
-      const texto = (result.response.text() || '').trim();
-      return {
-        nombre: !texto || texto.toUpperCase().includes('NO_SE') ? '' : texto,
-      };
+      const raw = (result.response.text() || '').trim();
+      let nombre = '';
+      let codigo = '';
+      try {
+        const jsonTxt = raw.replace(/```json|```/g, '').trim();
+        const parsed = JSON.parse(jsonTxt);
+        nombre = String(parsed.nombre || '').trim();
+        codigo = String(parsed.codigo || '').replace(/\D/g, '');
+      } catch (_) {
+        // Si no vino JSON, usamos el texto crudo como nombre.
+        nombre = raw.toUpperCase().includes('NO_SE') ? '' : raw;
+      }
+      return { nombre, codigo };
     } catch (error) {
       console.error('[identificarProductoFoto] error:', error);
       throw new HttpsError('internal', 'No se pudo identificar el producto.');

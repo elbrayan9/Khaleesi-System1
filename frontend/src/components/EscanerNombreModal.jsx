@@ -56,9 +56,10 @@ function EscanerNombreModal({ onDetected, onClose }) {
       const fn = httpsCallable(getFunctions(), 'identificarProductoFoto');
       const res = await fn({ imageBase64: base64, mimeType: 'image/jpeg' });
       const nombre = res.data?.nombre || '';
+      const codigo = res.data?.codigo || '';
       if (nombre) {
         canvas.toBlob(
-          (blob) => onDetected?.(nombre, blob),
+          (blob) => onDetected?.(nombre, blob, codigo),
           'image/jpeg',
           0.85,
         );

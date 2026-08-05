@@ -527,8 +527,9 @@ function ProductForm({ onSave, productToEdit, onCancelEdit, initialBarcode }) {
 
       {showNombreOCR && (
         <EscanerNombreModal
-          onDetected={(texto, blob) => {
+          onDetected={(texto, blob, codigo) => {
             setNombre(texto);
+            if (codigo && !codigoBarras) setCodigoBarras(codigo);
             if (blob && !imagenFile && !imagenUrl) {
               setImagenFile(blob);
               setPreview(URL.createObjectURL(blob));
