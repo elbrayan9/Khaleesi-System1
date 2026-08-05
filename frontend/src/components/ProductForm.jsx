@@ -60,7 +60,7 @@ function ProductForm({ onSave, productToEdit, onCancelEdit, initialBarcode }) {
   const [showNombreOCR, setShowNombreOCR] = useState(false); // OCR del nombre
 
   // Trae nombre/foto del código desde la base pública (Open Food Facts).
-  const buscarDatos = async (codeArg) => {
+  const buscarDatos = async (codeArg, auto = false) => {
     const c = String(codeArg || codigoBarras || '').trim();
     if (!c) return;
     setBuscando(true);
@@ -73,9 +73,16 @@ function ProductForm({ onSave, productToEdit, onCancelEdit, initialBarcode }) {
           setPreview(info.imagenUrl);
         }
         mostrarMensaje?.('Datos encontrados y cargados.', 'success');
+      } else if (auto) {
+        // No estaba en las bases: pasamos a identificar con la foto (IA).
+        mostrarMensaje?.(
+          'No estaba en las bases. Sacale una foto al frente y la IA lo carga.',
+          'info',
+        );
+        setShowNombreOCR(true);
       } else {
         mostrarMensaje?.(
-          'No se encontraron datos para ese código. Completá a mano.',
+          'No se encontró. Completá a mano o usá "Escanear nombre".',
           'info',
         );
       }
@@ -84,9 +91,10 @@ function ProductForm({ onSave, productToEdit, onCancelEdit, initialBarcode }) {
     }
   };
 
-  // Al llegar un código nuevo por escaneo, busca los datos solo.
+  // Al llegar un código nuevo por escaneo: busca en las bases y, si no está,
+  // abre la cámara con IA automáticamente.
   useEffect(() => {
-    if (initialBarcode && !productToEdit) buscarDatos(initialBarcode);
+    if (initialBarcode && !productToEdit) buscarDatos(initialBarcode, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialBarcode]);
 
