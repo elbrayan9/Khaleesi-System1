@@ -64,7 +64,12 @@ function EscanerNombreModal({ onDetected, onClose }) {
         lineas.sort((a, b) => b.length - a.length)[0] ||
         (data.text || '').trim();
       if (cand) {
-        onDetected?.(cand.slice(0, 80));
+        // Devolvemos también la foto capturada para usarla como imagen.
+        canvas.toBlob(
+          (blob) => onDetected?.(cand.slice(0, 80), blob),
+          'image/jpeg',
+          0.85,
+        );
       } else {
         setError('No se pudo leer el texto. Acercá la cámara al nombre.');
         setProcesando(false);
