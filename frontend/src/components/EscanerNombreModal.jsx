@@ -57,9 +57,10 @@ function EscanerNombreModal({ onDetected, onClose }) {
       const res = await fn({ imageBase64: base64, mimeType: 'image/jpeg' });
       const nombre = res.data?.nombre || '';
       const codigo = res.data?.codigo || '';
+      const categoria = res.data?.categoria || '';
       if (nombre) {
         canvas.toBlob(
-          (blob) => onDetected?.(nombre, blob, codigo),
+          (blob) => onDetected?.(nombre, blob, codigo, categoria),
           'image/jpeg',
           0.85,
         );

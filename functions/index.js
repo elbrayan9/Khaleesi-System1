@@ -593,7 +593,9 @@ exports.identificarProductoFoto = onCall(
         'Mirá la foto de este producto de comercio/almacén. Respondé SOLO un ' +
         'JSON (sin texto extra ni markdown) con este formato: ' +
         '{"nombre": "nombre comercial con marca y tamaño/variante si se ven", ' +
-        '"codigo": "codigo de barras EAN o UPC si es legible, solo digitos, o vacio"}. ' +
+        '"codigo": "codigo de barras EAN o UPC si es legible, solo digitos, o vacio", ' +
+        '"categoria": "rubro corto en español, ej: Bebidas, Almacén, Limpieza, ' +
+        'Golosinas, Lácteos, Perfumería, Kiosco"}. ' +
         'Si no distinguís el producto, poné nombre vacío.';
       const result = await model.generateContent([
         { inlineData: { data: imageBase64, mimeType } },
@@ -602,16 +604,18 @@ exports.identificarProductoFoto = onCall(
       const raw = (result.response.text() || '').trim();
       let nombre = '';
       let codigo = '';
+      let categoria = '';
       try {
         const jsonTxt = raw.replace(/```json|```/g, '').trim();
         const parsed = JSON.parse(jsonTxt);
         nombre = String(parsed.nombre || '').trim();
         codigo = String(parsed.codigo || '').replace(/\D/g, '');
+        categoria = String(parsed.categoria || '').trim();
       } catch (_) {
         // Si no vino JSON, usamos el texto crudo como nombre.
         nombre = raw.toUpperCase().includes('NO_SE') ? '' : raw;
       }
-      return { nombre, codigo };
+      return { nombre, codigo, categoria };
     } catch (error) {
       console.error('[identificarProductoFoto] error:', error);
       throw new HttpsError('internal', 'No se pudo identificar el producto.');
