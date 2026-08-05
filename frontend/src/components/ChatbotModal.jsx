@@ -4,8 +4,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Send, Bot } from 'lucide-react';
 // --- AÑADIDO: Herramientas para llamar a la Cloud Function ---
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import { useAppContext } from '../context/AppContext.jsx';
+import { updateProducto } from '../services/firestoreService';
 
 function ChatbotModal({ isOpen, onClose }) {
+  const { productos = [] } = useAppContext();
   const [messages, setMessages] = useState([
     {
       sender: 'bot',
@@ -30,16 +33,25 @@ function ChatbotModal({ isOpen, onClose }) {
     setIsLoading(true);
 
     try {
-      // 1. Preparamos la conexión a nuestra Cloud Function
       const functions = getFunctions();
-      const askGemini = httpsCallable(functions, 'askGemini');
-
-      // 2. Llamamos a la función con el texto del usuario
-      const result = await askGemini({ prompt: userMessage.text });
-
-      // 3. Obtenemos la respuesta y la añadimos a la conversación
-      const botResponse = result.data.reply;
-      setMessages((prev) => [...prev, { sender: 'bot', text: botResponse }]);
+      const asistenteAccion = httpsCallable(functions, 'asistenteAccion');
+      const result = await asistenteAccion({
+        prompt: userMessage.text,
+        productos: productos.map((p) => p.nombre).slice(0, 250),
+      });
+      const d = result.data || {};
+      if (d.accion && d.producto && d.campo && d.operacion) {
+        // Propuesta de acción: la mostramos con confirmación.
+        setMessages((prev) => [
+          ...prev,
+          { sender: 'action', accion: d, estado: 'pendiente' },
+        ]);
+      } else {
+        setMessages((prev) => [
+          ...prev,
+          { sender: 'bot', text: d.reply || 'No entendí, probá de nuevo.' },
+        ]);
+      }
     } catch (error) {
       console.error('Error al llamar a la función de Gemini:', error);
       setMessages((prev) => [
@@ -51,6 +63,66 @@ function ChatbotModal({ isOpen, onClose }) {
       ]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const marcar = (idx, estado) =>
+    setMessages((prev) =>
+      prev.map((m, k) => (k === idx ? { ...m, estado } : m)),
+    );
+  const decirBot = (text) =>
+    setMessages((prev) => [...prev, { sender: 'bot', text }]);
+
+  const ejecutarAccion = async (idx, accion) => {
+    const prod = productos.find(
+      (p) =>
+        String(p.nombre || '')
+          .trim()
+          .toLowerCase() === String(accion.producto || '').trim().toLowerCase(),
+    );
+    if (!prod) {
+      marcar(idx, 'cancelado');
+      decirBot('No encontré ese producto en tu lista.');
+      return;
+    }
+    const valor = Number(accion.valor) || 0;
+    let update = {};
+    if (accion.campo === 'stock') {
+      const cur = Number(prod.stock) || 0;
+      let nuevo =
+        accion.operacion === 'sumar'
+          ? cur + valor
+          : accion.operacion === 'restar'
+            ? cur - valor
+            : valor;
+      if (nuevo < 0) nuevo = 0;
+      update = { stock: nuevo };
+    } else if (accion.campo === 'precio') {
+      const cur = Number(prod.precio) || 0;
+      let nuevo =
+        accion.operacion === 'fijar'
+          ? valor
+          : accion.operacion === 'subir_pct'
+            ? cur * (1 + valor / 100)
+            : accion.operacion === 'bajar_pct'
+              ? cur * (1 - valor / 100)
+              : cur;
+      update = { precio: Math.round(nuevo * 100) / 100 };
+    } else {
+      marcar(idx, 'cancelado');
+      return;
+    }
+    try {
+      await updateProducto(prod.id, update);
+      marcar(idx, 'hecho');
+      decirBot(
+        accion.campo === 'stock'
+          ? `Hecho ✅ ${prod.nombre} — nuevo stock: ${update.stock}`
+          : `Hecho ✅ ${prod.nombre} — nuevo precio: $${update.precio}`,
+      );
+    } catch (e) {
+      marcar(idx, 'cancelado');
+      decirBot(`No se pudo aplicar: ${e?.message || 'error'}`);
     }
   };
 
@@ -91,22 +163,52 @@ function ChatbotModal({ isOpen, onClose }) {
             </div>
 
             <div className="flex-grow space-y-4 overflow-y-auto p-4">
-              {messages.map((msg, index) => (
-                <div
-                  key={index}
-                  className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-xs rounded-2xl p-3 md:max-w-sm ${
-                      msg.sender === 'user'
-                        ? 'rounded-br-none bg-blue-600 text-white'
-                        : 'rounded-bl-none bg-zinc-700 text-zinc-200'
-                    }`}
-                  >
-                    <p className="text-sm">{msg.text}</p>
+              {messages.map((msg, index) =>
+                msg.sender === 'action' ? (
+                  <div key={index} className="flex justify-start">
+                    <div className="max-w-xs rounded-2xl rounded-bl-none border border-amber-500/40 bg-amber-500/15 p-3 md:max-w-sm">
+                      <p className="text-sm text-amber-100">
+                        ¿Confirmás? <strong>{msg.accion.resumen}</strong>
+                      </p>
+                      {msg.estado === 'pendiente' ? (
+                        <div className="mt-2 flex gap-2">
+                          <button
+                            onClick={() => ejecutarAccion(index, msg.accion)}
+                            className="rounded bg-green-600 px-3 py-1 text-xs font-semibold text-white hover:bg-green-700"
+                          >
+                            Confirmar
+                          </button>
+                          <button
+                            onClick={() => marcar(index, 'cancelado')}
+                            className="rounded bg-zinc-600 px-3 py-1 text-xs font-semibold text-white hover:bg-zinc-500"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      ) : (
+                        <p className="mt-1 text-xs text-zinc-400">
+                          {msg.estado === 'hecho' ? 'Aplicado.' : 'Cancelado.'}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ) : (
+                  <div
+                    key={index}
+                    className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`max-w-xs rounded-2xl p-3 md:max-w-sm ${
+                        msg.sender === 'user'
+                          ? 'rounded-br-none bg-blue-600 text-white'
+                          : 'rounded-bl-none bg-zinc-700 text-zinc-200'
+                      }`}
+                    >
+                      <p className="whitespace-pre-wrap text-sm">{msg.text}</p>
+                    </div>
+                  </div>
+                ),
+              )}
               {isLoading && (
                 <div className="flex justify-start">
                   <div className="max-w-xs rounded-2xl rounded-bl-none bg-zinc-700 p-3 text-zinc-200 md:max-w-sm">

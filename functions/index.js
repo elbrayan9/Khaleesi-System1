@@ -713,6 +713,55 @@ exports.sugerirReposicion = onCall(
 );
 
 // ===============================================
+// Asistente que propone acciones (stock/precio) con confirmación
+// ===============================================
+exports.asistenteAccion = onCall(
+  { secrets: [GEMINI_KEY], enforceAppCheck: true },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
+    }
+    const { prompt, productos } = request.data || {};
+    if (!prompt || typeof prompt !== 'string') {
+      throw new HttpsError('invalid-argument', 'Falta el pedido.');
+    }
+    await enforceDailyLimit(request.auth.uid, 30);
+    const apiKey = GEMINI_KEY.value();
+    if (!apiKey) throw new HttpsError('internal', 'Falta la clave de Gemini.');
+    const lista = Array.isArray(productos)
+      ? productos.slice(0, 250).join(' | ')
+      : '';
+    try {
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+      const instru =
+        'Sos el asistente de un sistema de comercio. El usuario puede pedir una ' +
+        'ACCIÓN sobre un producto (cambiar stock o precio) o hacer una PREGUNTA. ' +
+        'Respondé SOLO un JSON (sin markdown) con este formato: ' +
+        '{"accion": true|false, "reply": "respuesta en texto si NO es accion", ' +
+        '"producto": "nombre EXACTO de la lista", "campo": "stock"|"precio", ' +
+        '"operacion": "sumar"|"restar"|"fijar"|"subir_pct"|"bajar_pct", ' +
+        '"valor": numero, "resumen": "descripcion humana de la accion"}. ' +
+        'Si es acción, elegí el producto más parecido de la lista (nombre exacto). ' +
+        'Si no es una acción o no entendés, poné accion=false y una reply útil.\n' +
+        `Pedido: "${prompt}"\nProductos: ${lista}`;
+      const result = await model.generateContent(instru);
+      const raw = (result.response.text() || '').trim();
+      let out = { accion: false, reply: raw };
+      try {
+        out = JSON.parse(raw.replace(/```json|```/g, '').trim());
+      } catch (_) {
+        out = { accion: false, reply: raw };
+      }
+      return out;
+    } catch (error) {
+      console.error('[asistenteAccion] error:', error);
+      throw new HttpsError('internal', 'No se pudo procesar el pedido.');
+    }
+  },
+);
+
+// ===============================================
 // FUNCIONES AUTOMÁTICAS (CRON JOBS)
 // ===============================================
 /**
