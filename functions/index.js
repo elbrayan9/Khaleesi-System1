@@ -678,6 +678,41 @@ exports.leerFacturaProveedor = onCall(
 );
 
 // ===============================================
+// Sugerencia de reposición con IA
+// ===============================================
+exports.sugerirReposicion = onCall(
+  { secrets: [GEMINI_KEY], enforceAppCheck: true },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
+    }
+    const datos = request.data?.datos;
+    if (!datos || typeof datos !== 'string') {
+      throw new HttpsError('invalid-argument', 'Faltan los datos.');
+    }
+    await enforceDailyLimit(request.auth.uid, 20);
+    const apiKey = GEMINI_KEY.value();
+    if (!apiKey) throw new HttpsError('internal', 'Falta la clave de Gemini.');
+    try {
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+      const prompt =
+        'Sos el encargado de compras de un comercio. Con estos datos (producto, ' +
+        'stock actual, unidades vendidas en 30 días), decime en una lista corta ' +
+        'QUÉ reponer y CUÁNTO comprar para cubrir ~3 semanas sin quedar sin ' +
+        'stock. Priorizá lo que se está por agotar y lo que más rota; ignorá lo ' +
+        'que sobra. Español, viñetas, breve y concreto.\n\nDatos:\n' +
+        datos.slice(0, 6000);
+      const result = await model.generateContent(prompt);
+      return { texto: (result.response.text() || '').trim() };
+    } catch (error) {
+      console.error('[sugerirReposicion] error:', error);
+      throw new HttpsError('internal', 'No se pudo generar la sugerencia.');
+    }
+  },
+);
+
+// ===============================================
 // FUNCIONES AUTOMÁTICAS (CRON JOBS)
 // ===============================================
 /**

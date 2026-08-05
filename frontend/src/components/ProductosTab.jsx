@@ -49,6 +49,7 @@ function ProductosTab() {
     handleCancelEditProduct,
     editingProduct,
     mostrarMensaje,
+    ventas,
     handleBulkPriceUpdate,
     handleDeleteSelected, // <--- NUEVO
     handleDeleteDuplicates, // <--- NUEVO
@@ -75,6 +76,48 @@ function ProductosTab() {
   const [showCargaEscaner, setShowCargaEscaner] = useState(false);
   const [showFactura, setShowFactura] = useState(false);
   const [initialBarcode, setInitialBarcode] = useState('');
+  const [repoTexto, setRepoTexto] = useState('');
+  const [cargandoRepo, setCargandoRepo] = useState(false);
+
+  const handleSugerirRepo = async () => {
+    setCargandoRepo(true);
+    setRepoTexto('');
+    try {
+      const hace30 = Date.now() - 30 * 86400000;
+      const vendidos = {};
+      (ventas || []).forEach((v) => {
+        const t = new Date(v.timestamp || v.createdAt || 0).getTime();
+        if (t >= hace30)
+          (v.items || []).forEach((it) => {
+            vendidos[it.nombre] = (vendidos[it.nombre] || 0) + (it.cantidad || 0);
+          });
+      });
+      const datos = productos
+        .filter(
+          (p) => p.stock <= umbralStockBajo * 2 || (vendidos[p.nombre] || 0) > 0,
+        )
+        .slice(0, 60)
+        .map(
+          (p) => `${p.nombre}: stock ${p.stock}, vendidos30 ${vendidos[p.nombre] || 0}`,
+        )
+        .join('\n');
+      if (!datos) {
+        mostrarMensaje?.('No hay datos suficientes todavía.', 'info');
+        setCargandoRepo(false);
+        return;
+      }
+      const { getFunctions, httpsCallable } = await import(
+        'firebase/functions'
+      );
+      const fn = httpsCallable(getFunctions(), 'sugerirReposicion');
+      const res = await fn({ datos });
+      setRepoTexto(res.data?.texto || 'Sin sugerencias.');
+    } catch (e) {
+      mostrarMensaje?.(e?.message || 'No se pudo generar.', 'error');
+    } finally {
+      setCargandoRepo(false);
+    }
+  };
 
   const handleCargaEscaneada = (code) => {
     setShowCargaEscaner(false);
@@ -394,7 +437,20 @@ function ProductosTab() {
               >
                 Copiar lista
               </button>
+              <button
+                type="button"
+                onClick={handleSugerirRepo}
+                disabled={cargandoRepo}
+                className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-60"
+              >
+                {cargandoRepo ? 'Analizando…' : '✨ Sugerencia de reposición (IA)'}
+              </button>
             </div>
+            {repoTexto && (
+              <p className="mt-2 whitespace-pre-wrap rounded-md bg-zinc-900/60 p-3 text-sm text-zinc-200">
+                {repoTexto}
+              </p>
+            )}
           </div>
         </motion.div>
       )}
