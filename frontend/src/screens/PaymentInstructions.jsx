@@ -13,13 +13,14 @@ import {
 import { useNavigate } from 'react-router-dom';
 
 const PLANES = {
-  basic: { nombre: 'Básico', precio: 15000 },
-  premium: { nombre: 'Completo', precio: 25000 },
+  basic: { nombre: 'Básico', precio: 15000, anual: 135000 },
+  premium: { nombre: 'Completo', precio: 25000, anual: 250000 },
 };
 
 const PaymentInstructions = () => {
   const { datosNegocio, mostrarMensaje } = useAppContext();
   const [procesando, setProcesando] = useState(false);
+  const [ciclo, setCiclo] = useState('mensual'); // 'mensual' | 'anual'
   const navigate = useNavigate();
 
   const planKey = datosNegocio?.plan === 'basic' ? 'basic' : 'premium';
@@ -38,6 +39,7 @@ const PaymentInstructions = () => {
       );
       const res = await crearPagoSuscripcion({
         plan: planKey,
+        ciclo,
         origin: window.location.origin,
       });
       const url = res.data?.initPoint || res.data?.sandboxInitPoint;
@@ -93,6 +95,27 @@ const PaymentInstructions = () => {
         </div>
 
         <div className="px-6 py-6">
+          {/* Selector mensual / anual */}
+          <div className="mb-4 flex justify-center gap-2">
+            {[
+              ['mensual', 'Mensual'],
+              ['anual', 'Anual (2 meses gratis)'],
+            ].map(([val, lbl]) => (
+              <button
+                key={val}
+                type="button"
+                onClick={() => setCiclo(val)}
+                className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  ciclo === val
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'
+                }`}
+              >
+                {lbl}
+              </button>
+            ))}
+          </div>
+
           {/* Resumen del plan */}
           <div className="mb-5 flex items-center justify-between rounded-xl border border-zinc-700/70 bg-zinc-900/60 px-4 py-3.5">
             <div>
@@ -105,9 +128,14 @@ const PaymentInstructions = () => {
             </div>
             <div className="text-right">
               <p className="text-xl font-bold tracking-tight text-white">
-                ${plan.precio.toLocaleString('es-AR')}
+                $
+                {(ciclo === 'anual' ? plan.anual : plan.precio).toLocaleString(
+                  'es-AR',
+                )}
               </p>
-              <p className="text-[11px] text-zinc-500">por mes · 1 pago</p>
+              <p className="text-[11px] text-zinc-500">
+                {ciclo === 'anual' ? 'por año · 12 meses' : 'por mes · 1 pago'}
+              </p>
             </div>
           </div>
 

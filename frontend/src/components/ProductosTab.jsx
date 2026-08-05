@@ -50,6 +50,7 @@ function ProductosTab() {
     editingProduct,
     mostrarMensaje,
     ventas,
+    canAccessAI,
     handleBulkPriceUpdate,
     handleDeleteSelected, // <--- NUEVO
     handleDeleteDuplicates, // <--- NUEVO
@@ -437,14 +438,18 @@ function ProductosTab() {
               >
                 Copiar lista
               </button>
-              <button
-                type="button"
-                onClick={handleSugerirRepo}
-                disabled={cargandoRepo}
-                className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-60"
-              >
-                {cargandoRepo ? 'Analizando…' : '✨ Sugerencia de reposición (IA)'}
-              </button>
+              {canAccessAI && (
+                <button
+                  type="button"
+                  onClick={handleSugerirRepo}
+                  disabled={cargandoRepo}
+                  className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-60"
+                >
+                  {cargandoRepo
+                    ? 'Analizando…'
+                    : '✨ Sugerencia de reposición (IA)'}
+                </button>
+              )}
             </div>
             {repoTexto && (
               <p className="mt-2 whitespace-pre-wrap rounded-md bg-zinc-900/60 p-3 text-sm text-zinc-200">
@@ -466,13 +471,15 @@ function ProductosTab() {
             <i className="fas fa-camera"></i> Cargar con cámara
           </button>
         )}
-      <button
-        type="button"
-        onClick={() => setShowFactura(true)}
-        className="mb-3 flex w-full items-center justify-center gap-2 rounded-md border border-emerald-500 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-300 hover:bg-emerald-500 hover:text-white sm:ml-2 sm:w-auto"
-      >
-        <i className="fas fa-file-invoice"></i> Cargar factura (foto)
-      </button>
+      {canAccessAI && (
+        <button
+          type="button"
+          onClick={() => setShowFactura(true)}
+          className="mb-3 flex w-full items-center justify-center gap-2 rounded-md border border-emerald-500 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-300 hover:bg-emerald-500 hover:text-white sm:ml-2 sm:w-auto"
+        >
+          <i className="fas fa-file-invoice"></i> Cargar factura (foto) — IA
+        </button>
+      )}
       <ProductForm
         onSave={handleSave}
         productToEdit={editingProduct}

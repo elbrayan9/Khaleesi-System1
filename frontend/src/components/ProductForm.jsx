@@ -38,7 +38,7 @@ const resizeImage = (file, maxSize = 800) =>
 
 function ProductForm({ onSave, productToEdit, onCancelEdit, initialBarcode }) {
   // mostrarMensaje ya no es prop
-  const { mostrarMensaje, currentUser } = useAppContext(); // contexto
+  const { mostrarMensaje, currentUser, canAccessAI } = useAppContext();
 
   const [nombre, setNombre] = useState('');
   const [codigoBarras, setCodigoBarras] = useState('');
@@ -73,7 +73,7 @@ function ProductForm({ onSave, productToEdit, onCancelEdit, initialBarcode }) {
           setPreview(info.imagenUrl);
         }
         mostrarMensaje?.('Datos encontrados y cargados.', 'success');
-      } else if (auto) {
+      } else if (auto && canAccessAI) {
         // No estaba en las bases: pasamos a identificar con la foto (IA).
         mostrarMensaje?.(
           'No estaba en las bases. Sacale una foto al frente y la IA lo carga.',
@@ -281,14 +281,16 @@ function ProductForm({ onSave, productToEdit, onCancelEdit, initialBarcode }) {
             <Search className="h-3.5 w-3.5" />
             {buscando ? 'Buscando…' : 'Buscar datos del código'}
           </button>
-          <button
-            type="button"
-            onClick={() => setShowNombreOCR(true)}
-            className="mt-1 flex items-center gap-1 text-xs font-medium text-indigo-400 hover:text-indigo-300"
-          >
-            <Camera className="h-3.5 w-3.5" /> Escanear nombre (si no lo
-            encuentra)
-          </button>
+          {canAccessAI && (
+            <button
+              type="button"
+              onClick={() => setShowNombreOCR(true)}
+              className="mt-1 flex items-center gap-1 text-xs font-medium text-indigo-400 hover:text-indigo-300"
+            >
+              <Camera className="h-3.5 w-3.5" /> Escanear nombre con IA (si no lo
+              encuentra)
+            </button>
+          )}
         </div>
         <div className="lg:col-span-2">
           <label

@@ -90,7 +90,7 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 const EstadisticasTab = () => {
-  const { productos, ventas } = useAppContext();
+  const { productos, ventas, canAccessAI } = useAppContext();
   const [periodo, setPeriodo] = useState('30'); // 'hoy' | '7' | '30' | 'todo'
 
   const ventasFiltradas = useMemo(() => {
@@ -218,7 +218,7 @@ const EstadisticasTab = () => {
       exit={{ opacity: 0 }}
       className="space-y-6 pb-6"
     >
-      <InsightsIAPanel />
+      {canAccessAI && <InsightsIAPanel />}
 
       {/* Filtro de período */}
       <div className="flex flex-wrap gap-2">

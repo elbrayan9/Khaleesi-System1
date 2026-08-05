@@ -362,6 +362,21 @@ async function enforceDailyLimit(uid, maxPerDay = 10) {
 // Alias que apunta siempre al modelo Flash vigente (evita 404 cuando Google
 // da de baja versiones puntuales como gemini-pro / gemini-2.0-flash).
 const MODEL_NAME = 'gemini-flash-latest';
+
+// Solo Plan Completo (premium) o admin pueden usar las funciones de IA.
+async function enforcePremium(request) {
+  if (request?.auth?.token?.admin === true) return;
+  const uid = request?.auth?.uid;
+  if (!uid) throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
+  const doc = await db.collection('datosNegocio').doc(uid).get();
+  const plan = doc.exists ? doc.data()?.plan : null;
+  if (plan !== 'premium') {
+    throw new HttpsError(
+      'permission-denied',
+      'Las funciones con IA están disponibles en el Plan Completo.',
+    );
+  }
+}
 const TOPIC_KEYWORDS = [
   'pago',
   'pagos',
@@ -419,6 +434,7 @@ exports.askGemini = onCall(
     );
   }
 
+  await enforcePremium(request);
   await enforceDailyLimit(userId, 10);
 
   try {
@@ -580,6 +596,7 @@ exports.identificarProductoFoto = onCall(
     if (!imageBase64 || typeof imageBase64 !== 'string') {
       throw new HttpsError('invalid-argument', 'Falta la imagen.');
     }
+    await enforcePremium(request);
     await enforceDailyLimit(request.auth.uid, 40);
 
     const apiKey = GEMINI_KEY.value();
@@ -636,6 +653,7 @@ exports.leerFacturaProveedor = onCall(
     if (!imageBase64 || typeof imageBase64 !== 'string') {
       throw new HttpsError('invalid-argument', 'Falta la imagen.');
     }
+    await enforcePremium(request);
     await enforceDailyLimit(request.auth.uid, 25);
     const apiKey = GEMINI_KEY.value();
     if (!apiKey) throw new HttpsError('internal', 'Falta la clave de Gemini.');
@@ -690,6 +708,7 @@ exports.sugerirReposicion = onCall(
     if (!datos || typeof datos !== 'string') {
       throw new HttpsError('invalid-argument', 'Faltan los datos.');
     }
+    await enforcePremium(request);
     await enforceDailyLimit(request.auth.uid, 20);
     const apiKey = GEMINI_KEY.value();
     if (!apiKey) throw new HttpsError('internal', 'Falta la clave de Gemini.');
@@ -725,6 +744,7 @@ exports.asistenteAccion = onCall(
     if (!prompt || typeof prompt !== 'string') {
       throw new HttpsError('invalid-argument', 'Falta el pedido.');
     }
+    await enforcePremium(request);
     await enforceDailyLimit(request.auth.uid, 30);
     const apiKey = GEMINI_KEY.value();
     if (!apiKey) throw new HttpsError('internal', 'Falta la clave de Gemini.');
@@ -774,6 +794,7 @@ exports.resumenDiario = onCall(
     if (!datos || typeof datos !== 'string') {
       throw new HttpsError('invalid-argument', 'Faltan los datos.');
     }
+    await enforcePremium(request);
     await enforceDailyLimit(request.auth.uid, 20);
     const apiKey = GEMINI_KEY.value();
     if (!apiKey) throw new HttpsError('internal', 'Falta la clave de Gemini.');
@@ -1656,6 +1677,7 @@ exports.mpWebhookQr = onRequest(async (req, res) => {
 // SUSCRIPCIONES: cobro con Mercado Pago (a la cuenta de la plataforma)
 // ===============================================
 const PLANES_PRECIO = { basic: 15000, premium: 25000 };
+const PLANES_PRECIO_ANUAL = { basic: 135000, premium: 250000 };
 
 exports.crearPagoSuscripcion = onCall(
   { secrets: [MP_PLATFORM_TOKEN], enforceAppCheck: true },
@@ -1668,7 +1690,9 @@ exports.crearPagoSuscripcion = onCall(
     const plan = ['basic', 'premium'].includes(request.data?.plan)
       ? request.data.plan
       : 'premium';
-    const precio = PLANES_PRECIO[plan];
+    const ciclo = request.data?.ciclo === 'anual' ? 'anual' : 'mensual';
+    const precio =
+      ciclo === 'anual' ? PLANES_PRECIO_ANUAL[plan] : PLANES_PRECIO[plan];
 
     const token = MP_PLATFORM_TOKEN.value();
     if (!token) {
@@ -1696,7 +1720,7 @@ exports.crearPagoSuscripcion = onCall(
         {
           title: `Suscripción Khaleesi - Plan ${
             plan === 'premium' ? 'Completo' : 'Básico'
-          }`,
+          } (${ciclo === 'anual' ? 'Anual' : 'Mensual'})`,
           quantity: 1,
           unit_price: precio,
           currency_id: 'ARS',
@@ -1704,7 +1728,7 @@ exports.crearPagoSuscripcion = onCall(
       ],
       payer: email ? { email } : undefined,
       external_reference: externalReference,
-      notification_url: `${WEBHOOK_URL}?uid=${uid}&plan=${plan}`,
+      notification_url: `${WEBHOOK_URL}?uid=${uid}&plan=${plan}&ciclo=${ciclo}`,
       // 1 sola cuota: sin costo de financiación de cuotas (nada extra que te
       // descuenten por cuotas). El cliente paga con débito, dinero en cuenta o
       // tarjeta en 1 pago.
@@ -1769,6 +1793,7 @@ exports.mpWebhookSuscripcion = onRequest(
       const plan = ['basic', 'premium'].includes(req.query.plan)
         ? req.query.plan
         : null;
+      const ciclo = req.query.ciclo === 'anual' ? 'anual' : 'mensual';
       const tipo = req.body?.type || req.query.type || req.query.topic;
       const paymentId =
         req.body?.data?.id || req.query['data.id'] || req.query.id;
@@ -1799,15 +1824,55 @@ exports.mpWebhookSuscripcion = onRequest(
         pago.status === 'approved' &&
         String(pago.external_reference || '').startsWith(`sub_${uid}`)
       ) {
+        const dias = ciclo === 'anual' ? 365 : 30;
         const nuevaFecha = new Date();
-        nuevaFecha.setDate(nuevaFecha.getDate() + 30);
+        nuevaFecha.setDate(nuevaFecha.getDate() + dias);
         const updates = {
           subscriptionStatus: 'active',
           subscriptionEndDate: nuevaFecha,
         };
         if (plan) updates.plan = plan;
         await db.collection('datosNegocio').doc(uid).set(updates, { merge: true });
-        console.log(`[MP sub webhook] Suscripción reactivada: ${uid}`);
+        console.log(
+          `[MP sub webhook] Suscripción reactivada: ${uid} (+${dias} días)`,
+        );
+
+        // Comprobante de pago por email (best-effort; MP igual manda el suyo).
+        try {
+          const negocio = (
+            await db.collection('datosNegocio').doc(uid).get()
+          ).data();
+          const dest = pago.payer?.email || negocio?.email;
+          const emailCfg = functions.config().email || {};
+          if (dest && emailCfg.user && emailCfg.pass) {
+            const transporte = nodemailer.createTransport({
+              service: 'gmail',
+              auth: { user: emailCfg.user, pass: emailCfg.pass },
+            });
+            const monto = pago.transaction_amount || '';
+            const fechaPago = new Date().toLocaleDateString('es-AR');
+            const vence = nuevaFecha.toLocaleDateString('es-AR');
+            await transporte.sendMail({
+              from: `Khaleesi System <${emailCfg.user}>`,
+              to: dest,
+              subject: 'Comprobante de pago - Khaleesi System',
+              html: `
+                <h2>¡Gracias por tu pago!</h2>
+                <p>Confirmamos la activación de tu suscripción.</p>
+                <ul>
+                  <li><strong>Plan:</strong> ${plan === 'premium' ? 'Completo' : 'Básico'} (${ciclo})</li>
+                  <li><strong>Monto:</strong> $${monto}</li>
+                  <li><strong>Fecha de pago:</strong> ${fechaPago}</li>
+                  <li><strong>Pago Mercado Pago Nº:</strong> ${paymentId}</li>
+                  <li><strong>Válido hasta:</strong> ${vence}</li>
+                </ul>
+                <p>Khaleesi System</p>`,
+            });
+            console.log(`[MP sub webhook] Comprobante enviado a ${dest}`);
+          }
+        } catch (mailErr) {
+          console.warn('[MP sub webhook] No se pudo enviar comprobante:', mailErr?.message);
+        }
       }
 
       return res.status(200).send('ok');
