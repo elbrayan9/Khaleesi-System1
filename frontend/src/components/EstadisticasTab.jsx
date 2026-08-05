@@ -1,5 +1,5 @@
 // frontend/src/components/EstadisticasTab.jsx
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import InsightsIAPanel from './InsightsIAPanel.jsx';
 import { motion } from 'framer-motion';
@@ -91,8 +91,20 @@ const CustomTooltip = ({ active, payload, label }) => {
 
 const EstadisticasTab = () => {
   const { productos, ventas } = useAppContext();
+  const [periodo, setPeriodo] = useState('30'); // 'hoy' | '7' | '30' | 'todo'
+
+  const ventasFiltradas = useMemo(() => {
+    if (periodo === 'todo') return ventas;
+    const dias = periodo === 'hoy' ? 1 : Number(periodo);
+    const desde = Date.now() - dias * 24 * 60 * 60 * 1000;
+    return ventas.filter((v) => {
+      const t = new Date(v.timestamp || v.createdAt || 0).getTime();
+      return Number.isFinite(t) && t >= desde;
+    });
+  }, [ventas, periodo]);
 
   const stats = useMemo(() => {
+    const ventas = ventasFiltradas;
     // 1. Métricas Básicas
     const valorInventario = productos.reduce(
       (sum, p) => sum + (p.stock || 0) * (p.costo || 0),
@@ -173,18 +185,31 @@ const EstadisticasTab = () => {
       dataMetodos,
       topProductos,
     };
-  }, [productos, ventas]);
+  }, [productos, ventasFiltradas]);
 
-  // Datos para el gráfico principal (AreaChart) - Simplificado a un solo punto "Total" por ahora
-  // Idealmente esto sería una serie temporal real
-  const chartData = [
-    {
-      name: 'Total Acumulado',
-      Ingresos: stats.ingresosBrutos,
-      Ganancias: stats.gananciaBruta,
-      Costo: stats.costoMercaderiaVendida,
-    },
-  ];
+  // Serie temporal real: ingresos y ganancia por día del período elegido.
+  const chartData = useMemo(() => {
+    const serie = {};
+    ventasFiltradas.forEach((v) => {
+      const d = new Date(v.timestamp || v.createdAt || 0);
+      const t = d.getTime();
+      if (!Number.isFinite(t)) return;
+      const key = d.toLocaleDateString('es-AR', {
+        day: '2-digit',
+        month: '2-digit',
+      });
+      if (!serie[key])
+        serie[key] = { name: key, _ts: t, Ingresos: 0, Ganancias: 0 };
+      const ingreso = v.total || 0;
+      const costo = (v.items || []).reduce(
+        (s, it) => s + (it.cantidad || 0) * (it.costo || 0),
+        0,
+      );
+      serie[key].Ingresos += ingreso;
+      serie[key].Ganancias += ingreso - costo;
+    });
+    return Object.values(serie).sort((a, b) => a._ts - b._ts);
+  }, [ventasFiltradas]);
 
   return (
     <motion.div
@@ -194,6 +219,30 @@ const EstadisticasTab = () => {
       className="space-y-6 pb-6"
     >
       <InsightsIAPanel />
+
+      {/* Filtro de período */}
+      <div className="flex flex-wrap gap-2">
+        {[
+          ['hoy', 'Hoy'],
+          ['7', '7 días'],
+          ['30', '30 días'],
+          ['todo', 'Todo'],
+        ].map(([val, lbl]) => (
+          <button
+            key={val}
+            type="button"
+            onClick={() => setPeriodo(val)}
+            className={`rounded-md px-3 py-1.5 text-sm font-semibold transition-colors ${
+              periodo === val
+                ? 'bg-blue-600 text-white'
+                : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'
+            }`}
+          >
+            {lbl}
+          </button>
+        ))}
+      </div>
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="flex items-center gap-3 text-2xl font-bold text-white">
