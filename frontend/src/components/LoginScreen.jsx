@@ -10,7 +10,7 @@ import HoverEffectWrapper from './HoverEffectWrapper.jsx';
 import TypeAnimation from './TypeAnimation.jsx';
 import { AnimatedButton } from './AnimatedButton.jsx';
 import Footer from './Footer.jsx';
-import ParticleBackground from './ParticleBackground.jsx';
+import ThreeBackground from './ThreeBackground.jsx';
 
 function LoginScreen() {
   const { mostrarMensaje } = useAppContext();
@@ -54,7 +54,7 @@ function LoginScreen() {
 
   return (
     <div className="relative flex min-h-screen w-full flex-col bg-zinc-900 text-zinc-200">
-      <ParticleBackground />
+      <ThreeBackground />
 
       <main className="relative z-10 flex flex-grow items-center justify-center p-4">
         <HoverEffectWrapper className="flex w-full max-w-4xl overflow-hidden rounded-lg border border-zinc-700/50 bg-zinc-800/50 shadow-2xl backdrop-blur-sm">

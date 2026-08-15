@@ -61,17 +61,6 @@ function ThreeBackground() {
     const points = new THREE.Points(geo, mat);
     scene.add(points);
 
-    // --- Figura wireframe (foco 3D) ---
-    const icoGeo = new THREE.IcosahedronGeometry(2.6, 1);
-    const icoMat = new THREE.MeshBasicMaterial({
-      color: 0x2563eb, // blue-600
-      wireframe: true,
-      transparent: true,
-      opacity: 0.25,
-    });
-    const ico = new THREE.Mesh(icoGeo, icoMat);
-    scene.add(ico);
-
     // --- Parallax con el mouse ---
     const target = { x: 0, y: 0 };
     const onMouse = (e) => {
@@ -95,8 +84,6 @@ function ThreeBackground() {
       const t = clock.getElapsedTime();
       points.rotation.y = t * 0.03;
       points.rotation.x = t * 0.01;
-      ico.rotation.y = t * 0.12;
-      ico.rotation.x = t * 0.06;
       // parallax suave de cámara
       camera.position.x += (target.x - camera.position.x) * 0.04;
       camera.position.y += (-target.y - camera.position.y) * 0.04;
@@ -117,8 +104,6 @@ function ThreeBackground() {
       window.removeEventListener('mousemove', onMouse);
       geo.dispose();
       mat.dispose();
-      icoGeo.dispose();
-      icoMat.dispose();
       renderer.dispose();
       if (renderer.domElement && renderer.domElement.parentNode) {
         renderer.domElement.parentNode.removeChild(renderer.domElement);
