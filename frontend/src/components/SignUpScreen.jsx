@@ -16,7 +16,9 @@ function SignUpScreen() {
   const { mostrarMensaje } = useAppContext();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const plan = searchParams.get('plan') || 'basic'; // Default a basic si no hay param
+  const [plan, setPlan] = useState(
+    searchParams.get('plan') === 'premium' ? 'premium' : 'basic',
+  );
 
   const [nombreNegocio, setNombreNegocio] = useState('');
   const [email, setEmail] = useState('');
@@ -124,9 +126,37 @@ function SignUpScreen() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.7 }}
               >
-                <h2 className="mb-6 text-center text-2xl font-bold text-white">
+                <h2 className="mb-4 text-center text-2xl font-bold text-white">
                   Crear una Cuenta
                 </h2>
+
+                <div className="mb-6">
+                  <p className="mb-2 text-center text-sm text-zinc-400">
+                    Elegí tu plan (7 días gratis):
+                  </p>
+                  <div className="flex gap-2">
+                    {[
+                      ['basic', 'Básico', '$15.000/mes'],
+                      ['premium', 'Completo', 'IA + AFIP'],
+                    ].map(([val, nom, desc]) => (
+                      <button
+                        key={val}
+                        type="button"
+                        onClick={() => setPlan(val)}
+                        className={`flex-1 rounded-lg border p-3 text-center transition-colors ${
+                          plan === val
+                            ? 'border-blue-500 bg-blue-600/15 text-white'
+                            : 'border-zinc-700 bg-zinc-800 text-zinc-300 hover:border-zinc-600'
+                        }`}
+                      >
+                        <span className="block text-sm font-bold">{nom}</span>
+                        <span className="block text-xs text-zinc-400">
+                          {desc}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
                 <form onSubmit={handleSignUp} className="space-y-6">
                   <div>

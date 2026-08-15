@@ -88,6 +88,20 @@ function VentaTab() {
     if (!codigo || !codigo.trim()) return;
     const barcode = codigo.trim();
 
+    // QR de producto del sistema (URL .../product/{id}): resolvemos por id.
+    const mProd = barcode.match(/\/product\/([^/?#\s]+)/);
+    if (mProd) {
+      const prod = productos.find((p) => p.id === mProd[1]);
+      if (prod) {
+        handleAddToCart(prod, 1, 0);
+        if (barcodeInputRef.current) barcodeInputRef.current.value = '';
+        safeFocus();
+      } else {
+        await mostrarMensaje('El producto de ese QR no existe.', 'warning');
+      }
+      return;
+    }
+
     // --- LÓGICA PARA CÓDIGOS DE BALANZA (configurable) ---
     // Layout configurable en Configuración (con defaults = formato clásico:
     // prefijo 20, código en 2..7, precio en 7..12, 2 decimales).

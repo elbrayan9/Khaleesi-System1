@@ -28,7 +28,7 @@ const RECEIPT_TYPES = [
   },
 ];
 
-function ReceiptTypeSelect({ value, onChange, condicionEmisor }) {
+function ReceiptTypeSelect({ value, onChange, condicionEmisor, canAccessAfip }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
 
@@ -39,6 +39,8 @@ function ReceiptTypeSelect({ value, onChange, condicionEmisor }) {
   if (cond.includes('inscripto')) permitidos = ['A', 'B', 'X'];
   else if (cond.includes('monotributo') || cond.includes('exento'))
     permitidos = ['C', 'X'];
+  // Sin facturación electrónica (plan Básico): solo Ticket X.
+  if (!canAccessAfip) permitidos = ['X'];
   const tipos = RECEIPT_TYPES.filter((t) => permitidos.includes(t.value));
 
   const selectedType = tipos.find((t) => t.value === value) || tipos[0];

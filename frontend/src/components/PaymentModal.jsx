@@ -42,7 +42,7 @@ function PaymentModal({
   const [showPoint, setShowPoint] = useState(false); // modal de cobro posnet
   const [posnetDevices, setPosnetDevices] = useState([]); // posnet detectados
 
-  const { sucursalActual } = useAppContext();
+  const { sucursalActual, canAccessAfip } = useAppContext();
 
   // Detección "dormida" de posnet Point: solo si la cuenta tiene uno vinculado
   // se mostrará el botón. Se cachea por sesión y sucursal.
@@ -89,7 +89,10 @@ function PaymentModal({
       // Monotributo/Exento -> C; Responsable Inscripto -> A (si el cliente tiene
       // CUIT) o B. Evita intentar Factura A con un emisor monotributista.
       const cond = (condicionEmisor || '').toLowerCase();
-      if (cond.includes('monotributo') || cond.includes('exento')) {
+      if (!canAccessAfip) {
+        // Plan Básico: sin factura electrónica, solo Ticket X.
+        setTipoFactura('X');
+      } else if (cond.includes('monotributo') || cond.includes('exento')) {
         setTipoFactura('C');
       } else if (cliente && cliente.cuit && cliente.cuit.length > 5) {
         setTipoFactura('A');
@@ -97,7 +100,7 @@ function PaymentModal({
         setTipoFactura('B');
       }
     }
-  }, [isOpen, cliente, total, condicionEmisor]);
+  }, [isOpen, cliente, total, condicionEmisor, canAccessAfip]);
 
   // --- LÓGICA DE CÁLCULO ---
   // Total que efectivamente cobra el comercio = productos + propina.
@@ -345,6 +348,7 @@ function PaymentModal({
                   Tipo de Comprobante
                 </label>
                 <ReceiptTypeSelect
+                  canAccessAfip={canAccessAfip}
                   value={tipoFactura}
                   onChange={setTipoFactura}
                   condicionEmisor={condicionEmisor}

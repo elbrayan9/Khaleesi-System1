@@ -41,8 +41,13 @@ const CAJERO_PATHS = [
 function Layout() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isChatButtonHovered, setIsChatButtonHovered] = useState(false);
-  const { handleLogout, isAdmin, canAccessMultisucursal, canAccessAI } =
-    useAppContext();
+  const {
+    handleLogout,
+    isAdmin,
+    canAccessMultisucursal,
+    canAccessAI,
+    canAccessAfip,
+  } = useAppContext();
   const navigate = useNavigate();
   const location = useLocation();
   const currentPath = location.pathname;
@@ -139,7 +144,10 @@ function Layout() {
           Icon: FileText,
           path: '/dashboard/presupuestos',
         },
-        { label: 'Notas C/D', Icon: FileMinus, path: '/dashboard/notas' },
+        // Notas C/D es de facturación (AFIP) → solo Plan Completo.
+        ...(canAccessAfip
+          ? [{ label: 'Notas C/D', Icon: FileMinus, path: '/dashboard/notas' }]
+          : []),
       ],
     },
     {
