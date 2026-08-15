@@ -37,7 +37,7 @@ import {
 } from 'lucide-react';
 import AppLogo from '../components/AppLogo';
 import Footer from '../components/Footer';
-import ParticleBackground from '../components/ParticleBackground';
+import ThreeBackground from '../components/ThreeBackground';
 import profileImage from '../assets/profile.jpg';
 import dashboardDesktop from '../assets/dashboard-desktop.png';
 import dashboardMobile from '../assets/dashboard-mobile.png';
@@ -221,7 +221,7 @@ const LandingPage = () => {
 
   return (
     <div className="relative min-h-screen w-full overflow-x-hidden bg-zinc-900 text-zinc-200">
-      <ParticleBackground />
+      <ThreeBackground />
 
       <header className="sticky top-0 z-50 flex items-center justify-between border-b border-white/5 bg-zinc-900/80 p-4 backdrop-blur-md sm:px-6">
         <div className="flex items-center gap-3">
