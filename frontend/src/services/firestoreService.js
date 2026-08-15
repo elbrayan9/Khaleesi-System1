@@ -244,17 +244,13 @@ export const recibirPedidoYActualizarStock = async (pedido) => {
     fechaRecepcion: new Date().toISOString().split('T')[0],
   });
 
-  // 2. Actualizar el stock Y el costo de cada producto en el pedido
+  // 2. Sumar el stock SIEMPRE; actualizar el costo solo si viene uno válido.
   for (const item of pedido.items) {
-    if (item.productoId && item.costoUnitario > 0) {
-      // Solo actualizamos si hay un productoId y un costo válido
-      const productoRef = doc(db, 'productos', item.productoId);
-
-      batch.update(productoRef, {
-        stock: increment(item.cantidad),
-        costo: item.costoUnitario, // <--- ¡AQUÍ ESTÁ LA MAGIA! Se actualiza el costo.
-      });
-    }
+    if (!item.productoId) continue;
+    const productoRef = doc(db, 'productos', item.productoId);
+    const update = { stock: increment(item.cantidad) };
+    if (item.costoUnitario > 0) update.costo = item.costoUnitario;
+    batch.update(productoRef, update);
   }
 
   try {
