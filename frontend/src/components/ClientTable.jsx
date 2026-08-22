@@ -133,7 +133,14 @@ function ClientTable({
                   : 'SIN ID'}
                 {c._id_original_invalid ? ' (!)' : ''}
               </TableCell>
-              <TableCell className="text-zinc-200">{c.nombre}</TableCell>
+              <TableCell className="text-zinc-200">
+                {c.nombre}
+                {datosNegocio?.puntosActivo && (c.puntos ?? 0) > 0 && (
+                  <span className="ml-2 rounded-full bg-amber-500/20 px-2 py-0.5 text-[11px] font-semibold text-amber-300">
+                    ⭐ {c.puntos} pts
+                  </span>
+                )}
+              </TableCell>
               <TableCell className="text-zinc-400">{c.cuit || 'N/A'}</TableCell>
               <TableCell className="whitespace-nowrap text-right">
                 {(() => {

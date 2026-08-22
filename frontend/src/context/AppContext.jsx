@@ -1344,6 +1344,24 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
             .catch((e) => console.error('Error registrando cargo CC:', e));
         }
 
+        // 3c. Fidelización: sumamos puntos al cliente identificado.
+        const pesosPorPunto = Number(datosNegocio?.pesosPorPunto) || 0;
+        if (
+          datosNegocio?.puntosActivo &&
+          pesosPorPunto > 0 &&
+          clienteIdFinal !== 'consumidor_final' &&
+          cliente
+        ) {
+          const suma = Math.floor((Number(total) || 0) / pesosPorPunto);
+          if (suma > 0) {
+            fsService
+              .updateCliente(clienteIdFinal, {
+                puntos: (Number(cliente.puntos) || 0) + suma,
+              })
+              .catch((e) => console.error('Error sumando puntos:', e));
+          }
+        }
+
         // 4. Impresión automática al cobrar.
         const ventaParaTicket = { id: ventaId, ...newSaleData };
         const onPrintError = (error) => {

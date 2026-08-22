@@ -50,6 +50,8 @@ function ConfiguracionTab() {
   const [balanzaEnVivoHabilitada, setBalanzaEnVivoHabilitada] =
     useState(false);
   const [tiendaActiva, setTiendaActiva] = useState(false);
+  const [puntosActivo, setPuntosActivo] = useState(false);
+  const [pesosPorPunto, setPesosPorPunto] = useState(1000);
   const [umbralStockBajo, setUmbralStockBajo] = useState(10);
   const [recibirReporteDiario, setRecibirReporteDiario] = useState(false);
   const [whatsappDueño, setWhatsappDueño] = useState('');
@@ -85,6 +87,8 @@ function ConfiguracionTab() {
       setVentaRapidaHabilitada(datosNegocio.habilitarVentaRapida || false);
       setBalanzaEnVivoHabilitada(datosNegocio.habilitarBalanzaEnVivo || false);
       setTiendaActiva(datosNegocio.tiendaActiva || false);
+      setPuntosActivo(datosNegocio.puntosActivo || false);
+      setPesosPorPunto(datosNegocio.pesosPorPunto || 1000);
       setUmbralStockBajo(datosNegocio.umbralStockBajo || 10);
       setRecibirReporteDiario(datosNegocio.recibirReporteDiario || false);
       setWhatsappDueño(datosNegocio.whatsappDueño || '');
@@ -280,6 +284,8 @@ function ConfiguracionTab() {
       habilitarVentaRapida: ventaRapidaHabilitada,
       habilitarBalanzaEnVivo: balanzaEnVivoHabilitada,
       tiendaActiva: tiendaActiva,
+      puntosActivo: puntosActivo,
+      pesosPorPunto: Number(pesosPorPunto) || 0,
       umbralStockBajo: Number(umbralStockBajo) || 0,
       recibirReporteDiario: recibirReporteDiario,
       whatsappDueño: whatsappDueño.trim(),
@@ -1177,6 +1183,51 @@ function ConfiguracionTab() {
               />
               <div className="peer h-6 w-11 rounded-full bg-zinc-600 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:border after:bg-white after:transition-all after:content-[''] peer-checked:bg-blue-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:ring-2 peer-focus:ring-blue-500"></div>
             </label>
+          </div>
+
+          {/* PROGRAMA DE PUNTOS */}
+          <div className="mt-3 rounded-md bg-zinc-700/50 p-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <label
+                  htmlFor="toggle-puntos"
+                  className="font-medium text-zinc-100"
+                >
+                  Programa de puntos (fidelización)
+                </label>
+                <p className="text-xs text-zinc-400">
+                  Los clientes identificados en la venta suman puntos
+                  automáticamente.
+                </p>
+              </div>
+              <label className="relative inline-flex cursor-pointer items-center">
+                <input
+                  type="checkbox"
+                  id="toggle-puntos"
+                  checked={puntosActivo}
+                  onChange={(e) => setPuntosActivo(e.target.checked)}
+                  className="peer sr-only"
+                />
+                <div className="peer h-6 w-11 rounded-full bg-zinc-600 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:border after:bg-white after:transition-all after:content-[''] peer-checked:bg-blue-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:ring-2 peer-focus:ring-blue-500"></div>
+              </label>
+            </div>
+            {puntosActivo && (
+              <div className="mt-3 border-t border-zinc-600 pt-3">
+                <label className="mb-1 block text-xs text-zinc-400">
+                  Pesos necesarios para sumar 1 punto:
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={pesosPorPunto}
+                  onChange={(e) => setPesosPorPunto(e.target.value)}
+                  className="w-40 rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100"
+                />
+                <p className="mt-1 text-[11px] text-zinc-500">
+                  Ej: 1000 → una compra de $10.000 suma 10 puntos.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* TIENDA ONLINE */}
