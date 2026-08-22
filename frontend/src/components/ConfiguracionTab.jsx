@@ -406,8 +406,9 @@ function ConfiguracionTab() {
                   Precio preferencial para clientes actuales
                 </p>
                 <p className="mb-2 text-xs text-yellow-100/80">
-                  Les respeta el precio anterior al aumento ($25.000 el
-                  Completo). No pisa a quien ya tenga uno.
+                  Congela el precio anterior a los aumentos: Básico $15.000 y
+                  Completo $25.000 (con sus anuales). No pisa a quien ya tenga un
+                  precio preferencial, así que podés apretarlo tranquilo.
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <button

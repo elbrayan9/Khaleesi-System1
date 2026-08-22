@@ -13,7 +13,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 
 const PLANES = {
-  basic: { nombre: 'Básico', precio: 15000, anual: 135000 },
+  basic: { nombre: 'Básico', precio: 20000, anual: 200000 },
   premium: { nombre: 'Completo', precio: 35000, anual: 350000 },
 };
 

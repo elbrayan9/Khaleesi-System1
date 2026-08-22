@@ -2391,8 +2391,8 @@ exports.mpWebhookQr = onRequest(async (req, res) => {
 // ===============================================
 // SUSCRIPCIONES: cobro con Mercado Pago (a la cuenta de la plataforma)
 // ===============================================
-const PLANES_PRECIO = { basic: 15000, premium: 35000 };
-const PLANES_PRECIO_ANUAL = { basic: 135000, premium: 350000 };
+const PLANES_PRECIO = { basic: 20000, premium: 35000 };
+const PLANES_PRECIO_ANUAL = { basic: 200000, premium: 350000 };
 
 exports.crearPagoSuscripcion = onCall(
   { secrets: [MP_PLATFORM_TOKEN], enforceAppCheck: true },
