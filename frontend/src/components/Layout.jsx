@@ -131,7 +131,7 @@ function Layout() {
       items: [
         { label: 'Nueva Venta', Icon: ShoppingCart, path: '/dashboard' },
         { label: 'Pistola (celu)', Icon: ScanLine, path: '/dashboard/pistola' },
-        ...(datosNegocio?.tiendaActiva
+        ...(datosNegocio?.tiendaActiva && (canAccessAI || isAdmin)
           ? [
               {
                 label: 'Pedidos online',

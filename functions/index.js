@@ -1622,11 +1622,15 @@ exports.notifyAdminOfPayment = onCall({ enforceAppCheck: true }, async (request)
 // Facturación Electrónica (AFIP)
 // =======================
 const afipController = require('./afipController');
+// La facturación electrónica es del Plan Completo: se valida en el servidor,
+// no solo escondiendo botones en la interfaz.
 exports.createInvoice = onCall({ enforceAppCheck: true }, async (request) => {
+  await enforcePremium(request);
   return await afipController.createInvoice(request);
 });
 
 exports.getContribuyente = onCall({ enforceAppCheck: true }, async (request) => {
+  await enforcePremium(request);
   return await afipController.getContribuyente(request);
 });
 
