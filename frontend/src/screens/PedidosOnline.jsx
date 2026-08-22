@@ -325,7 +325,7 @@ function PedidosOnline() {
                       Marcar listo
                     </button>
                   )}
-                  {p.estado === 'listo' && (
+                  {['listo', 'en_camino'].includes(p.estado) && (
                     <button
                       onClick={() => entregar(p)}
                       disabled={trabajando}

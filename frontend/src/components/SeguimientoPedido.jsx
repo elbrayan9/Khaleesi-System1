@@ -4,10 +4,12 @@
 // estado con getEstadoPedido cada 8s: el visitante no puede leer Firestore, así
 // que no hay listener en vivo, es sondeo.
 
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { Check, Clock, XCircle } from 'lucide-react';
 import { formatCurrency } from '../utils/helpers';
-import MapaEnVivo from './MapaEnVivo.jsx';
+// El mapa se carga aparte: no tiene sentido que pese en el arranque de la
+// tienda si el pedido todavía no salió con un repartidor.
+const MapaEnVivo = lazy(() => import('./MapaEnVivo.jsx'));
 
 const PASOS = [
   { estado: 'nuevo', label: 'Pedido recibido' },
@@ -98,11 +100,17 @@ function SeguimientoPedido({ pedidoId, trackingToken, onNuevoPedido }) {
                 {Number.isFinite(datos.repartidor.lat) &&
                   Number.isFinite(datos.repartidor.lng) && (
                     <div className="mt-2">
-                      <MapaEnVivo
+                      <Suspense
+                        fallback={
+                          <div className="h-[220px] w-full animate-pulse rounded-xl bg-zinc-800" />
+                        }
+                      >
+                        <MapaEnVivo
                         lat={datos.repartidor.lat}
                         lng={datos.repartidor.lng}
-                        etiqueta={datos.repartidor.nombre}
-                      />
+                          etiqueta={datos.repartidor.nombre}
+                        />
+                      </Suspense>
                     </div>
                   )}
               </div>

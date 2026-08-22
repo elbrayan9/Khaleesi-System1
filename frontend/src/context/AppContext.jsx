@@ -2287,6 +2287,15 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
   // (borraría la venta que el cajero tenga en curso).
   const handleEntregarPedidoOnline = async (pedido) => {
     if (!pedido?.id || !sucursalActual) return false;
+    // Un pedido ya registrado no se vuelve a cobrar: evita duplicar la venta y
+    // descontar el stock dos veces por un doble clic o dos cajas abiertas.
+    if (pedido.ventaId) {
+      mostrarMensaje?.(
+        'Este pedido ya fue registrado como venta.',
+        'info',
+      );
+      return false;
+    }
     const { fecha, hora } = obtenerFechaHoraActual();
 
     const items = (pedido.items || []).map((it) => {
