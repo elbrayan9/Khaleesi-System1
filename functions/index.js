@@ -865,6 +865,66 @@ exports.getTiendaPublica = onCall(
 );
 
 // ===============================================
+// Pagos recibidos: ver los cobros de Mercado Pago sin salir del sistema
+// ===============================================
+// Consulta los pagos aprobados de la cuenta del comercio con su propio Access
+// Token. Cubre lo que se cobra por Mercado Pago: QR del local, link, posnet y
+// tarjeta. (Las transferencias entre personas pueden no figurar acá.)
+exports.consultarPagosMp = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
+    }
+    const uid = request.auth.uid;
+    const { sucursalId = null, horas = 24 } = request.data || {};
+
+    const token = await leerAccessTokenComercio(uid, sucursalId);
+    if (!token) {
+      return { configurado: false, pagos: [] };
+    }
+
+    const rango = Math.min(Math.max(Number(horas) || 24, 1), 72);
+    const desde = new Date(Date.now() - rango * 60 * 60 * 1000).toISOString();
+    const url =
+      'https://api.mercadopago.com/v1/payments/search' +
+      '?sort=date_created&criteria=desc&status=approved' +
+      `&range=date_created&begin_date=${encodeURIComponent(desde)}` +
+      '&end_date=NOW&limit=30';
+
+    try {
+      const r = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        console.error('[consultarPagosMp] rechazo:', data);
+        throw new HttpsError(
+          'invalid-argument',
+          data?.message || 'Mercado Pago no respondió.',
+        );
+      }
+      const pagos = (data.results || []).map((p) => ({
+        id: String(p.id),
+        monto: p.transaction_amount || 0,
+        neto: p.transaction_details?.net_received_amount ?? null,
+        fecha: p.date_approved || p.date_created || null,
+        metodo: p.payment_method_id || '',
+        tipo: p.payment_type_id || '',
+        descripcion: p.description || '',
+        pagador:
+          p.payer?.first_name || p.payer?.email || p.payer?.identification?.number || '',
+      }));
+      return { configurado: true, pagos };
+    } catch (error) {
+      if (error.code) throw error;
+      console.error('[consultarPagosMp] error de red:', error);
+      throw new HttpsError('internal', 'No se pudo consultar Mercado Pago.');
+    }
+  },
+);
+
+// ===============================================
 // Pedidos online: la tienda pública crea el pedido y entra al POS en vivo
 // ===============================================
 // Devuelve la sucursal si su tienda está publicada (activa + suscripción

@@ -9,39 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { useAppContext } from '../context/AppContext.jsx';
 import { formatCurrency } from '../utils/helpers.js';
-
-// Pitidos generados con Web Audio API: no hace falta ningún archivo de sonido.
-// Ojo: el navegador exige una interacción previa en la pestaña para permitir
-// audio; si nadie tocó nada desde que se abrió, el primer aviso puede ser mudo.
-function sonarAlarma() {
-  try {
-    const Ctx = window.AudioContext || window.webkitAudioContext;
-    if (!Ctx) return;
-    const ctx = new Ctx();
-    const pitido = (inicio, frecuencia) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'square';
-      osc.frequency.value = frecuencia;
-      gain.gain.setValueAtTime(0.0001, ctx.currentTime + inicio);
-      gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + inicio + 0.02);
-      gain.gain.exponentialRampToValueAtTime(
-        0.0001,
-        ctx.currentTime + inicio + 0.28,
-      );
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(ctx.currentTime + inicio);
-      osc.stop(ctx.currentTime + inicio + 0.3);
-    };
-    pitido(0, 880);
-    pitido(0.35, 1170);
-    pitido(0.7, 880);
-    setTimeout(() => ctx.close?.(), 1500);
-  } catch (_) {
-    /* sin audio disponible: el pop-up igual aparece */
-  }
-}
+import { sonarAlarma } from '../utils/sonido.js';
 
 function AvisoPedidoOnline() {
   const { pedidosOnline = [] } = useAppContext();

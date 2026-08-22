@@ -29,6 +29,7 @@ import ScannerPistola from './screens/ScannerPistola.jsx';
 import TiendaPublica from './screens/TiendaPublica.jsx';
 import LegalPage from './screens/LegalPage.jsx';
 import PedidosOnline from './screens/PedidosOnline.jsx';
+import PagosRecibidos from './screens/PagosRecibidos.jsx';
 import PrintNota from './components/PrintNota.jsx';
 import SaleDetailModal from './components/SaleDetailModal.jsx';
 import NotaDetailModal from './components/NotaDetailModal.jsx';
@@ -453,6 +454,7 @@ function App() {
               <Route path="configuracion" element={<ConfiguracionTab />} />
               <Route path="pistola" element={<ScannerPistola />} />
               <Route path="pedidos-online" element={<PedidosOnline />} />
+              <Route path="pagos" element={<PagosRecibidos />} />
             </Route>
             {/* Rutas de Admin también protegidas */}
             <Route path="/admin" element={<AdminPanel />} />

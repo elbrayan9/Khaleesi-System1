@@ -39,6 +39,7 @@ const CAJERO_PATHS = [
   '/dashboard/clientes',
   '/dashboard/pistola',
   '/dashboard/pedidos-online',
+  '/dashboard/pagos',
 ];
 
 function Layout() {
@@ -135,6 +136,15 @@ function Layout() {
                 Icon: ShoppingBag,
                 path: '/dashboard/pedidos-online',
                 badge: pedidosNuevos,
+              },
+            ]
+          : []),
+        ...(datosNegocio?.mpAccessToken
+          ? [
+              {
+                label: 'Pagos recibidos',
+                Icon: Wallet,
+                path: '/dashboard/pagos',
               },
             ]
           : []),
