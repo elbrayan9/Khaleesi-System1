@@ -499,6 +499,12 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
           subscriptionStatus: d.subscriptionStatus ?? prev?.subscriptionStatus,
           subscriptionEndDate: endDate ?? prev?.subscriptionEndDate,
           plan: d.plan ?? prev?.plan,
+          precioLegacy: d.precioLegacy ?? prev?.precioLegacy,
+          precioLegacyHasta:
+            d.precioLegacyHasta &&
+            typeof d.precioLegacyHasta.toDate === 'function'
+              ? d.precioLegacyHasta.toDate().toISOString()
+              : (d.precioLegacyHasta ?? prev?.precioLegacyHasta),
         }));
       },
       (error) => console.error('Error escuchando suscripción:', error),

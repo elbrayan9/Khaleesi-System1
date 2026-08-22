@@ -116,6 +116,33 @@ function ConfiguracionTab() {
     }
   }, [datosNegocio]);
 
+  // Aplica el precio anterior al aumento a todos los clientes actuales.
+  const aplicarLegacy = async (meses) => {
+    const confirm = await Swal.fire({
+      title: '¿Aplicar precio preferencial?',
+      text:
+        meses > 0
+          ? `Los clientes actuales mantendrán el precio anterior por ${meses} meses.`
+          : 'Los clientes actuales mantendrán el precio anterior de forma indefinida.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, aplicar',
+      cancelButtonText: 'Cancelar',
+    });
+    if (!confirm.isConfirmed) return;
+    try {
+      const fn = httpsCallable(getFunctions(), 'aplicarPrecioLegacy');
+      const res = await fn({ meses });
+      Swal.fire(
+        'Listo',
+        `Se aplicó a ${res.data?.aplicados ?? 0} cliente(s).`,
+        'success',
+      );
+    } catch (e) {
+      Swal.fire('Error', e?.message || 'No se pudo aplicar.', 'error');
+    }
+  };
+
   const handleFileUpload = (e, setFunction) => {
     const file = e.target.files[0];
     if (file) {
@@ -371,6 +398,32 @@ function ConfiguracionTab() {
                     Tienes acceso total a todas las funcionalidades del sistema,
                     independientemente del plan asignado al negocio.
                   </p>
+                </div>
+              </div>
+
+              <div className="mt-4 border-t border-yellow-500/30 pt-3">
+                <p className="mb-2 text-sm font-semibold">
+                  Precio preferencial para clientes actuales
+                </p>
+                <p className="mb-2 text-xs text-yellow-100/80">
+                  Les respeta el precio anterior al aumento ($25.000 el
+                  Completo). No pisa a quien ya tenga uno.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => aplicarLegacy(6)}
+                    className="rounded-md bg-yellow-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-yellow-500"
+                  >
+                    Aplicar por 6 meses
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => aplicarLegacy(0)}
+                    className="rounded-md bg-zinc-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-zinc-500"
+                  >
+                    Aplicar indefinido
+                  </button>
                 </div>
               </div>
             </div>

@@ -919,6 +919,56 @@ exports.ventaPorVoz = onCall(
 );
 
 // ===============================================
+// Precio preferencial para clientes actuales (grandfathering)
+// ===============================================
+// Le guarda a cada cliente existente el precio que tenía antes del aumento.
+// Solo admin. `meses` (opcional) define hasta cuándo se respeta; sin valor, es
+// indefinido. No pisa a quien ya tenga un precio preferencial.
+exports.aplicarPrecioLegacy = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
+    if (!request.auth || request.auth.token.admin !== true) {
+      throw new HttpsError('permission-denied', 'Solo un administrador.');
+    }
+    const meses = Number(request.data?.meses) || 0;
+    let hasta = null;
+    if (meses > 0) {
+      hasta = new Date();
+      hasta.setMonth(hasta.getMonth() + meses);
+    }
+
+    const PRECIOS_ANTERIORES = {
+      basic: { mensual: 15000, anual: 135000 },
+      premium: { mensual: 25000, anual: 250000 },
+    };
+
+    try {
+      const snap = await db.collection('datosNegocio').get();
+      let aplicados = 0;
+      const batchOps = [];
+      snap.forEach((docSnap) => {
+        const d = docSnap.data() || {};
+        if (d.precioLegacy) return; // ya tiene uno, no lo pisamos
+        if (!['active', 'trial'].includes(d.subscriptionStatus)) return;
+        const update = { precioLegacy: PRECIOS_ANTERIORES };
+        if (hasta) update.precioLegacyHasta = hasta;
+        batchOps.push(docSnap.ref.set(update, { merge: true }));
+        aplicados += 1;
+      });
+      await Promise.all(batchOps);
+      return {
+        success: true,
+        aplicados,
+        hasta: hasta ? hasta.toISOString() : null,
+      };
+    } catch (error) {
+      console.error('[aplicarPrecioLegacy] error:', error);
+      throw new HttpsError('internal', 'No se pudo aplicar.');
+    }
+  },
+);
+
+// ===============================================
 // FUNCIONES AUTOMÁTICAS (CRON JOBS)
 // ===============================================
 /**
@@ -1793,8 +1843,30 @@ exports.crearPagoSuscripcion = onCall(
       ? request.data.plan
       : 'premium';
     const ciclo = request.data?.ciclo === 'anual' ? 'anual' : 'mensual';
-    const precio =
+    let precio =
       ciclo === 'anual' ? PLANES_PRECIO_ANUAL[plan] : PLANES_PRECIO[plan];
+
+    // Precio preferencial (clientes anteriores al aumento). Se respeta mientras
+    // no venza `precioLegacyHasta` (si no tiene fecha, es indefinido).
+    try {
+      const negSnap = await db.collection('datosNegocio').doc(uid).get();
+      const neg = negSnap.exists ? negSnap.data() : null;
+      const legacy = neg?.precioLegacy?.[plan];
+      if (legacy) {
+        const hasta = neg?.precioLegacyHasta
+          ? new Date(
+              typeof neg.precioLegacyHasta.toDate === 'function'
+                ? neg.precioLegacyHasta.toDate()
+                : neg.precioLegacyHasta,
+            )
+          : null;
+        const vigente = !hasta || hasta.getTime() > Date.now();
+        const valor = ciclo === 'anual' ? legacy.anual : legacy.mensual;
+        if (vigente && Number(valor) > 0) precio = Number(valor);
+      }
+    } catch (e) {
+      console.warn('[MP sub] no se pudo leer precioLegacy:', e?.message);
+    }
 
     const token = MP_PLATFORM_TOKEN.value();
     if (!token) {

@@ -24,7 +24,21 @@ const PaymentInstructions = () => {
   const navigate = useNavigate();
 
   const planKey = datosNegocio?.plan === 'basic' ? 'basic' : 'premium';
-  const plan = PLANES[planKey];
+  const planBase = PLANES[planKey];
+
+  // Precio preferencial (clientes anteriores al aumento), si sigue vigente.
+  const legacy = datosNegocio?.precioLegacy?.[planKey];
+  const legacyVigente =
+    !!legacy &&
+    (!datosNegocio?.precioLegacyHasta ||
+      new Date(datosNegocio.precioLegacyHasta).getTime() > Date.now());
+  const plan = legacyVigente
+    ? {
+        ...planBase,
+        precio: Number(legacy.mensual) || planBase.precio,
+        anual: Number(legacy.anual) || planBase.anual,
+      }
+    : planBase;
 
   const handlePagarSuscripcion = async () => {
     setProcesando(true);
@@ -136,6 +150,11 @@ const PaymentInstructions = () => {
               <p className="text-[11px] text-zinc-500">
                 {ciclo === 'anual' ? 'por año · 12 meses' : 'por mes · 1 pago'}
               </p>
+              {legacyVigente && (
+                <p className="text-[11px] font-semibold text-emerald-400">
+                  Precio preferencial
+                </p>
+              )}
             </div>
           </div>
 
