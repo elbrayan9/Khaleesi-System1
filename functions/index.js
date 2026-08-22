@@ -862,6 +862,60 @@ exports.getTiendaPublica = onCall(
 );
 
 // ===============================================
+// Venta por voz: convierte un dictado en items del carrito
+// ===============================================
+exports.ventaPorVoz = onCall(
+  { secrets: [GEMINI_KEY], enforceAppCheck: true },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
+    }
+    const { texto, productos } = request.data || {};
+    if (!texto || typeof texto !== 'string') {
+      throw new HttpsError('invalid-argument', 'Falta el texto dictado.');
+    }
+    await enforcePremium(request);
+    await enforceDailyLimit(request.auth.uid, 60);
+    const apiKey = GEMINI_KEY.value();
+    if (!apiKey) throw new HttpsError('internal', 'Falta la clave de Gemini.');
+    const lista = Array.isArray(productos)
+      ? productos.slice(0, 300).join(' | ')
+      : '';
+    try {
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+      const prompt =
+        'Un cajero dictó una venta en voz alta. Convertilo en items usando SOLO ' +
+        'productos de la lista (nombre EXACTO como figura). Respondé SOLO un ' +
+        'JSON array (sin markdown): [{"producto":"nombre exacto","cantidad":numero}]. ' +
+        'Interpretá cantidades en palabras ("dos" = 2) y plurales ("dos cocas" = ' +
+        'el producto Coca). Si algo no coincide con ningún producto, omitilo.\n' +
+        `Dictado: "${texto}"\nProductos: ${lista}`;
+      const result = await model.generateContent(prompt);
+      const raw = (result.response.text() || '').trim();
+      let items = [];
+      try {
+        items = JSON.parse(raw.replace(/```json|```/g, '').trim());
+      } catch (_) {
+        items = [];
+      }
+      if (!Array.isArray(items)) items = [];
+      items = items
+        .slice(0, 30)
+        .map((it) => ({
+          producto: String(it.producto || '').trim(),
+          cantidad: Number(it.cantidad) || 1,
+        }))
+        .filter((it) => it.producto);
+      return { items };
+    } catch (error) {
+      console.error('[ventaPorVoz] error:', error);
+      throw new HttpsError('internal', 'No se pudo interpretar el dictado.');
+    }
+  },
+);
+
+// ===============================================
 // FUNCIONES AUTOMÁTICAS (CRON JOBS)
 // ===============================================
 /**

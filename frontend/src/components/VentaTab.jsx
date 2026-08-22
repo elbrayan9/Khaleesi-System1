@@ -4,6 +4,8 @@ import Cart from './Cart.jsx';
 import PaymentModal from './PaymentModal.jsx';
 import BalanzaEnVivoModal from './BalanzaEnVivoModal.jsx';
 import EscanerCamaraModal from './EscanerCamaraModal.jsx';
+import VentaPorVozModal, { soportaVoz } from './VentaPorVozModal.jsx';
+import EscanerNombreModal from './EscanerNombreModal.jsx';
 import SearchBar from './SearchBar.jsx';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
@@ -33,6 +35,7 @@ function VentaTab() {
     sucursalActual,
     selectedClientId, // <--- Usamos el del contexto
     setSelectedClientId, // <--- Usamos el del contexto
+    canAccessAI,
   } = useAppContext();
 
   // --- ESTADOS LOCALES DEL COMPONENTE ---
@@ -62,6 +65,8 @@ function VentaTab() {
   const [montoManual, setMontoManual] = useState('');
   const [showBalanza, setShowBalanza] = useState(false); // modal balanza en vivo
   const [showEscaner, setShowEscaner] = useState(false); // escáner por cámara
+  const [showVoz, setShowVoz] = useState(false); // venta por voz
+  const [showFoto, setShowFoto] = useState(false); // producto por foto
 
   // --- REFERENCIAS A ELEMENTOS DEL DOM ---
   const barcodeInputRef = useRef(null);
@@ -166,6 +171,39 @@ function VentaTab() {
     } else {
       await mostrarMensaje(`Código "${barcode}" no encontrado.`, 'warning');
       barcodeInputRef.current?.select();
+    }
+  };
+
+  // Producto identificado por foto (IA): lo buscamos en el catálogo.
+  const handleProductoPorFoto = (nombreIA, _blob, codigo) => {
+    setShowFoto(false);
+    if (codigo) {
+      const porCodigo = productos.find((p) => p.codigoBarras === codigo);
+      if (porCodigo) {
+        handleAddToCart(porCodigo, 1, 0);
+        return;
+      }
+    }
+    const q = String(nombreIA || '').toLowerCase();
+    const palabras = q.split(/\s+/).filter((w) => w.length > 3);
+    let mejor = null;
+    let mejorPuntaje = 0;
+    productos.forEach((p) => {
+      const n = String(p.nombre || '').toLowerCase();
+      const puntaje = palabras.filter((w) => n.includes(w)).length;
+      if (puntaje > mejorPuntaje) {
+        mejorPuntaje = puntaje;
+        mejor = p;
+      }
+    });
+    if (mejor) {
+      handleAddToCart(mejor, 1, 0);
+      mostrarMensaje(`Agregado: ${mejor.nombre}`, 'success');
+    } else {
+      mostrarMensaje(
+        `No encontré "${nombreIA}" en tus productos. Cargalo primero.`,
+        'warning',
+      );
     }
   };
 
@@ -511,6 +549,27 @@ function VentaTab() {
                 <i className="fas fa-balance-scale"></i> Balanza en vivo
               </button>
             )}
+            {canAccessAI && soportaVoz() && (
+              <button
+                type="button"
+                onClick={() => setShowVoz(true)}
+                className="mt-2 flex w-full items-center justify-center gap-2 rounded-md border border-rose-500 bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-300 transition-colors hover:bg-rose-500 hover:text-white"
+              >
+                <i className="fas fa-microphone"></i> Vender por voz
+              </button>
+            )}
+            {canAccessAI &&
+              typeof navigator !== 'undefined' &&
+              navigator.mediaDevices &&
+              navigator.mediaDevices.getUserMedia && (
+                <button
+                  type="button"
+                  onClick={() => setShowFoto(true)}
+                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-md border border-purple-500 bg-purple-500/10 px-4 py-2 text-sm font-semibold text-purple-300 transition-colors hover:bg-purple-500 hover:text-white"
+                >
+                  <i className="fas fa-camera"></i> Agregar por foto (IA)
+                </button>
+              )}
           </div>
 
           <hr className="border-zinc-700" />
@@ -690,6 +749,15 @@ function VentaTab() {
 
       {showBalanza && (
         <BalanzaEnVivoModal onClose={() => setShowBalanza(false)} />
+      )}
+
+      {showVoz && <VentaPorVozModal onClose={() => setShowVoz(false)} />}
+
+      {showFoto && (
+        <EscanerNombreModal
+          onDetected={handleProductoPorFoto}
+          onClose={() => setShowFoto(false)}
+        />
       )}
 
       {showEscaner && (
