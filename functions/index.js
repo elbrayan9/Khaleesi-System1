@@ -877,20 +877,19 @@ exports.consultarPagosMp = onCall(
       throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
     }
     const uid = request.auth.uid;
-    const { sucursalId = null, horas = 24 } = request.data || {};
+    const { sucursalId = null, dias = 1 } = request.data || {};
 
     const token = await leerAccessTokenComercio(uid, sucursalId);
     if (!token) {
       return { configurado: false, pagos: [] };
     }
 
-    const rango = Math.min(Math.max(Number(horas) || 24, 1), 72);
-    const desde = new Date(Date.now() - rango * 60 * 60 * 1000).toISOString();
+    // Rango relativo, que es el formato que documenta Mercado Pago.
+    const rango = Math.min(Math.max(Math.floor(Number(dias) || 1), 1), 31);
     const url =
       'https://api.mercadopago.com/v1/payments/search' +
       '?sort=date_created&criteria=desc&status=approved' +
-      `&range=date_created&begin_date=${encodeURIComponent(desde)}` +
-      '&end_date=NOW&limit=30';
+      `&range=date_created&begin_date=NOW-${rango}DAYS&end_date=NOW&limit=50`;
 
     try {
       const r = await fetch(url, {

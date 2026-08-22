@@ -27,6 +27,8 @@ function PagosRecibidos() {
   const [estado, setEstado] = useState('cargando'); // cargando | ok | sinToken | error
   const [error, setError] = useState('');
   const [actualizado, setActualizado] = useState(null);
+  const [dias, setDias] = useState(1); // 1 | 7 | 30
+  const [filtroMetodo, setFiltroMetodo] = useState('todos');
   const vistos = useRef(null);
 
   const cargar = useCallback(
@@ -39,7 +41,7 @@ function PagosRecibidos() {
         const fn = httpsCallable(getFunctions(), 'consultarPagosMp');
         const res = await fn({
           sucursalId: sucursalActual?.id || null,
-          horas: 24,
+          dias,
         });
         if (!res.data?.configurado) {
           setEstado('sinToken');
@@ -68,7 +70,8 @@ function PagosRecibidos() {
         setEstado('error');
       }
     },
-    [sucursalActual, mostrarMensaje],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sucursalActual?.id, dias],
   );
 
   useEffect(() => {
@@ -77,7 +80,21 @@ function PagosRecibidos() {
     return () => clearInterval(t);
   }, [cargar]);
 
-  const totalHoy = pagos.reduce((s, p) => s + (p.monto || 0), 0);
+  // Medios de pago presentes, para armar los filtros con lo que realmente hay.
+  const mediosDisponibles = Array.from(
+    new Set(pagos.map((p) => p.tipo).filter(Boolean)),
+  );
+  const visibles =
+    filtroMetodo === 'todos'
+      ? pagos
+      : pagos.filter((p) => p.tipo === filtroMetodo);
+  const totalFiltrado = visibles.reduce((s, p) => s + (p.monto || 0), 0);
+  const netoFiltrado = visibles.reduce(
+    (s, p) => s + (p.neto != null ? p.neto : p.monto || 0),
+    0,
+  );
+  const etiquetaPeriodo =
+    dias === 1 ? 'las últimas 24 h' : `los últimos ${dias} días`;
 
   return (
     <div className="space-y-4">
@@ -111,6 +128,29 @@ function PagosRecibidos() {
         </p>
       )}
 
+      {estado !== 'sinToken' && (
+        <div className="flex flex-wrap gap-2">
+          {[
+            [1, 'Hoy'],
+            [7, '7 días'],
+            [30, '30 días'],
+          ].map(([val, lbl]) => (
+            <button
+              key={val}
+              type="button"
+              onClick={() => setDias(val)}
+              className={`rounded-md px-3 py-1.5 text-sm font-semibold transition-colors ${
+                dias === val
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'
+              }`}
+            >
+              {lbl}
+            </button>
+          ))}
+        </div>
+      )}
+
       {estado === 'cargando' && (
         <p className="py-10 text-center text-sm text-zinc-400">
           Consultando Mercado Pago…
@@ -121,25 +161,52 @@ function PagosRecibidos() {
         <>
           <div className="rounded-xl border border-zinc-700 bg-zinc-800 p-4">
             <p className="text-xs uppercase tracking-wider text-zinc-500">
-              Cobrado en las últimas 24 h
+              Cobrado en {etiquetaPeriodo}
+              {filtroMetodo !== 'todos' &&
+                ` · ${METODOS[filtroMetodo] || filtroMetodo}`}
             </p>
             <p className="text-3xl font-bold tabular-nums text-white">
-              ${formatCurrency(totalHoy)}
+              ${formatCurrency(totalFiltrado)}
             </p>
             <p className="mt-1 text-xs text-zinc-500">
-              {pagos.length} cobro{pagos.length === 1 ? '' : 's'}
+              {visibles.length} cobro{visibles.length === 1 ? '' : 's'}
+              {netoFiltrado !== totalFiltrado &&
+                ` · neto $${formatCurrency(netoFiltrado)}`}
               {actualizado &&
                 ` · actualizado ${actualizado.toLocaleTimeString('es-AR')}`}
             </p>
           </div>
 
-          {pagos.length === 0 ? (
+          {mediosDisponibles.length > 1 && (
+            <div className="flex flex-wrap gap-2">
+              {['todos', ...mediosDisponibles].map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setFiltroMetodo(m)}
+                  className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+                    filtroMetodo === m
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'
+                  }`}
+                >
+                  {m === 'todos'
+                    ? 'Todos'
+                    : METODOS[m] || m.replace(/_/g, ' ')}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {visibles.length === 0 ? (
             <p className="py-12 text-center text-sm italic text-zinc-500">
-              Todavía no entraron pagos hoy.
+              {pagos.length === 0
+                ? `No entraron pagos en ${etiquetaPeriodo}.`
+                : 'No hay cobros con ese medio de pago.'}
             </p>
           ) : (
             <div className="space-y-2">
-              {pagos.map((p) => (
+              {visibles.map((p) => (
                 <motion.div
                   key={p.id}
                   initial={{ opacity: 0, y: 6 }}
