@@ -15,7 +15,9 @@ import { db } from '../firebaseConfig';
 import { useAppContext } from '../context/AppContext.jsx';
 
 const CLAVE_SYNC = 'ultimaSyncOk';
-const HORAS_GRACIA = 72;
+// Margen sin poder sincronizar antes de bloquear: cubre un corte de internet de
+// un día entero, sin dejar margen para operar desconectado a propósito.
+const HORAS_GRACIA = 24;
 
 function EstadoConexion() {
   const { datosNegocio, currentUser } = useAppContext();
