@@ -31,6 +31,8 @@ import SubscriptionStatusBanner from './SubscriptionStatusBanner.jsx';
 import SucursalSelector from './SucursalSelector.jsx';
 import ThemeToggle from './ThemeToggle.jsx';
 import AvisoPedidoOnline from './AvisoPedidoOnline.jsx';
+import EstadoConexion from './EstadoConexion.jsx';
+import ActualizacionApp from './ActualizacionApp.jsx';
 
 // Rutas permitidas en "modo cajero" (el resto se oculta).
 const CAJERO_PATHS = [
@@ -401,6 +403,8 @@ function Layout() {
       )}
 
       <AvisoPedidoOnline />
+      <EstadoConexion />
+      <ActualizacionApp />
 
       <ChatbotModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
     </div>

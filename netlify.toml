@@ -10,5 +10,17 @@
     X-Frame-Options = "SAMEORIGIN"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
-    Permissions-Policy = "geolocation=(), microphone=(), camera=(self)"
+    Permissions-Policy = "geolocation=(self), microphone=(), camera=(self)"
     Content-Security-Policy = "script-src 'self' https://www.google.com https://www.gstatic.com https://*.firebaseio.com https://www.googleapis.com https://www.googletagmanager.com https://apis.google.com https://identitytoolkit.googleapis.com; object-src 'self'"
+
+# El service worker y el manifest no deben cachearse: si no, la app no se
+# actualiza cuando publicamos una version nueva.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Cache-Control = "no-cache"
