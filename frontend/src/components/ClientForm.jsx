@@ -2,6 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useAppContext } from '../context/AppContext.jsx';
+import { ScanLine } from 'lucide-react';
+import EscanerCamaraModal from './EscanerCamaraModal.jsx';
+import { parsearDni } from '../utils/dni.js';
 
 function ClientForm({ onSave, clientToEdit, onCancelEdit }) {
   const { mostrarMensaje, sucursalActual } = useAppContext();
@@ -13,6 +16,23 @@ function ClientForm({ onSave, clientToEdit, onCancelEdit }) {
   const [condicionFiscal, setCondicionFiscal] = useState('Consumidor Final');
   const [telefono, setTelefono] = useState('');
   const [email, setEmail] = useState('');
+  const [showEscanerDni, setShowEscanerDni] = useState(false);
+
+  // Carga los datos leyendo el código de barras (PDF417) del DNI argentino.
+  const handleDniEscaneado = (texto) => {
+    setShowEscanerDni(false);
+    const datos = parsearDni(texto);
+    if (!datos) {
+      mostrarMensaje(
+        'No se pudo leer el DNI. Apuntá al código de barras del dorso.',
+        'warning',
+      );
+      return;
+    }
+    setNombre(datos.nombre);
+    if (datos.cuil) setCuit(datos.cuil);
+    mostrarMensaje(`Cargado: ${datos.nombre} (DNI ${datos.dni})`, 'success');
+  };
 
   // Cargar datos al editar un cliente existente
   useEffect(() => {
@@ -144,6 +164,18 @@ function ClientForm({ onSave, clientToEdit, onCancelEdit }) {
           ? `Editando: ${clientToEdit.nombre}`
           : 'Agregar Nuevo Cliente'}
       </h3>
+
+      {typeof navigator !== 'undefined' &&
+        navigator.mediaDevices &&
+        navigator.mediaDevices.getUserMedia && (
+          <button
+            type="button"
+            onClick={() => setShowEscanerDni(true)}
+            className="mb-4 flex w-full items-center justify-center gap-2 rounded-md border border-sky-500 bg-sky-500/10 px-4 py-2 text-sm font-semibold text-sky-300 transition-colors hover:bg-sky-500 hover:text-white sm:w-auto"
+          >
+            <ScanLine className="h-4 w-4" /> Escanear DNI
+          </button>
+        )}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {/* NOMBRE */}
@@ -279,6 +311,13 @@ function ClientForm({ onSave, clientToEdit, onCancelEdit }) {
           )}
         </div>
       </div>
+
+      {showEscanerDni && (
+        <EscanerCamaraModal
+          onDetected={handleDniEscaneado}
+          onClose={() => setShowEscanerDni(false)}
+        />
+      )}
     </form>
   );
 }
