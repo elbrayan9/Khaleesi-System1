@@ -8,21 +8,23 @@
 //     de verdad lo hacen las reglas de Firestore del lado del servidor; esto
 //     evita que alguien quede operando indefinidamente sin conexión.
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { WifiOff, RefreshCw } from 'lucide-react';
+import { doc, getDocFromServer } from 'firebase/firestore';
+import { db } from '../firebaseConfig';
 import { useAppContext } from '../context/AppContext.jsx';
 
 const CLAVE_SYNC = 'ultimaSyncOk';
 const HORAS_GRACIA = 72;
 
 function EstadoConexion() {
-  const { datosNegocio } = useAppContext();
+  const { datosNegocio, currentUser } = useAppContext();
   const [online, setOnline] = useState(
     typeof navigator === 'undefined' ? true : navigator.onLine,
   );
   const [bloqueado, setBloqueado] = useState(false);
 
-  // Estado de la conexión.
+  // Estado de la conexión (solo para el cartel; el candado no se fía de esto).
   useEffect(() => {
     const subir = () => setOnline(true);
     const bajar = () => setOnline(false);
@@ -34,40 +36,54 @@ function EstadoConexion() {
     };
   }, []);
 
-  // Con conexión y datos frescos del servidor, sellamos la hora.
-  useEffect(() => {
-    if (online && datosNegocio?.subscriptionStatus) {
+  // Verificación REAL contra el servidor. No alcanza con que el navegador diga
+  // "estoy online": alguien podría tener internet y bloquear Firebase. Acá
+  // exigimos una lectura que no salga de la caché local.
+  const verificarConServidor = useCallback(async () => {
+    if (!currentUser?.uid) return false;
+    try {
+      await getDocFromServer(doc(db, 'datosNegocio', currentUser.uid));
       try {
         localStorage.setItem(CLAVE_SYNC, String(Date.now()));
       } catch (_) {
         /* modo privado */
       }
       setBloqueado(false);
+      return true;
+    } catch (_) {
+      return false;
     }
-  }, [online, datosNegocio?.subscriptionStatus]);
+  }, [currentUser?.uid]);
 
-  // Revisamos el período de gracia mientras está sin conexión.
   useEffect(() => {
-    const revisar = () => {
-      if (navigator.onLine) {
-        setBloqueado(false);
-        return;
-      }
+    if (!currentUser?.uid) return undefined;
+
+    const revisar = async () => {
+      const ok = await verificarConServidor();
+      if (ok) return;
+
+      // No se pudo hablar con el servidor: miramos hace cuánto fue la última vez.
       let ultima = 0;
       try {
         ultima = Number(localStorage.getItem(CLAVE_SYNC)) || 0;
       } catch (_) {
         ultima = 0;
       }
-      // Sin sello previo no bloqueamos: puede ser el primer arranque.
+      // Primer arranque sin sello: no bloqueamos todavía.
       if (!ultima) return;
+      // Reloj atrasado a mano: lo tomamos como período vencido.
+      if (Date.now() < ultima) {
+        setBloqueado(true);
+        return;
+      }
       const horas = (Date.now() - ultima) / 3600000;
       setBloqueado(horas > HORAS_GRACIA);
     };
+
     revisar();
-    const t = setInterval(revisar, 60000);
+    const t = setInterval(revisar, 10 * 60 * 1000); // cada 10 minutos
     return () => clearInterval(t);
-  }, [online]);
+  }, [currentUser?.uid, verificarConServidor, datosNegocio?.subscriptionStatus]);
 
   if (bloqueado) {
     return (
@@ -84,7 +100,10 @@ function EstadoConexion() {
           </p>
           <button
             type="button"
-            onClick={() => window.location.reload()}
+            onClick={async () => {
+              const ok = await verificarConServidor();
+              if (!ok) window.location.reload();
+            }}
             className="mt-5 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 font-semibold text-white hover:bg-blue-500"
           >
             <RefreshCw className="h-4 w-4" /> Reintentar
