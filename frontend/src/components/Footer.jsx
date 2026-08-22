@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import AppLogo from './AppLogo';
 
 function Footer({ simple = false }) {
@@ -9,6 +10,15 @@ function Footer({ simple = false }) {
       <footer className="mt-auto w-full border-t border-zinc-800 bg-transparent py-4 text-center">
         <p className="text-xs text-zinc-500">
           &copy; {currentYear} Khaleesi System. Todos los derechos reservados.
+        </p>
+        <p className="mt-1 text-xs text-zinc-500">
+          <Link to="/terminos" className="hover:text-zinc-300">
+            Términos y Condiciones
+          </Link>
+          {' · '}
+          <Link to="/privacidad" className="hover:text-zinc-300">
+            Privacidad
+          </Link>
         </p>
       </footer>
     );
@@ -31,6 +41,15 @@ function Footer({ simple = false }) {
             <p className="mt-4 text-sm text-zinc-400">
               &copy; {currentYear} Khaleesi System. Todos los derechos
               reservados.
+            </p>
+            <p className="mt-2 text-sm text-zinc-400">
+              <Link to="/terminos" className="hover:text-white">
+                Términos y Condiciones
+              </Link>
+              {' · '}
+              <Link to="/privacidad" className="hover:text-white">
+                Política de Privacidad
+              </Link>
             </p>
           </div>
 

@@ -208,7 +208,7 @@ function Layout() {
 
       {/* SIDEBAR */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-border bg-background transition-all duration-200 md:static md:z-auto md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-64 transform-gpu flex-col border-r border-border bg-background transition-transform duration-200 ease-out will-change-transform md:sticky md:top-0 md:z-auto md:h-screen md:translate-x-0 md:transition-none ${
           mini ? 'md:w-16' : 'md:w-60'
         } ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
       >

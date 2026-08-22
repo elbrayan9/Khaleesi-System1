@@ -822,7 +822,16 @@ const LandingPage = () => {
             </div>
           </div>
 
-          <HoverEffectWrapper className="mx-auto mt-12 grid max-w-5xl grid-cols-1 gap-8 md:grid-cols-2">
+          <p className="mx-auto mt-6 max-w-2xl text-center text-xs text-zinc-400">
+            Precios en pesos argentinos (ARS), impuestos incluidos.{' '}
+            <strong className="text-zinc-300">7 días de prueba gratis</strong> en
+            cualquier plan. El plan anual equivale a 10 meses (2 meses sin
+            cargo). Sin renovación automática: cada período se abona cuando vos
+            querés y podés dar de baja en cualquier momento. Pagos procesados por
+            Mercado Pago.
+          </p>
+
+          <HoverEffectWrapper className="mx-auto mt-8 grid max-w-5xl grid-cols-1 gap-8 md:grid-cols-2">
             {/* PLAN BÁSICO */}
             <motion.div
               className="group relative overflow-hidden rounded-xl border border-white/10 bg-zinc-800/50 p-8 shadow-xl transition-transform hover:scale-105"
@@ -976,6 +985,18 @@ const LandingPage = () => {
               </div>
             </motion.div>
           </HoverEffectWrapper>
+
+          <p className="mt-6 text-center text-xs text-zinc-500">
+            Al contratar aceptás nuestros{' '}
+            <Link to="/terminos" className="text-blue-400 hover:underline">
+              Términos y Condiciones
+            </Link>{' '}
+            y la{' '}
+            <Link to="/privacidad" className="text-blue-400 hover:underline">
+              Política de Privacidad
+            </Link>
+            .
+          </p>
         </section>
 
         {/* Contact Section */}
