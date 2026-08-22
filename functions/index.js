@@ -914,7 +914,59 @@ exports.consultarPagosMp = onCall(
         pagador:
           p.payer?.first_name || p.payer?.email || p.payer?.identification?.number || '',
       }));
-      return { configurado: true, pagos };
+
+      // Además de los cobros, intentamos traer los movimientos de la cuenta
+      // para incluir las transferencias recibidas (lo que se ve en la app de
+      // Mercado Pago). No todas las cuentas habilitan este endpoint: si no se
+      // puede, seguimos mostrando los cobros y lo avisamos.
+      let incluyeTransferencias = false;
+      try {
+        const desdeIso = new Date(
+          Date.now() - rango * 24 * 60 * 60 * 1000,
+        ).toISOString();
+        const mr = await fetch(
+          'https://api.mercadopago.com/v1/account/movements/search' +
+            `?begin_date=${encodeURIComponent(desdeIso)}` +
+            `&end_date=${encodeURIComponent(new Date().toISOString())}` +
+            '&limit=50&offset=0',
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        if (mr.ok) {
+          const mdata = await mr.json();
+          const movs = Array.isArray(mdata?.results) ? mdata.results : [];
+          incluyeTransferencias = true;
+          const yaEstan = new Set(pagos.map((p) => p.id));
+          movs.forEach((m) => {
+            const monto = Number(m.amount ?? m.transaction_amount ?? 0);
+            // Solo ingresos que no sean cobros ya listados (transferencias).
+            const esPago = String(m.type || '').includes('payment');
+            const id = String(m.id ?? m.reference_id ?? '');
+            if (!id || esPago || yaEstan.has(id) || monto <= 0) return;
+            pagos.push({
+              id,
+              monto,
+              neto: null,
+              fecha: m.date_created || m.date_approved || null,
+              metodo: 'transferencia',
+              tipo: 'bank_transfer',
+              descripcion: m.description || 'Transferencia recibida',
+              pagador: m.counterpart?.name || m.payer?.first_name || '',
+            });
+          });
+          pagos.sort(
+            (a, b) => new Date(b.fecha || 0) - new Date(a.fecha || 0),
+          );
+        } else {
+          console.log(
+            '[consultarPagosMp] movements no disponible:',
+            mr.status,
+          );
+        }
+      } catch (e) {
+        console.log('[consultarPagosMp] movements falló:', e?.message);
+      }
+
+      return { configurado: true, pagos, incluyeTransferencias };
     } catch (error) {
       if (error.code) throw error;
       console.error('[consultarPagosMp] error de red:', error);

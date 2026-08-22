@@ -15,7 +15,7 @@ const METODOS = {
   debit_card: 'Tarjeta de débito',
   credit_card: 'Tarjeta de crédito',
   ticket: 'Efectivo (pago fácil)',
-  bank_transfer: 'Transferencia',
+  bank_transfer: 'Transferencia recibida',
 };
 
 const nombreMetodo = (p) =>
@@ -29,6 +29,7 @@ function PagosRecibidos() {
   const [actualizado, setActualizado] = useState(null);
   const [dias, setDias] = useState(1); // 1 | 7 | 30
   const [filtroMetodo, setFiltroMetodo] = useState('todos');
+  const [incluyeTransf, setIncluyeTransf] = useState(false);
   const vistos = useRef(null);
 
   const cargar = useCallback(
@@ -48,6 +49,7 @@ function PagosRecibidos() {
           return;
         }
         const lista = res.data.pagos || [];
+        setIncluyeTransf(!!res.data.incluyeTransferencias);
 
         // Aviso cuando entra uno nuevo (no en la primera carga).
         if (vistos.current !== null) {
@@ -243,8 +245,9 @@ function PagosRecibidos() {
           )}
 
           <p className="text-center text-[11px] text-zinc-500">
-            Muestra los cobros de Mercado Pago (QR, link, posnet y tarjeta). Las
-            transferencias entre personas pueden no aparecer.
+            {incluyeTransf
+              ? 'Muestra el dinero que entró a tu cuenta de Mercado Pago: cobros (QR, link, posnet, tarjeta) y transferencias recibidas.'
+              : 'Muestra los cobros de Mercado Pago (QR, link, posnet y tarjeta). Tu cuenta no habilita la consulta de movimientos, así que las transferencias recibidas pueden no aparecer acá.'}
           </p>
         </>
       )}
