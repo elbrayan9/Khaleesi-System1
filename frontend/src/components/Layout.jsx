@@ -24,11 +24,13 @@ import {
   PanelLeft,
   Lock,
   ScanLine,
+  ShoppingBag,
 } from 'lucide-react';
 import ChatbotModal from './ChatbotModal.jsx';
 import SubscriptionStatusBanner from './SubscriptionStatusBanner.jsx';
 import SucursalSelector from './SucursalSelector.jsx';
 import ThemeToggle from './ThemeToggle.jsx';
+import AvisoPedidoOnline from './AvisoPedidoOnline.jsx';
 
 // Rutas permitidas en "modo cajero" (el resto se oculta).
 const CAJERO_PATHS = [
@@ -36,6 +38,7 @@ const CAJERO_PATHS = [
   '/dashboard/productos',
   '/dashboard/clientes',
   '/dashboard/pistola',
+  '/dashboard/pedidos-online',
 ];
 
 function Layout() {
@@ -47,7 +50,14 @@ function Layout() {
     canAccessMultisucursal,
     canAccessAI,
     canAccessAfip,
+    datosNegocio,
+    pedidosOnline,
   } = useAppContext();
+
+  // Pedidos de la tienda esperando ser atendidos (badge del menú).
+  const pedidosNuevos = (pedidosOnline || []).filter(
+    (p) => p.estado === 'nuevo',
+  ).length;
   const navigate = useNavigate();
   const location = useLocation();
   const currentPath = location.pathname;
@@ -118,6 +128,16 @@ function Layout() {
       items: [
         { label: 'Nueva Venta', Icon: ShoppingCart, path: '/dashboard' },
         { label: 'Pistola (celu)', Icon: ScanLine, path: '/dashboard/pistola' },
+        ...(datosNegocio?.tiendaActiva
+          ? [
+              {
+                label: 'Pedidos online',
+                Icon: ShoppingBag,
+                path: '/dashboard/pedidos-online',
+                badge: pedidosNuevos,
+              },
+            ]
+          : []),
         { label: 'Caja y Reportes', Icon: Wallet, path: '/dashboard/reportes' },
       ],
     },
@@ -175,7 +195,7 @@ function Layout() {
     },
   ];
 
-  const NavItem = ({ label, Icon, path }) => {
+  const NavItem = ({ label, Icon, path, badge }) => {
     const active = currentPath === path;
     return (
       <Link
@@ -189,7 +209,14 @@ function Layout() {
             : 'text-muted-foreground hover:bg-muted hover:text-foreground'
         }`}
       >
-        <Icon className="h-5 w-5 flex-none" strokeWidth={active ? 2.5 : 2} />
+        <span className="relative flex-none">
+          <Icon className="h-5 w-5" strokeWidth={active ? 2.5 : 2} />
+          {badge > 0 && (
+            <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+              {badge}
+            </span>
+          )}
+        </span>
         {!mini && <span className="truncate">{label}</span>}
       </Link>
     );
@@ -362,6 +389,8 @@ function Layout() {
           </button>
         </motion.div>
       )}
+
+      <AvisoPedidoOnline />
 
       <ChatbotModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
     </div>

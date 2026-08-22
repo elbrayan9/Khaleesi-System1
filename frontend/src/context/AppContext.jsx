@@ -49,6 +49,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
   const [vendedores, setVendedores] = useState([]);
   const [proveedores, setProveedores] = useState([]);
   const [pedidos, setPedidos] = useState([]);
+  const [pedidosOnline, setPedidosOnline] = useState([]);
   const [cartItems, setCartItems] = useState([]);
   const [ventas, setVentas] = useState([]);
   const [egresos, setEgresos] = useState([]);
@@ -353,6 +354,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       { name: 'vendedores', setter: setVendedores },
       { name: 'proveedores', setter: setProveedores },
       { name: 'pedidos', setter: setPedidos },
+      { name: 'pedidos_online', setter: setPedidosOnline },
       { name: 'ventas', setter: setVentas },
       { name: 'egresos', setter: setEgresos },
       { name: 'ingresos_manuales', setter: setIngresosManuales },
@@ -2280,6 +2282,99 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     }
   };
 
+  // Registra un pedido online como venta al entregarlo. No usamos
+  // handleSaleConfirmed porque exige turno y vendedor y vacía el carrito
+  // (borraría la venta que el cajero tenga en curso).
+  const handleEntregarPedidoOnline = async (pedido) => {
+    if (!pedido?.id || !sucursalActual) return false;
+    const { fecha, hora } = obtenerFechaHoraActual();
+
+    const items = (pedido.items || []).map((it) => {
+      const prod = productos.find((p) => p.id === it.productoId);
+      const unitario = Number(it.precioUnitario) || 0;
+      const cantidad = Number(it.cantidad) || 0;
+      return {
+        id: it.productoId,
+        nombre: it.nombre,
+        cantidad,
+        precioOriginal: unitario,
+        descuentoPorcentaje: 0,
+        // precioFinal es el TOTAL de la línea (igual que en el carrito).
+        precioFinal: Math.round(unitario * cantidad * 100) / 100,
+        costo: Number(prod?.costo) || 0,
+      };
+    });
+
+    const total = Number(pedido.total) || 0;
+    const vendedor = vendedores.find((v) => v.id === vendedorActivoId) || null;
+
+    const newSaleData = {
+      fecha,
+      hora,
+      clienteId: 'consumidor_final',
+      clienteNombre: pedido.cliente?.nombre || 'Pedido online',
+      items,
+      total,
+      propina: 0,
+      pagos: [
+        {
+          metodo: pedido.metodoPago === 'qr_local' ? 'mercado_pago' : 'efectivo',
+          monto: total,
+        },
+      ],
+      vuelto: 0,
+      tipoFactura: 'X',
+      afipData: null,
+      userId: currentUser?.uid,
+      vendedorId: vendedor?.id || null,
+      vendedorNombre: vendedor?.nombre || 'Pedido online',
+      origen: 'tienda_online',
+      pedidoOnlineId: pedido.id,
+    };
+
+    setIsLoadingData(true);
+    try {
+      // addVenta descuenta stock y falla si no alcanza.
+      const ventaId = await fsService.addVenta(
+        currentUser?.uid,
+        newSaleData,
+        sucursalActual.id,
+      );
+      if (!isValidFirestoreId(ventaId)) {
+        throw new Error('No se pudo registrar la venta.');
+      }
+
+      if (turnoActivo?.id) {
+        fsService
+          .addSaleToShift(turnoActivo.id, ventaId)
+          .catch((e) => console.error('Error sumando venta al turno:', e));
+      }
+
+      const { getFunctions, httpsCallable } = await import(
+        'firebase/functions'
+      );
+      const fn = httpsCallable(getFunctions(), 'actualizarEstadoPedido');
+      await fn({ pedidoId: pedido.id, estado: 'entregado', ventaId });
+
+      mostrarMensaje?.(
+        turnoActivo?.id
+          ? 'Pedido entregado y registrado como venta.'
+          : 'Pedido entregado y registrado. Ojo: no hay un turno de caja abierto.',
+        'success',
+      );
+      return true;
+    } catch (error) {
+      console.error('Error entregando pedido online:', error);
+      mostrarMensaje?.(
+        error.message || 'No se pudo registrar la venta del pedido.',
+        'error',
+      );
+      return false;
+    } finally {
+      setIsLoadingData(false);
+    }
+  };
+
   const handleGuardarDatosNegocio = async (datosActualizados) => {
     const ok = await fsService.saveDatosNegocio(
       currentUser?.uid,
@@ -2442,6 +2537,8 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     vendedores,
     proveedores,
     pedidos,
+    pedidosOnline,
+    handleEntregarPedidoOnline,
     cartItems,
     ventas,
     egresos,

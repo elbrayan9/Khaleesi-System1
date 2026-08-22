@@ -865,6 +865,239 @@ exports.getTiendaPublica = onCall(
 );
 
 // ===============================================
+// Pedidos online: la tienda pública crea el pedido y entra al POS en vivo
+// ===============================================
+// Devuelve la sucursal si su tienda está publicada (activa + suscripción
+// vigente + Plan Completo), o null. Mismo criterio que getTiendaPublica.
+async function leerTiendaPublicada(sucursalId) {
+  const sucDoc = await db.collection('sucursales').doc(sucursalId).get();
+  if (!sucDoc.exists) return null;
+  const suc = sucDoc.data() || {};
+  if (!suc.configuracion?.tiendaActiva || !suc.userId) return null;
+  const negDoc = await db.collection('datosNegocio').doc(suc.userId).get();
+  const neg = negDoc.exists ? negDoc.data() : null;
+  const vigente =
+    ['active', 'trial'].includes(neg?.subscriptionStatus) &&
+    neg?.plan === 'premium';
+  return vigente ? suc : null;
+}
+
+// Número de pedido corto y correlativo por sucursal.
+async function siguienteCodigoPedido(sucursalId) {
+  const ref = db.collection('contadores').doc(sucursalId);
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const actual = Number(snap.exists ? snap.data()?.pedidosOnline : 0) || 0;
+    const proximo = actual + 1;
+    tx.set(ref, { pedidosOnline: proximo }, { merge: true });
+    return proximo;
+  });
+}
+
+exports.crearPedidoTienda = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
+    const sucursalId = String(request.data?.sucursalId || '').trim();
+    const items = Array.isArray(request.data?.items) ? request.data.items : [];
+    const cliente = request.data?.cliente || {};
+    const tipo = request.data?.tipo === 'delivery' ? 'delivery' : 'retiro';
+    const metodoPago =
+      request.data?.metodoPago === 'qr_local' ? 'qr_local' : 'efectivo';
+
+    if (!sucursalId) {
+      throw new HttpsError('invalid-argument', 'Falta la sucursal.');
+    }
+    if (items.length === 0 || items.length > 50) {
+      throw new HttpsError('invalid-argument', 'El pedido está vacío.');
+    }
+    const nombreCliente = String(cliente.nombre || '').trim().slice(0, 80);
+    const telefono = String(cliente.telefono || '').replace(/\D/g, '').slice(0, 20);
+    if (!nombreCliente || telefono.length < 6) {
+      throw new HttpsError(
+        'invalid-argument',
+        'Necesitamos tu nombre y un teléfono válido.',
+      );
+    }
+    const direccion = String(cliente.direccion || '').trim().slice(0, 160);
+    if (tipo === 'delivery' && !direccion) {
+      throw new HttpsError('invalid-argument', 'Falta la dirección de envío.');
+    }
+
+    try {
+      const suc = await leerTiendaPublicada(sucursalId);
+      if (!suc) {
+        throw new HttpsError(
+          'failed-precondition',
+          'La tienda no está disponible en este momento.',
+        );
+      }
+
+      // Freno anti-abuso: máximo de pedidos por sucursal por día.
+      const limiteRef = db
+        .collection('contadores')
+        .doc(`${sucursalId}_${getLocalDateKey()}`);
+      const cuenta = await db.runTransaction(async (tx) => {
+        const snap = await tx.get(limiteRef);
+        const n = (Number(snap.exists ? snap.data()?.pedidos : 0) || 0) + 1;
+        tx.set(limiteRef, { pedidos: n }, { merge: true });
+        return n;
+      });
+      if (cuenta > 300) {
+        throw new HttpsError(
+          'resource-exhausted',
+          'Se alcanzó el máximo de pedidos por hoy.',
+        );
+      }
+
+      // Los precios y el stock salen de Firestore: nunca del navegador.
+      const detalle = [];
+      let total = 0;
+      for (const it of items) {
+        const productoId = String(it?.productoId || '').trim();
+        const cantidad = Math.floor(Number(it?.cantidad) || 0);
+        if (!productoId || cantidad <= 0) continue;
+        // eslint-disable-next-line no-await-in-loop
+        const pDoc = await db.collection('productos').doc(productoId).get();
+        if (!pDoc.exists) {
+          throw new HttpsError(
+            'failed-precondition',
+            'Uno de los productos ya no está disponible.',
+          );
+        }
+        const p = pDoc.data() || {};
+        if (p.sucursalId !== sucursalId) {
+          throw new HttpsError('failed-precondition', 'Pedido inválido.');
+        }
+        const precioUnitario = Number(p.precio) || 0;
+        if (precioUnitario <= 0) {
+          throw new HttpsError(
+            'failed-precondition',
+            `"${p.nombre}" no está disponible.`,
+          );
+        }
+        if ((Number(p.stock) || 0) < cantidad) {
+          throw new HttpsError(
+            'failed-precondition',
+            `No hay stock suficiente de "${p.nombre}".`,
+          );
+        }
+        const subtotal = Math.round(precioUnitario * cantidad * 100) / 100;
+        detalle.push({
+          productoId,
+          nombre: String(p.nombre || ''),
+          cantidad,
+          precioUnitario,
+          subtotal,
+        });
+        total += subtotal;
+      }
+      if (detalle.length === 0) {
+        throw new HttpsError('invalid-argument', 'El pedido está vacío.');
+      }
+      total = Math.round(total * 100) / 100;
+
+      const codigo = await siguienteCodigoPedido(sucursalId);
+      const trackingToken = require('crypto').randomUUID();
+
+      const ref = await db.collection('pedidos_online').add({
+        userId: suc.userId,
+        sucursalId,
+        codigo,
+        cliente: { nombre: nombreCliente, telefono, direccion },
+        tipo,
+        items: detalle,
+        total,
+        metodoPago,
+        estado: 'nuevo',
+        tiempoEstimado: null,
+        trackingToken,
+        ventaId: null,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      return { pedidoId: ref.id, codigo, trackingToken, total };
+    } catch (error) {
+      if (error.code) throw error;
+      console.error('[crearPedidoTienda] error:', error);
+      throw new HttpsError('internal', 'No se pudo enviar el pedido.');
+    }
+  },
+);
+
+// Seguimiento para el cliente (sin login): solo con el token del pedido.
+exports.getEstadoPedido = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
+    const pedidoId = String(request.data?.pedidoId || '').trim();
+    const token = String(request.data?.trackingToken || '').trim();
+    if (!pedidoId || !token) {
+      throw new HttpsError('invalid-argument', 'Datos incompletos.');
+    }
+    try {
+      const doc = await db.collection('pedidos_online').doc(pedidoId).get();
+      if (!doc.exists) throw new HttpsError('not-found', 'Pedido no encontrado.');
+      const d = doc.data() || {};
+      if (d.trackingToken !== token) {
+        throw new HttpsError('permission-denied', 'Pedido no encontrado.');
+      }
+      return {
+        codigo: d.codigo,
+        estado: d.estado,
+        tiempoEstimado: d.tiempoEstimado ?? null,
+        total: d.total,
+        tipo: d.tipo,
+      };
+    } catch (error) {
+      if (error.code) throw error;
+      console.error('[getEstadoPedido] error:', error);
+      throw new HttpsError('internal', 'No se pudo consultar el pedido.');
+    }
+  },
+);
+
+// Cambio de estado desde el POS (solo el dueño del pedido).
+exports.actualizarEstadoPedido = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
+    }
+    const pedidoId = String(request.data?.pedidoId || '').trim();
+    const estado = String(request.data?.estado || '').trim();
+    const permitidos = ['confirmado', 'listo', 'entregado', 'rechazado'];
+    if (!pedidoId || !permitidos.includes(estado)) {
+      throw new HttpsError('invalid-argument', 'Datos inválidos.');
+    }
+    try {
+      const ref = db.collection('pedidos_online').doc(pedidoId);
+      const doc = await ref.get();
+      if (!doc.exists) throw new HttpsError('not-found', 'Pedido no encontrado.');
+      if (doc.data()?.userId !== request.auth.uid) {
+        throw new HttpsError('permission-denied', 'No es tu pedido.');
+      }
+      const update = {
+        estado,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+      if (estado === 'confirmado') {
+        const t = Number(request.data?.tiempoEstimado) || 0;
+        if (t > 0) update.tiempoEstimado = t;
+      }
+      if (estado === 'entregado' && request.data?.ventaId) {
+        update.ventaId = String(request.data.ventaId);
+      }
+      await ref.update(update);
+      return { success: true };
+    } catch (error) {
+      if (error.code) throw error;
+      console.error('[actualizarEstadoPedido] error:', error);
+      throw new HttpsError('internal', 'No se pudo actualizar el pedido.');
+    }
+  },
+);
+
+// ===============================================
 // Venta por voz: convierte un dictado en items del carrito
 // ===============================================
 exports.ventaPorVoz = onCall(

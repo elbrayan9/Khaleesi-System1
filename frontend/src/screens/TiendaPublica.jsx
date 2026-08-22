@@ -9,6 +9,8 @@ import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { formatCurrency } from '../utils/helpers';
 import { ShoppingCart, Search, Plus, Minus, Send } from 'lucide-react';
+import TiendaCheckoutModal from '../components/TiendaCheckoutModal.jsx';
+import SeguimientoPedido from '../components/SeguimientoPedido.jsx';
 
 function TiendaPublica() {
   const { sucursalId } = useParams();
@@ -18,6 +20,40 @@ function TiendaPublica() {
   const [busqueda, setBusqueda] = useState('');
   const [carrito, setCarrito] = useState({}); // { [id]: cantidad }
   const [nombreCliente, setNombreCliente] = useState('');
+  const [showCheckout, setShowCheckout] = useState(false);
+  // Pedido en curso: se guarda para poder volver al seguimiento.
+  const [pedidoActivo, setPedidoActivo] = useState(() => {
+    try {
+      const g = localStorage.getItem(`pedido_${sucursalId}`);
+      return g ? JSON.parse(g) : null;
+    } catch (_) {
+      return null;
+    }
+  });
+
+  const onPedidoCreado = (data) => {
+    const guardar = {
+      pedidoId: data.pedidoId,
+      trackingToken: data.trackingToken,
+    };
+    try {
+      localStorage.setItem(`pedido_${sucursalId}`, JSON.stringify(guardar));
+    } catch (_) {
+      /* modo privado: seguimos igual */
+    }
+    setPedidoActivo(guardar);
+    setShowCheckout(false);
+    setCarrito({});
+  };
+
+  const nuevoPedido = () => {
+    try {
+      localStorage.removeItem(`pedido_${sucursalId}`);
+    } catch (_) {
+      /* ignore */
+    }
+    setPedidoActivo(null);
+  };
 
   useEffect(() => {
     let cancelado = false;
@@ -115,6 +151,28 @@ function TiendaPublica() {
             Puede estar desactivada o el enlace no es correcto.
           </p>
         </div>
+      </div>
+    );
+  }
+
+  if (pedidoActivo) {
+    return (
+      <div className="min-h-screen bg-zinc-900 text-zinc-200">
+        <header className="border-b border-zinc-800 px-4 py-5 text-center">
+          {tienda?.logoUrl && (
+            <img
+              src={tienda.logoUrl}
+              alt={tienda.nombre}
+              className="mx-auto mb-2 h-14 w-14 rounded-lg bg-white object-contain p-1"
+            />
+          )}
+          <h1 className="text-xl font-bold text-white">{tienda?.nombre}</h1>
+        </header>
+        <SeguimientoPedido
+          pedidoId={pedidoActivo.pedidoId}
+          trackingToken={pedidoActivo.trackingToken}
+          onNuevoPedido={nuevoPedido}
+        />
       </div>
     );
   }
@@ -227,22 +285,29 @@ function TiendaPublica() {
                 ${formatCurrency(total)}
               </span>
             </div>
-            <div className="flex gap-2">
-              <input
-                value={nombreCliente}
-                onChange={(e) => setNombreCliente(e.target.value)}
-                placeholder="Tu nombre (opcional)"
-                className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white placeholder-zinc-500"
-              />
-              <button
-                onClick={enviarPedido}
-                className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-green-700"
-              >
-                <Send className="h-4 w-4" /> Pedir por WhatsApp
-              </button>
-            </div>
+            <button
+              onClick={() => setShowCheckout(true)}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-green-600 py-3 text-sm font-bold text-white hover:bg-green-700"
+            >
+              <ShoppingCart className="h-4 w-4" /> Confirmar pedido
+            </button>
+            <button
+              onClick={enviarPedido}
+              className="mt-2 flex w-full items-center justify-center gap-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-200"
+            >
+              <Send className="h-3.5 w-3.5" /> o enviarlo por WhatsApp
+            </button>
           </div>
         </div>
+      )}
+      {showCheckout && (
+        <TiendaCheckoutModal
+          sucursalId={sucursalId}
+          items={items}
+          total={total}
+          onCreado={onPedidoCreado}
+          onClose={() => setShowCheckout(false)}
+        />
       )}
     </div>
   );
