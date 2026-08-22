@@ -26,6 +26,7 @@ import NotasCDTab from './components/NotasCDTab.jsx';
 import ConfiguracionTab from './components/ConfiguracionTab.jsx';
 import PrintReceipt from './components/PrintReceipt.jsx';
 import ScannerPistola from './screens/ScannerPistola.jsx';
+import TiendaPublica from './screens/TiendaPublica.jsx';
 import PrintNota from './components/PrintNota.jsx';
 import SaleDetailModal from './components/SaleDetailModal.jsx';
 import NotaDetailModal from './components/NotaDetailModal.jsx';
@@ -388,6 +389,7 @@ function App() {
           <Route path="/product/:productId" element={<PublicProductView />} />
           <Route path="/print-labels" element={<BulkPrintView />} />
           <Route path="/verificador" element={<PriceCheckerView />} />
+          <Route path="/tienda/:sucursalId" element={<TiendaPublica />} />
           <Route
             path="/login"
             element={

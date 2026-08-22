@@ -12,6 +12,7 @@ import {
   ImagePlus,
   X,
 } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { resizeImage } from '../utils/image.js';
 import { subirLogoNegocio } from '../services/storageService';
 import ImportDataTab from './ImportDataTab';
@@ -37,6 +38,7 @@ function ConfiguracionTab() {
     isAdmin,
     plan,
     mostrarMensaje,
+    sucursalActual,
   } = useAppContext();
 
   const [activeTab, setActiveTab] = useState('general'); // 'general' | 'import' | 'subscription'
@@ -47,6 +49,7 @@ function ConfiguracionTab() {
   const [ventaRapidaHabilitada, setVentaRapidaHabilitada] = useState(false);
   const [balanzaEnVivoHabilitada, setBalanzaEnVivoHabilitada] =
     useState(false);
+  const [tiendaActiva, setTiendaActiva] = useState(false);
   const [umbralStockBajo, setUmbralStockBajo] = useState(10);
   const [recibirReporteDiario, setRecibirReporteDiario] = useState(false);
   const [whatsappDueño, setWhatsappDueño] = useState('');
@@ -81,6 +84,7 @@ function ConfiguracionTab() {
       setCuit(datosNegocio.cuit || '');
       setVentaRapidaHabilitada(datosNegocio.habilitarVentaRapida || false);
       setBalanzaEnVivoHabilitada(datosNegocio.habilitarBalanzaEnVivo || false);
+      setTiendaActiva(datosNegocio.tiendaActiva || false);
       setUmbralStockBajo(datosNegocio.umbralStockBajo || 10);
       setRecibirReporteDiario(datosNegocio.recibirReporteDiario || false);
       setWhatsappDueño(datosNegocio.whatsappDueño || '');
@@ -275,6 +279,7 @@ function ConfiguracionTab() {
       cuit: cuit.trim(),
       habilitarVentaRapida: ventaRapidaHabilitada,
       habilitarBalanzaEnVivo: balanzaEnVivoHabilitada,
+      tiendaActiva: tiendaActiva,
       umbralStockBajo: Number(umbralStockBajo) || 0,
       recibirReporteDiario: recibirReporteDiario,
       whatsappDueño: whatsappDueño.trim(),
@@ -1172,6 +1177,83 @@ function ConfiguracionTab() {
               />
               <div className="peer h-6 w-11 rounded-full bg-zinc-600 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:border after:bg-white after:transition-all after:content-[''] peer-checked:bg-blue-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:ring-2 peer-focus:ring-blue-500"></div>
             </label>
+          </div>
+
+          {/* TIENDA ONLINE */}
+          <div className="mt-3 rounded-md bg-zinc-700/50 p-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <label
+                  htmlFor="toggle-tienda"
+                  className="font-medium text-zinc-100"
+                >
+                  Tienda online (catálogo + pedidos por WhatsApp)
+                </label>
+                <p className="text-xs text-zinc-400">
+                  Publica tus productos con foto y precio. Tus clientes arman el
+                  pedido y te llega por WhatsApp. Pegá el QR en el local.
+                </p>
+              </div>
+              <label className="relative inline-flex cursor-pointer items-center">
+                <input
+                  type="checkbox"
+                  id="toggle-tienda"
+                  checked={tiendaActiva}
+                  onChange={(e) => setTiendaActiva(e.target.checked)}
+                  className="peer sr-only"
+                />
+                <div className="peer h-6 w-11 rounded-full bg-zinc-600 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:border after:bg-white after:transition-all after:content-[''] peer-checked:bg-blue-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:ring-2 peer-focus:ring-blue-500"></div>
+              </label>
+            </div>
+
+            {tiendaActiva && sucursalActual?.id && (
+              <div className="mt-3 flex flex-col items-center gap-3 border-t border-zinc-600 pt-3 sm:flex-row">
+                <div className="rounded-lg bg-white p-2">
+                  <QRCodeSVG
+                    value={`${window.location.origin}/tienda/${sucursalActual.id}`}
+                    size={110}
+                  />
+                </div>
+                <div className="min-w-0 flex-1 text-center sm:text-left">
+                  <p className="mb-1 text-xs text-zinc-400">
+                    Link de tu tienda:
+                  </p>
+                  <p className="break-all font-mono text-xs text-zinc-200">
+                    {`${window.location.origin}/tienda/${sucursalActual.id}`}
+                  </p>
+                  <div className="mt-2 flex flex-wrap justify-center gap-2 sm:justify-start">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        navigator.clipboard
+                          ?.writeText(
+                            `${window.location.origin}/tienda/${sucursalActual.id}`,
+                          )
+                          .then(() =>
+                            mostrarMensaje?.('Link copiado.', 'success'),
+                          )
+                          .catch(() => {})
+                      }
+                      className="rounded-md bg-zinc-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-zinc-500"
+                    >
+                      Copiar link
+                    </button>
+                    <a
+                      href={`${window.location.origin}/tienda/${sucursalActual.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-500"
+                    >
+                      Ver tienda
+                    </a>
+                  </div>
+                  <p className="mt-2 text-[11px] text-zinc-500">
+                    Necesitás tu WhatsApp cargado arriba para recibir los
+                    pedidos. Guardá los cambios para aplicar.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           <ImpresoraTermicaConfig />

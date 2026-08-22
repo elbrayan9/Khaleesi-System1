@@ -817,6 +817,51 @@ exports.resumenDiario = onCall(
 );
 
 // ===============================================
+// Tienda online pública (catálogo + pedidos por WhatsApp)
+// ===============================================
+// Devuelve solo datos públicos del negocio para la vitrina. No requiere login
+// (es para los clientes del comercio), pero sí App Check.
+exports.getTiendaPublica = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
+    const sucursalId = String(request.data?.sucursalId || '').trim();
+    if (!sucursalId) {
+      throw new HttpsError('invalid-argument', 'Falta la sucursal.');
+    }
+    try {
+      const sucDoc = await db.collection('sucursales').doc(sucursalId).get();
+      if (!sucDoc.exists) return { activa: false };
+      const suc = sucDoc.data() || {};
+      const cfg = suc.configuracion || {};
+      if (!cfg.tiendaActiva) return { activa: false };
+
+      // La suscripción debe estar vigente para publicar la tienda.
+      let vigente = false;
+      if (suc.userId) {
+        const negDoc = await db
+          .collection('datosNegocio')
+          .doc(suc.userId)
+          .get();
+        const neg = negDoc.exists ? negDoc.data() : null;
+        vigente = ['active', 'trial'].includes(neg?.subscriptionStatus);
+      }
+      if (!vigente) return { activa: false };
+
+      return {
+        activa: true,
+        nombre: cfg.nombre || suc.nombre || 'Nuestra tienda',
+        direccion: cfg.direccion || '',
+        whatsapp: cfg.whatsappDueño || '',
+        logoUrl: cfg.logoUrl || '',
+      };
+    } catch (error) {
+      console.error('[getTiendaPublica] error:', error);
+      throw new HttpsError('internal', 'No se pudo cargar la tienda.');
+    }
+  },
+);
+
+// ===============================================
 // FUNCIONES AUTOMÁTICAS (CRON JOBS)
 // ===============================================
 /**
