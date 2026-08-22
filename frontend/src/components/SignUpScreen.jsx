@@ -137,7 +137,7 @@ function SignUpScreen() {
                   <div className="flex gap-2">
                     {[
                       ['basic', 'Básico', '$15.000/mes'],
-                      ['premium', 'Completo', 'IA + AFIP'],
+                      ['premium', 'Completo', '$35.000/mes'],
                     ].map(([val, nom, desc]) => (
                       <button
                         key={val}

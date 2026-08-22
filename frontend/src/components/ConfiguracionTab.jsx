@@ -1230,7 +1230,18 @@ function ConfiguracionTab() {
             )}
           </div>
 
-          {/* TIENDA ONLINE */}
+          {/* TIENDA ONLINE — Plan Completo */}
+          {!(isPremium || isAdmin) ? (
+            <div className="mt-3 rounded-md border border-blue-500/30 bg-blue-500/10 p-3">
+              <p className="font-medium text-white">
+                Tienda online (catálogo + pedidos por WhatsApp)
+              </p>
+              <p className="text-xs text-zinc-300">
+                Publicá tus productos con foto y recibí pedidos por WhatsApp.
+                Disponible en el <strong>Plan Completo</strong>.
+              </p>
+            </div>
+          ) : (
           <div className="mt-3 rounded-md bg-zinc-700/50 p-3">
             <div className="flex items-center justify-between">
               <div>
@@ -1306,6 +1317,7 @@ function ConfiguracionTab() {
               </div>
             )}
           </div>
+          )}
 
           <ImpresoraTermicaConfig />
 

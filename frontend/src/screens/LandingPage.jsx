@@ -906,7 +906,7 @@ const LandingPage = () => {
                 </p>
                 <div className="mt-6 flex items-baseline justify-center gap-2">
                   <span className="text-4xl font-extrabold text-white">
-                    {billingCycle === 'monthly' ? '$25.000' : '$250.000'}
+                    {billingCycle === 'monthly' ? '$35.000' : '$350.000'}
                   </span>
                   <span className="text-zinc-400">
                     ARS / {billingCycle === 'monthly' ? 'mes' : 'año'}
@@ -914,7 +914,7 @@ const LandingPage = () => {
                 </div>
                 {billingCycle === 'annual' && (
                   <p className="mt-2 text-sm text-green-400">
-                    ¡Ahorras $57.000 al año!
+                    ¡Ahorras $70.000 al año!
                   </p>
                 )}
 
@@ -938,6 +938,10 @@ const LandingPage = () => {
                   <li className="flex items-center gap-2 font-medium text-white">
                     <CheckCircle className="h-5 w-5 flex-shrink-0 text-blue-400" />
                     Reporte Diario Automático
+                  </li>
+                  <li className="flex items-center gap-2 font-medium text-white">
+                    <CheckCircle className="h-5 w-5 flex-shrink-0 text-blue-400" />
+                    Tienda online con QR + pedidos por WhatsApp
                   </li>
                   <li className="flex items-center gap-2 font-medium text-white">
                     <CheckCircle className="h-5 w-5 flex-shrink-0 text-blue-400" />
