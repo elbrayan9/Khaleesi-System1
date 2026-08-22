@@ -19,11 +19,13 @@ import {
 import { useAppContext } from '../context/AppContext.jsx';
 import { formatCurrency, obtenerFechaHoraActual } from '../utils/helpers.js';
 import { printVentaTicket } from '../services/thermalPrinterService';
+import RepartidoresPanel from '../components/RepartidoresPanel.jsx';
 
 const ESTADOS = {
   nuevo: { label: 'Nuevo', color: 'bg-amber-500/20 text-amber-300' },
   confirmado: { label: 'En preparación', color: 'bg-blue-500/20 text-blue-300' },
   listo: { label: 'Listo', color: 'bg-emerald-500/20 text-emerald-300' },
+  en_camino: { label: 'En camino', color: 'bg-indigo-500/20 text-indigo-300' },
   entregado: { label: 'Entregado', color: 'bg-zinc-600/40 text-zinc-300' },
   rechazado: { label: 'Rechazado', color: 'bg-red-500/20 text-red-300' },
 };
@@ -39,7 +41,7 @@ function PedidosOnline() {
   const [ocupado, setOcupado] = useState(null);
 
   const lista = useMemo(() => {
-    const activos = ['nuevo', 'confirmado', 'listo'];
+    const activos = ['nuevo', 'confirmado', 'listo', 'en_camino'];
     return [...pedidosOnline]
       .filter((p) =>
         filtro === 'activos'
@@ -262,6 +264,11 @@ function PedidosOnline() {
                       {p.cliente.direccion}
                     </p>
                   )}
+                  {p.repartidorNombre && (
+                    <p className="flex items-center gap-1.5 text-indigo-300">
+                      🛵 {p.repartidorNombre}
+                    </p>
+                  )}
                   {p.tiempoEstimado > 0 && (
                     <p className="flex items-center gap-1.5">
                       <Clock className="h-3.5 w-3.5" />
@@ -327,7 +334,19 @@ function PedidosOnline() {
                       <Check className="h-4 w-4" /> Entregado
                     </button>
                   )}
-                  {['nuevo', 'confirmado', 'listo'].includes(p.estado) && (
+                  {p.estado === 'entregado' && !p.ventaId && (
+                    <button
+                      onClick={() => entregar(p)}
+                      disabled={trabajando}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-amber-600 px-3 py-2 text-sm font-bold text-white hover:bg-amber-500 disabled:opacity-50"
+                      title="El repartidor lo entregó: confirmá el cobro para registrarlo"
+                    >
+                      <Check className="h-4 w-4" /> Registrar venta
+                    </button>
+                  )}
+                  {['nuevo', 'confirmado', 'listo', 'en_camino'].includes(
+                    p.estado,
+                  ) && (
                     <button
                       onClick={() => imprimirTicket(p)}
                       className="rounded-md bg-zinc-700 px-3 py-2 text-sm font-bold text-zinc-100 hover:bg-zinc-600"
@@ -342,6 +361,8 @@ function PedidosOnline() {
           })}
         </div>
       )}
+
+      <RepartidoresPanel />
     </div>
   );
 }

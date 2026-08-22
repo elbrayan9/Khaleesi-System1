@@ -1136,6 +1136,191 @@ exports.crearPedidoTienda = onCall(
   },
 );
 
+// ===============================================
+// App del repartidor (sin cuenta: entra con un link con token)
+// ===============================================
+// Busca al repartidor por su token de acceso. Devuelve null si no existe o si
+// el comercio lo dio de baja.
+async function leerRepartidorPorToken(token) {
+  const t = String(token || '').trim();
+  if (!t) return null;
+  const snap = await db
+    .collection('repartidores')
+    .where('accessToken', '==', t)
+    .limit(1)
+    .get();
+  if (snap.empty) return null;
+  const doc = snap.docs[0];
+  const d = doc.data() || {};
+  if (d.activo === false) return null;
+  return { id: doc.id, ref: doc.ref, ...d };
+}
+
+// Sesión del repartidor: sus datos, el pedido que tenga en curso y los pedidos
+// de delivery listos para salir.
+exports.sesionRepartidor = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
+    const rep = await leerRepartidorPorToken(request.data?.token);
+    if (!rep) {
+      throw new HttpsError('permission-denied', 'Enlace no válido.');
+    }
+    try {
+      const base = db
+        .collection('pedidos_online')
+        .where('sucursalId', '==', rep.sucursalId);
+
+      const [asignados, disponibles] = await Promise.all([
+        base.where('repartidorId', '==', rep.id).limit(10).get(),
+        base.where('estado', '==', 'listo').limit(20).get(),
+      ]);
+
+      const aPedido = (doc) => {
+        const d = doc.data() || {};
+        return {
+          id: doc.id,
+          codigo: d.codigo,
+          estado: d.estado,
+          tipo: d.tipo,
+          total: d.total,
+          metodoPago: d.metodoPago,
+          cliente: d.cliente || {},
+          items: (d.items || []).map((it) => ({
+            nombre: it.nombre,
+            cantidad: it.cantidad,
+          })),
+          repartidorId: d.repartidorId || null,
+        };
+      };
+
+      // El que tiene en curso (todavía no entregado).
+      const enCurso = asignados.docs
+        .map(aPedido)
+        .filter((p) => ['en_camino', 'listo'].includes(p.estado));
+
+      // Disponibles: solo delivery y sin repartidor asignado.
+      const libres = disponibles.docs
+        .map(aPedido)
+        .filter((p) => p.tipo === 'delivery' && !p.repartidorId);
+
+      return {
+        repartidor: {
+          nombre: rep.nombre || '',
+          online: !!rep.online,
+          vehiculo: rep.vehiculo || null,
+        },
+        enCurso,
+        disponibles: rep.online ? libres : [],
+      };
+    } catch (error) {
+      console.error('[sesionRepartidor] error:', error);
+      throw new HttpsError('internal', 'No se pudo cargar la sesión.');
+    }
+  },
+);
+
+// Disponible / no disponible (el switch "Online").
+exports.repartidorOnline = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
+    const rep = await leerRepartidorPorToken(request.data?.token);
+    if (!rep) throw new HttpsError('permission-denied', 'Enlace no válido.');
+    const online = !!request.data?.online;
+    const vehiculo = ['moto', 'auto', 'bici'].includes(request.data?.vehiculo)
+      ? request.data.vehiculo
+      : rep.vehiculo || 'moto';
+    await rep.ref.update({
+      online,
+      vehiculo,
+      actualizadoEn: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    return { success: true, online, vehiculo };
+  },
+);
+
+// Posición del repartidor mientras está en viaje.
+exports.ubicacionRepartidor = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
+    const rep = await leerRepartidorPorToken(request.data?.token);
+    if (!rep) throw new HttpsError('permission-denied', 'Enlace no válido.');
+    const lat = Number(request.data?.lat);
+    const lng = Number(request.data?.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      throw new HttpsError('invalid-argument', 'Coordenadas inválidas.');
+    }
+    await rep.ref.update({ ubicacion: { lat, lng, ts: Date.now() } });
+    return { success: true };
+  },
+);
+
+// Tomar un pedido. Transacción para que dos repartidores no agarren el mismo.
+exports.tomarPedido = onCall({ enforceAppCheck: true }, async (request) => {
+  const rep = await leerRepartidorPorToken(request.data?.token);
+  if (!rep) throw new HttpsError('permission-denied', 'Enlace no válido.');
+  const pedidoId = String(request.data?.pedidoId || '').trim();
+  if (!pedidoId) throw new HttpsError('invalid-argument', 'Falta el pedido.');
+
+  const ref = db.collection('pedidos_online').doc(pedidoId);
+  try {
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) {
+        throw new HttpsError('not-found', 'El pedido ya no existe.');
+      }
+      const d = snap.data() || {};
+      if (d.sucursalId !== rep.sucursalId) {
+        throw new HttpsError('permission-denied', 'Pedido de otro comercio.');
+      }
+      if (d.repartidorId) {
+        throw new HttpsError(
+          'failed-precondition',
+          'Otro repartidor ya tomó este pedido.',
+        );
+      }
+      if (d.estado !== 'listo') {
+        throw new HttpsError(
+          'failed-precondition',
+          'El pedido todavía no está listo.',
+        );
+      }
+      tx.update(ref, {
+        repartidorId: rep.id,
+        repartidorNombre: rep.nombre || '',
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    });
+    return { success: true };
+  } catch (error) {
+    if (error.code) throw error;
+    console.error('[tomarPedido] error:', error);
+    throw new HttpsError('internal', 'No se pudo tomar el pedido.');
+  }
+});
+
+// En camino / entregado. La venta NO se registra acá: la confirma el comercio
+// desde el POS cuando el repartidor rinde la plata.
+exports.estadoEntrega = onCall({ enforceAppCheck: true }, async (request) => {
+  const rep = await leerRepartidorPorToken(request.data?.token);
+  if (!rep) throw new HttpsError('permission-denied', 'Enlace no válido.');
+  const pedidoId = String(request.data?.pedidoId || '').trim();
+  const estado = String(request.data?.estado || '').trim();
+  if (!pedidoId || !['en_camino', 'entregado'].includes(estado)) {
+    throw new HttpsError('invalid-argument', 'Datos inválidos.');
+  }
+  const ref = db.collection('pedidos_online').doc(pedidoId);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError('not-found', 'Pedido no encontrado.');
+  if (snap.data()?.repartidorId !== rep.id) {
+    throw new HttpsError('permission-denied', 'Ese pedido no es tuyo.');
+  }
+  await ref.update({
+    estado,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  return { success: true };
+});
+
 // Seguimiento para el cliente (sin login): solo con el token del pedido.
 exports.getEstadoPedido = onCall(
   { enforceAppCheck: true },
@@ -1152,12 +1337,42 @@ exports.getEstadoPedido = onCall(
       if (d.trackingToken !== token) {
         throw new HttpsError('permission-denied', 'Pedido no encontrado.');
       }
+      // Si ya salió con un repartidor, mandamos su posición para el mapa.
+      let repartidor = null;
+      if (d.repartidorId) {
+        try {
+          const rDoc = await db
+            .collection('repartidores')
+            .doc(d.repartidorId)
+            .get();
+          const r = rDoc.exists ? rDoc.data() : null;
+          if (r) {
+            repartidor = {
+              nombre: r.nombre || '',
+              vehiculo: r.vehiculo || null,
+              // Solo si la posición es reciente (menos de 5 minutos).
+              lat:
+                r.ubicacion?.ts && Date.now() - r.ubicacion.ts < 300000
+                  ? r.ubicacion.lat
+                  : null,
+              lng:
+                r.ubicacion?.ts && Date.now() - r.ubicacion.ts < 300000
+                  ? r.ubicacion.lng
+                  : null,
+            };
+          }
+        } catch (e) {
+          console.warn('[getEstadoPedido] repartidor:', e?.message);
+        }
+      }
+
       return {
         codigo: d.codigo,
         estado: d.estado,
         tiempoEstimado: d.tiempoEstimado ?? null,
         total: d.total,
         tipo: d.tipo,
+        repartidor,
       };
     } catch (error) {
       if (error.code) throw error;

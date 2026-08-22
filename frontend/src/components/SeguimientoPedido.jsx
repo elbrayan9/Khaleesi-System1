@@ -7,11 +7,13 @@
 import React, { useEffect, useState } from 'react';
 import { Check, Clock, XCircle } from 'lucide-react';
 import { formatCurrency } from '../utils/helpers';
+import MapaEnVivo from './MapaEnVivo.jsx';
 
 const PASOS = [
   { estado: 'nuevo', label: 'Pedido recibido' },
   { estado: 'confirmado', label: 'El local está preparando tu pedido' },
   { estado: 'listo', label: 'Listo' },
+  { estado: 'en_camino', label: 'En camino' },
   { estado: 'entregado', label: 'Entregado' },
 ];
 
@@ -85,6 +87,24 @@ function SeguimientoPedido({ pedidoId, trackingToken, onNuevoPedido }) {
               <div className="mt-4 flex items-center gap-2 rounded-lg bg-blue-500/10 p-3 text-sm text-blue-300">
                 <Clock className="h-4 w-4 flex-none" />
                 Estará listo en aproximadamente {datos.tiempoEstimado} minutos.
+              </div>
+            )}
+
+            {datos.repartidor?.nombre && (
+              <div className="mt-4 rounded-lg bg-zinc-900/60 p-3">
+                <p className="text-sm text-white">
+                  🛵 <strong>{datos.repartidor.nombre}</strong> lleva tu pedido
+                </p>
+                {Number.isFinite(datos.repartidor.lat) &&
+                  Number.isFinite(datos.repartidor.lng) && (
+                    <div className="mt-2">
+                      <MapaEnVivo
+                        lat={datos.repartidor.lat}
+                        lng={datos.repartidor.lng}
+                        etiqueta={datos.repartidor.nombre}
+                      />
+                    </div>
+                  )}
               </div>
             )}
 

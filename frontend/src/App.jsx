@@ -30,6 +30,7 @@ import TiendaPublica from './screens/TiendaPublica.jsx';
 import LegalPage from './screens/LegalPage.jsx';
 import PedidosOnline from './screens/PedidosOnline.jsx';
 import PagosRecibidos from './screens/PagosRecibidos.jsx';
+import AppRepartidor from './screens/AppRepartidor.jsx';
 import PrintNota from './components/PrintNota.jsx';
 import SaleDetailModal from './components/SaleDetailModal.jsx';
 import NotaDetailModal from './components/NotaDetailModal.jsx';
@@ -393,6 +394,7 @@ function App() {
           <Route path="/print-labels" element={<BulkPrintView />} />
           <Route path="/verificador" element={<PriceCheckerView />} />
           <Route path="/tienda/:sucursalId" element={<TiendaPublica />} />
+          <Route path="/repartidor/:token" element={<AppRepartidor />} />
           <Route path="/terminos" element={<LegalPage />} />
           <Route path="/privacidad" element={<LegalPage />} />
           <Route
