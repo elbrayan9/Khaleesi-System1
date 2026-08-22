@@ -378,7 +378,7 @@ const LandingPage = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
           >
-            <h2 className="text-5xl font-extrabold tracking-tight text-white sm:text-6xl md:text-7xl">
+            <h2 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl">
               <motion.span
                 className="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent"
                 initial={{ opacity: 0, y: 20 }}

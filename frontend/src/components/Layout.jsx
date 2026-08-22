@@ -146,7 +146,7 @@ function Layout() {
         },
         // Notas C/D es de facturación (AFIP) → solo Plan Completo.
         ...(canAccessAfip
-          ? [{ label: 'Notas C/D', Icon: FileMinus, path: '/dashboard/notas' }]
+          ? [{ label: 'Notas de Crédito', Icon: FileMinus, path: '/dashboard/notas' }]
           : []),
       ],
     },

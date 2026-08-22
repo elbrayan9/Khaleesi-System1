@@ -377,7 +377,7 @@ function NotasCDTab({
     <div id="notas_cd">
       <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold text-white sm:text-2xl">
         <FileDiff className="h-8 w-8 text-pink-500" />
-        Notas de Crédito / Débito
+        Notas de Crédito
       </h2>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
         <div className="rounded-lg bg-zinc-800 p-4 shadow-md sm:p-5">
@@ -417,7 +417,6 @@ function NotasCDTab({
                 className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100"
               >
                 <option value="credito">Nota de Crédito</option>
-                <option value="debito">Nota de Débito</option>
               </select>
             </div>
             <div>

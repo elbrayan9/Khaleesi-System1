@@ -7,6 +7,7 @@ import EscanerCamaraModal from './EscanerCamaraModal.jsx';
 import VentaPorVozModal, { soportaVoz } from './VentaPorVozModal.jsx';
 import EscanerNombreModal from './EscanerNombreModal.jsx';
 import SearchBar from './SearchBar.jsx';
+import Swal from 'sweetalert2';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { useAppContext } from '../context/AppContext.jsx';
@@ -285,35 +286,15 @@ function VentaTab() {
           await import('firebase/functions');
         const functions = getFunctions();
 
-        // --- CHEQUEO PREVIO: ¿ARCA está operativo? ---
-        // ARCA a veces se cae. Si está caído, avisamos y NO intentamos facturar
-        // (evita el error críptico y no deja la venta a medias).
-        try {
-          const checkAfipStatus = httpsCallable(functions, 'checkAfipStatus');
-          const estado = await checkAfipStatus({
-            sucursalId: sucursalActual?.id || null,
-          });
-          const s = estado?.data?.status;
-          const arcaOperativo =
-            estado?.data?.success &&
-            s?.appServer === 'OK' &&
-            s?.dbServer === 'OK' &&
-            s?.authServer === 'OK';
-          if (!arcaOperativo) {
-            await mostrarMensaje(
-              'El sistema de ARCA no está disponible en este momento, así que no se puede emitir la factura. Probá de nuevo en unos minutos, o cobrá como "Ticket X" (sin factura) y facturá cuando ARCA vuelva.',
-              'warning',
-            );
-            return;
-          }
-        } catch (statusErr) {
-          console.error('Error verificando estado de ARCA:', statusErr);
-          await mostrarMensaje(
-            'No se pudo verificar el estado de ARCA (puede estar caído o sin conexión a internet). No se emitió la factura. Probá de nuevo en unos minutos.',
-            'warning',
-          );
-          return;
-        }
+        // Vamos directo a facturar: el chequeo previo de estado de ARCA
+        // duplicaba la espera. Si ARCA está caído, el propio createInvoice
+        // falla y lo explicamos abajo.
+        Swal.fire({
+          title: 'Emitiendo factura…',
+          text: 'Conectando con ARCA',
+          allowOutsideClick: false,
+          didOpen: () => Swal.showLoading(),
+        });
 
         const createInvoice = httpsCallable(functions, 'createInvoice');
 
@@ -362,19 +343,30 @@ function VentaTab() {
           docNro,
         };
 
-        if (afipResult.mock) {
-          await mostrarMensaje('Factura generada en MODO PRUEBA.', 'warning');
-        } else {
-          await mostrarMensaje(
-            'Factura Electrónica generada con éxito.',
-            'success',
-          );
-        }
+        // Aviso breve y NO bloqueante: la venta sigue sin esperar un "OK".
+        Swal.fire({
+          icon: afipResult.mock ? 'warning' : 'success',
+          title: afipResult.mock
+            ? 'Factura en MODO PRUEBA'
+            : '¡Factura autorizada!',
+          text: afipResult.cae ? `CAE ${afipResult.cae}` : '',
+          timer: 1600,
+          showConfirmButton: false,
+        });
       } catch (error) {
         console.error('Error al facturar:', error);
-        await mostrarMensaje(`Error al facturar: ${error.message}`, 'error');
-        // Preguntar si desea continuar como Ticket X o cancelar
-        // Por simplicidad, abortamos.
+        Swal.close();
+        const msg = String(error?.message || '');
+        const arcaCaido =
+          /timeout|ETIMEDOUT|ECONNRESET|network|socket|unavailable|503|502/i.test(
+            msg,
+          );
+        await mostrarMensaje(
+          arcaCaido
+            ? 'ARCA no responde en este momento. No se emitió la factura: probá de nuevo en unos minutos, o cobrá como "Ticket X" y facturá cuando vuelva.'
+            : `Error al facturar: ${msg}`,
+          arcaCaido ? 'warning' : 'error',
+        );
         return;
       }
     }

@@ -1,12 +1,11 @@
 // src/components/ThreeBackground.jsx
 //
-// Fondo 3D animado con Three.js para la landing: campo de partículas con
-// profundidad + una figura wireframe girando lento, con parallax de mouse.
+// Fondo 3D animado con Three.js: campo de partículas con profundidad y
+// parallax de mouse. three.js se carga diferido (no pesa en el arranque).
 // Transparente (deja ver el fondo de la página). Respeta prefers-reduced-motion
 // y limpia todo al desmontar.
 
 import React, { useEffect, useRef } from 'react';
-import * as THREE from 'three';
 
 function ThreeBackground() {
   const mountRef = useRef(null);
@@ -14,6 +13,23 @@ function ThreeBackground() {
   useEffect(() => {
     const mount = mountRef.current;
     if (!mount) return undefined;
+    let limpiar = null;
+    let vivo = true;
+
+    // three.js se carga aparte para no pesar en el arranque de la página.
+    import('three').then((THREE) => {
+      if (!vivo) return;
+      limpiar = iniciar(THREE, mount);
+    });
+
+    return () => {
+      vivo = false;
+      if (limpiar) limpiar();
+    };
+  }, []);
+
+  // Toda la escena vive acá; devuelve la función de limpieza.
+  function iniciar(THREE, mount) {
 
     const reduce =
       typeof window !== 'undefined' &&
@@ -109,7 +125,7 @@ function ThreeBackground() {
         renderer.domElement.parentNode.removeChild(renderer.domElement);
       }
     };
-  }, []);
+  }
 
   return (
     <div
