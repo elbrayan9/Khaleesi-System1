@@ -2,8 +2,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { collection, query, where, getDocs, limit } from 'firebase/firestore';
-import { db } from '../firebaseConfig';
-import { formatCurrency } from '../utils/helpers';
+import { onAuthStateChanged } from 'firebase/auth';
+import { db, auth } from '../firebaseConfig';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ScanBarcode, Search, XCircle } from 'lucide-react';
 import AppLogo from '../components/AppLogo';
@@ -15,6 +15,7 @@ const PriceCheckerView = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [notFound, setNotFound] = useState(false);
+  const [uid, setUid] = useState(undefined); // undefined = todavía no sabemos
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -22,10 +23,21 @@ const PriceCheckerView = () => {
     inputRef.current?.focus();
   }, []);
 
-  // SE UTILIZA TU LÓGICA DE BÚSQUEDA ORIGINAL
+  // El verificador muestra SOLO los productos del negocio que abrió la pantalla.
+  useEffect(() => {
+    return onAuthStateChanged(auth, (u) => setUid(u ? u.uid : null));
+  }, []);
+
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!searchTerm.trim()) return;
+
+    // Sin sesión no se puede saber de qué negocio son los precios: se cortaría
+    // buscando en los productos de todos los comercios del sistema.
+    if (!uid) {
+      setError('Iniciá sesión en este navegador para usar el verificador.');
+      return;
+    }
 
     setLoading(true);
     setError('');
@@ -34,9 +46,10 @@ const PriceCheckerView = () => {
 
     try {
       const productsRef = collection(db, 'productos');
-      // Búsqueda por código de barras (prioridad)
+      // Búsqueda por código de barras (prioridad), siempre acotada al negocio
       let q = query(
         productsRef,
+        where('userId', '==', uid),
         where('codigoBarras', '==', searchTerm.trim()),
         limit(1),
       );
@@ -46,6 +59,7 @@ const PriceCheckerView = () => {
       if (querySnapshot.empty) {
         q = query(
           productsRef,
+          where('userId', '==', uid),
           where('nombre', '==', searchTerm.trim()),
           limit(1),
         );
@@ -131,7 +145,20 @@ const PriceCheckerView = () => {
               </motion.div>
             )}
 
-            {notFound && !loading && (
+            {error && !loading && (
+              <motion.div
+                key="aviso"
+                className="flex h-full flex-col items-center justify-center rounded-lg bg-amber-900/40 p-6 text-center text-amber-200"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+              >
+                <XCircle size={40} className="mb-3" />
+                <p className="text-lg font-semibold">{error}</p>
+              </motion.div>
+            )}
+
+            {notFound && !loading && !error && (
               <motion.div
                 key="error"
                 className="flex h-full flex-col items-center justify-center rounded-lg bg-red-900/50 p-6 text-center text-red-300"
@@ -157,10 +184,7 @@ const PriceCheckerView = () => {
                   {product.nombre}
                 </h3>
                 <p className="mt-2 bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-6xl font-extrabold text-transparent sm:text-7xl">
-                  {/* Se usa tu función original formatCurrency si existe, si no, el formateador estándar */}
-                  {typeof formatCurrency === 'function'
-                    ? formatCurrency(product.precio)
-                    : currencyFormatter.format(product.precio)}
+                  {currencyFormatter.format(Number(product.precio) || 0)}
                 </p>
               </motion.div>
             )}
