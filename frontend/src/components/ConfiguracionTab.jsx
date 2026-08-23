@@ -50,6 +50,9 @@ function ConfiguracionTab() {
   const [balanzaEnVivoHabilitada, setBalanzaEnVivoHabilitada] =
     useState(false);
   const [tiendaActiva, setTiendaActiva] = useState(false);
+  // El QR y el link aparecen apenas se prende el interruptor, pero la tienda
+  // recien queda publicada al guardar: sin esto el link tira "tienda no disponible".
+  const tiendaSinGuardar = tiendaActiva && !datosNegocio?.tiendaActiva;
   const [puntosActivo, setPuntosActivo] = useState(false);
   const [pesosPorPunto, setPesosPorPunto] = useState(1000);
   const [umbralStockBajo, setUmbralStockBajo] = useState(10);
@@ -1354,18 +1357,34 @@ function ConfiguracionTab() {
                     >
                       Copiar link
                     </button>
-                    <a
-                      href={`${window.location.origin}/tienda/${sucursalActual.id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-500"
-                    >
-                      Ver tienda
-                    </a>
+                    {tiendaSinGuardar ? (
+                      <span
+                        title="Guardá los cambios para poder abrir la tienda"
+                        className="cursor-not-allowed rounded-md bg-zinc-700 px-3 py-1.5 text-xs font-semibold text-zinc-400"
+                      >
+                        Ver tienda
+                      </span>
+                    ) : (
+                      <a
+                        href={`${window.location.origin}/tienda/${sucursalActual.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-500"
+                      >
+                        Ver tienda
+                      </a>
+                    )}
                   </div>
+                  {tiendaSinGuardar && (
+                    <p className="mt-2 rounded-md bg-amber-900/40 px-2 py-1.5 text-xs font-semibold text-amber-200">
+                      Falta guardar: tocá <strong>Guardar Cambios</strong> abajo
+                      para publicar la tienda. Hasta entonces el link no
+                      funciona.
+                    </p>
+                  )}
                   <p className="mt-2 text-[11px] text-zinc-500">
                     Necesitás tu WhatsApp cargado arriba para recibir los
-                    pedidos. Guardá los cambios para aplicar.
+                    pedidos.
                   </p>
                 </div>
               </div>
