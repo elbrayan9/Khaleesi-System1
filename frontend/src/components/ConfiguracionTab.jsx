@@ -53,6 +53,27 @@ function ConfiguracionTab() {
   // El QR y el link aparecen apenas se prende el interruptor, pero la tienda
   // recien queda publicada al guardar: sin esto el link tira "tienda no disponible".
   const tiendaSinGuardar = tiendaActiva && !datosNegocio?.tiendaActiva;
+
+  // Precios de lista. Deben coincidir con PLANES_PRECIO en functions/index.js.
+  const PRECIO_LISTA = { basic: 20000, premium: 35000 };
+
+  // Un cliente anterior al aumento tiene su precio congelado en `precioLegacy`,
+  // y el cobro lo respeta mientras no venza `precioLegacyHasta`. La pantalla
+  // tiene que mostrar lo que realmente se le va a cobrar, no el precio de lista.
+  const precioDelPlan = (quePlan) => {
+    const legacy = datosNegocio?.precioLegacy?.[quePlan];
+    if (legacy?.mensual > 0) {
+      const hasta = datosNegocio?.precioLegacyHasta;
+      const fin = hasta?.toDate ? hasta.toDate() : hasta ? new Date(hasta) : null;
+      if (!fin || fin.getTime() > Date.now()) {
+        return { monto: Number(legacy.mensual), congelado: true, hasta: fin };
+      }
+    }
+    return { monto: PRECIO_LISTA[quePlan], congelado: false, hasta: null };
+  };
+
+  const formatearPrecio = (n) =>
+    '$' + Number(n || 0).toLocaleString('es-AR', { maximumFractionDigits: 0 });
   const [puntosActivo, setPuntosActivo] = useState(false);
   const [pesosPorPunto, setPesosPorPunto] = useState(1000);
   const [umbralStockBajo, setUmbralStockBajo] = useState(10);
@@ -448,10 +469,17 @@ function ConfiguracionTab() {
                 </div>
               )}
               <h3 className="mb-2 text-xl font-bold text-white">Plan Básico</h3>
-              <p className="mb-4 text-3xl font-bold text-white">
-                $10.000
+              <p className="mb-1 text-3xl font-bold text-white">
+                {formatearPrecio(precioDelPlan('basic').monto)}
                 <span className="text-sm font-normal text-zinc-400">/mes</span>
               </p>
+              {precioDelPlan('basic').congelado && (
+                <p className="mb-3 text-xs text-emerald-400">
+                  Tu precio congelado (lista:{' '}
+                  {formatearPrecio(PRECIO_LISTA.basic)})
+                </p>
+              )}
+              <div className="mb-4" />
               <ul className="mb-6 space-y-3 text-sm text-zinc-300">
                 <li className="flex items-center gap-2">
                   <span className="text-green-400">✓</span> Control de Stock
@@ -505,10 +533,17 @@ function ConfiguracionTab() {
               <h3 className="mb-2 text-xl font-bold text-white">
                 Plan Completo
               </h3>
-              <p className="mb-4 text-3xl font-bold text-white">
-                $16.000
+              <p className="mb-1 text-3xl font-bold text-white">
+                {formatearPrecio(precioDelPlan('premium').monto)}
                 <span className="text-sm font-normal text-zinc-400">/mes</span>
               </p>
+              {precioDelPlan('premium').congelado && (
+                <p className="mb-3 text-xs text-emerald-400">
+                  Tu precio congelado (lista:{' '}
+                  {formatearPrecio(PRECIO_LISTA.premium)})
+                </p>
+              )}
+              <div className="mb-4" />
               <ul className="mb-6 space-y-3 text-sm text-zinc-300">
                 <li className="flex items-center gap-2">
                   <span className="text-green-400">✓</span> Todo lo del Básico
