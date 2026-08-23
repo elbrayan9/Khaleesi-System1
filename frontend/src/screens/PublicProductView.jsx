@@ -66,7 +66,7 @@ const PublicProductView = () => {
         <div className="rounded-lg bg-cyan-600 p-4 text-white">
           <span className="text-lg">Precio Actual:</span>
           <h2 className="text-5xl font-extrabold tracking-tight">
-            {formatCurrency(product.precio)}
+            ${formatCurrency(product.precio)}
           </h2>
         </div>
 

@@ -110,7 +110,7 @@ function UserDetailAdmin() {
           <p className="text-sm text-zinc-400">Total Ventas</p>
           <p className="text-2xl font-bold text-white">{totalVentas}</p>
           <p className="text-xs text-zinc-500">
-            {formatCurrency(totalIngresos)}
+            ${formatCurrency(totalIngresos)}
           </p>
         </div>
         <div className="rounded-lg bg-zinc-800 p-4 shadow-md">
@@ -202,7 +202,7 @@ function UserDetailAdmin() {
                         {venta.items.length}
                       </TableCell>
                       <TableCell className="text-right font-semibold text-green-400">
-                        {formatCurrency(venta.total)}
+                        ${formatCurrency(venta.total)}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -254,7 +254,7 @@ function UserDetailAdmin() {
                         {prod.codigoBarras || 'N/A'}
                       </TableCell>
                       <TableCell className="text-right text-zinc-200">
-                        {formatCurrency(prod.precio)}
+                        ${formatCurrency(prod.precio)}
                       </TableCell>
                       <TableCell className="text-right font-bold">
                         {prod.stock}
@@ -369,7 +369,7 @@ function UserDetailAdmin() {
                         {nota.clienteNombre}
                       </TableCell>
                       <TableCell className="text-right font-semibold text-zinc-100">
-                        {formatCurrency(nota.total)}
+                        ${formatCurrency(nota.total)}
                       </TableCell>
                     </TableRow>
                   ))}

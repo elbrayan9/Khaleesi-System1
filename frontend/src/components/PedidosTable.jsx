@@ -119,7 +119,7 @@ const PedidosTable = ({
                       {pedido.proveedorNombre}
                     </td>
                     <td className="px-6 py-4">
-                      {formatCurrency(pedido.totalCosto)}
+                      ${formatCurrency(pedido.totalCosto)}
                     </td>
                     <td className="px-6 py-4">
                       {getStatusChip(pedido.estado)}

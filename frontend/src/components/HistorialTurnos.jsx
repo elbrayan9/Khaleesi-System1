@@ -227,7 +227,7 @@ const HistorialTurnos = () => {
                       {turno.vendedorNombre}
                     </TableCell>
                     <TableCell className="py-3 text-right font-mono text-sm tabular-nums text-zinc-400">
-                      {formatCurrency(turno.totalFinal)}
+                      ${formatCurrency(turno.totalFinal)}
                     </TableCell>
                     <TableCell className="py-3 text-right font-mono text-sm tabular-nums text-zinc-300">
                       {(turno.montoReal !== undefined || turno.diferenciaEfectivo !== undefined)
@@ -238,7 +238,7 @@ const HistorialTurnos = () => {
                       className={`py-3 text-right font-mono text-sm font-bold tabular-nums ${diferenciaClass}`}
                     >
                       {diferenciaSigno}
-                      {formatCurrency(diferencia)}
+                      ${formatCurrency(diferencia)}
                     </TableCell>
                     <TableCell className="py-3 text-right">
                       <button

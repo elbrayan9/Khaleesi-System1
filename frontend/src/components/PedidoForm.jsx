@@ -227,7 +227,7 @@ const PedidoForm = ({ isOpen, onClose }) => {
               ></textarea>
             </div>
             <div className="text-right text-xl font-bold text-white">
-              Total: {formatCurrency(totalCosto)}
+              Total: ${formatCurrency(totalCosto)}
             </div>
           </form>
 

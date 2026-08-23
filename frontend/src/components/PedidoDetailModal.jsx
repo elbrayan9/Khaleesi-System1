@@ -81,7 +81,7 @@ const PedidoDetailModal = ({ pedido, onClose }) => {
               <div>
                 <strong>Total:</strong>{' '}
                 <span className="font-bold text-cyan-400">
-                  {formatCurrency(pedido.totalCosto)}
+                  ${formatCurrency(pedido.totalCosto)}
                 </span>
               </div>
             </div>
@@ -112,7 +112,7 @@ const PedidoDetailModal = ({ pedido, onClose }) => {
                       Cant: {item.cantidad}
                     </span>
                     <span className="col-span-3 text-right">
-                      {formatCurrency(item.costoUnitario)} c/u
+                      ${formatCurrency(item.costoUnitario)} c/u
                     </span>
                   </div>
                 ))}

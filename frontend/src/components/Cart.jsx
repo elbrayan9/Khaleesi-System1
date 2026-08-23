@@ -125,11 +125,11 @@ function Cart({
               <div className="flex items-center gap-2">
                 <div className="text-right">
                   <p className="font-bold text-zinc-100">
-                    {formatCurrency(item.precioFinal)}
+                    ${formatCurrency(item.precioFinal)}
                   </p>
                   {item.cantidad > 1 && item.vendidoPor !== 'peso' && (
                     <p className="text-xs text-zinc-400">
-                      ({formatCurrency(item.precioOriginal)} c/u)
+                      (${formatCurrency(item.precioOriginal)} c/u)
                     </p>
                   )}
                 </div>

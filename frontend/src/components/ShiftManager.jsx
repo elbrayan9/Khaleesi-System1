@@ -146,12 +146,12 @@ const CloseShiftModal = ({
              <>
                 <div className="flex justify-between">
                   <span>Monto Inicial:</span>{' '}
-                  <span>{formatCurrency(turnoActivo.montoInicial)}</span>
+                  <span>${formatCurrency(turnoActivo.montoInicial)}</span>
                 </div>
                 <div className="flex justify-between border-b border-zinc-600 pb-2">
                   <span>Ventas Totales:</span>{' '}
                   <span className="font-bold text-white">
-                    {formatCurrency(totalVentasTurno)}
+                    ${formatCurrency(totalVentasTurno)}
                   </span>
                 </div>
                 <div className="py-2">
@@ -172,7 +172,7 @@ const CloseShiftModal = ({
                 <div className="mt-2 flex justify-between border-t border-zinc-600 pt-2 text-lg font-bold">
                   <span>Total Esperado en Caja (Efectivo + Inicial):</span>{' '}
                   <span className="text-cyan-400">
-                    {formatCurrency(totalEsperadoEfectivo)}
+                    ${formatCurrency(totalEsperadoEfectivo)}
                   </span>
                 </div>
              </>
