@@ -707,18 +707,16 @@ function ReportesTab({
     const resumenData = [
       {
         Concepto: 'Total Ventas del Mes',
-        Valor: formatCurrency(totalVentasMes),
+        Valor: Number(totalVentasMes) || 0,
       },
       {
         Concepto: 'Total Ingresos Manuales',
-        Valor: formatCurrency(totalIngresosMes),
+        Valor: Number(totalIngresosMes) || 0,
       },
-      { Concepto: 'Total Egresos', Valor: formatCurrency(totalEgresosMes) },
+      { Concepto: 'Total Egresos', Valor: Number(totalEgresosMes) || 0 },
       {
         Concepto: 'Balance (Ventas + Ingresos - Egresos)',
-        Valor: formatCurrency(
-          totalVentasMes + totalIngresosMes - totalEgresosMes,
-        ),
+        Valor: Number(totalVentasMes + totalIngresosMes - totalEgresosMes) || 0,
       },
     ];
 
@@ -726,7 +724,7 @@ function ReportesTab({
       ([vendedor, data]) => ({
         Vendedor: vendedor,
         'Ventas Realizadas': data.cantidadVentas,
-        'Monto Total Vendido': formatCurrency(data.total),
+        'Monto Total Vendido': Number(data.total) || 0,
       }),
     );
 
@@ -735,7 +733,7 @@ function ReportesTab({
       Hora: m.hora,
       Tipo: m.tipo,
       Descripción: m.desc,
-      Monto: formatCurrency(m.montoDisplay),
+      Monto: Number(m.montoDisplay) || 0,
     }));
 
     const wsResumen = XLSX.utils.json_to_sheet(resumenData, {
@@ -862,7 +860,7 @@ function ReportesTab({
             <DollarSign className="h-4 w-4 text-emerald-500" />
           </div>
           <p className="mt-2 text-2xl font-bold text-emerald-400">
-            {formatCurrency(totalVentasDia)}
+            ${formatCurrency(totalVentasDia)}
           </p>
           <p className="text-xs text-zinc-500">
             {ventasDelDia.length} transacciones
@@ -879,7 +877,7 @@ function ReportesTab({
                 Ingresos Extra
               </p>
               <p className="text-sm font-bold text-blue-400">
-                {formatCurrency(totalIngresosManualesDia)}
+                ${formatCurrency(totalIngresosManualesDia)}
               </p>
             </div>
             {/* Ingreso Form */}
@@ -912,7 +910,7 @@ function ReportesTab({
             <div className="flex items-center justify-between">
               <p className="text-xs font-medium text-zinc-400">Egresos</p>
               <p className="text-sm font-bold text-red-400">
-                {formatCurrency(totalEgresosDia)}
+                ${formatCurrency(totalEgresosDia)}
               </p>
             </div>
             {/* Egreso Form */}
@@ -1044,7 +1042,7 @@ function ReportesTab({
                               <TableCell
                                 className={`py-3 text-right text-sm font-medium ${item.montoDisplay >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
                               >
-                                {formatCurrency(item.montoDisplay)}
+                                ${formatCurrency(item.montoDisplay)}
                               </TableCell>
                               )}
                               <TableCell className="py-3 text-right">
@@ -1272,7 +1270,7 @@ function ReportesTab({
                               <TableCell
                                 className={`py-3 text-right text-sm font-medium ${item.montoDisplay >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
                               >
-                                {formatCurrency(item.montoDisplay)}
+                                ${formatCurrency(item.montoDisplay)}
                               </TableCell>
                               )}
                               <TableCell className="py-3 text-right">

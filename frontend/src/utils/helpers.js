@@ -14,14 +14,27 @@ export const obtenerFechaHoraActual = () => {
 };
 
 /**
- * Formatea un valor numérico como moneda (ARS simple con 2 decimales).
+ * Formatea un valor numérico como moneda argentina: separador de miles (.) y
+ * coma decimal, con 2 decimales. NO incluye el símbolo $ a propósito: en todo
+ * el sistema se antepone a mano (`$${formatCurrency(x)}`), y agregarlo acá
+ * duplicaría el signo.
+ * Ej: 105000 -> "105.000,00"
  * @param {number} value - El valor a formatear.
  * @returns {string} El valor formateado como string.
  */
 export const formatCurrency = (value) => {
   // Asegura que el valor sea numérico y maneja null/undefined
   const numberValue = Number(value);
-  return (isNaN(numberValue) ? 0 : numberValue).toFixed(2);
+  const seguro = isNaN(numberValue) ? 0 : numberValue;
+  try {
+    return seguro.toLocaleString('es-AR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  } catch {
+    // Si el entorno no soporta la locale, se mantiene el formato anterior.
+    return seguro.toFixed(2);
+  }
 };
 
 /**

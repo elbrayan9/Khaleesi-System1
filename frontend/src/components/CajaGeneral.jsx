@@ -56,7 +56,7 @@ const CajaGeneral = () => {
 
       <div className="relative z-10 mt-6 text-right">
         <p className="font-mono text-4xl font-bold tabular-nums tracking-tight text-white">
-          {formatCurrency(totalCajaGeneral)}
+          ${formatCurrency(totalCajaGeneral)}
         </p>
       </div>
     </div>

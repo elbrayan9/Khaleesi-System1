@@ -78,7 +78,7 @@ const CustomTooltip = ({ active, payload, label }) => {
             <span className="text-zinc-400">{entry.name}:</span>
             <span className="font-mono font-medium text-white">
               {typeof entry.value === 'number'
-                ? formatCurrency(entry.value)
+                ? '$' + formatCurrency(entry.value)
                 : entry.value}
             </span>
           </div>
@@ -260,26 +260,26 @@ const EstadisticasTab = () => {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Ingresos Totales"
-          value={formatCurrency(stats.ingresosBrutos)}
+          value={`$${formatCurrency(stats.ingresosBrutos)}`}
           icon={<DollarSign />}
           color="text-emerald-400"
         />
         <StatCard
           title="Ganancia Neta"
-          value={formatCurrency(stats.gananciaBruta)}
+          value={`$${formatCurrency(stats.gananciaBruta)}`}
           subValue={`${stats.margenPorcentaje}% Margen`}
           icon={<TrendingUp />}
           color="text-sky-400"
         />
         <StatCard
           title="Valor Inventario"
-          value={formatCurrency(stats.valorInventario)}
+          value={`$${formatCurrency(stats.valorInventario)}`}
           icon={<Archive />}
           color="text-violet-400"
         />
         <StatCard
           title="Costo Mercadería"
-          value={formatCurrency(stats.costoMercaderiaVendida)}
+          value={`$${formatCurrency(stats.costoMercaderiaVendida)}`}
           icon={<Landmark />}
           color="text-rose-400"
         />
@@ -453,7 +453,7 @@ const EstadisticasTab = () => {
                       {prod.cantidad}
                     </td>
                     <td className="px-4 py-3 text-right font-mono text-emerald-400">
-                      {formatCurrency(prod.total)}
+                      ${formatCurrency(prod.total)}
                     </td>
                     <td className="hidden px-4 py-3 md:table-cell">
                       <div className="flex items-center justify-center">
