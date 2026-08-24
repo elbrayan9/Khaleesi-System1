@@ -400,63 +400,13 @@ function AdminPanel() {
         </div>
       </div>
 
-      {/* Security settings for Device */}
-      <div className="rounded-lg bg-zinc-800 p-6 shadow-md border border-zinc-700">
-        <h3 className="text-lg font-bold text-white mb-2">Seguridad del Panel Administrador</h3>
-        <p className="text-sm text-zinc-400 mb-4">
-          Configura un PIN para bloquear tu sesión de Administrador en este navegador.
-        </p>
-        
-        {datosNegocio?.pinSeguridad ? (
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-4">
-              <span className="inline-flex items-center gap-2 text-emerald-400 font-medium">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                PIN de Seguridad Activado
-              </span>
-              <button
-                onClick={handleRemovePin}
-                disabled={isSavingPin}
-                className="px-4 py-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-md text-sm font-medium transition-colors"
-              >
-                Desactivar PIN
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col sm:flex-row gap-4 items-end">
-              <div className="w-full sm:w-1/3">
-                <label className="block text-xs font-medium text-zinc-400 mb-1">Nuevo PIN Numérico</label>
-                <input
-                  type="password"
-                  placeholder="Ej: 1234"
-                  value={nuevoPin}
-                  onChange={(e) => setNuevoPin(e.target.value)}
-                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-            </div>
-            <div>
-              <button
-                onClick={handleSavePin}
-                disabled={isSavingPin || !nuevoPin}
-                className="w-full sm:w-auto px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md text-sm font-medium transition-colors disabled:opacity-50"
-              >
-                Proteger con PIN
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
       {/* Lo que mueve la aguja: plata arriba, y a quién hay que llamar */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="rounded-xl border border-emerald-500/25 bg-gradient-to-br from-emerald-500/10 to-zinc-800 p-5 shadow-md lg:col-span-1">
+        <div className="rounded-xl border border-emerald-500/25 bg-gradient-to-br from-emerald-500/10 to-zinc-800 p-4 shadow-md sm:p-5 lg:col-span-1">
           <p className="text-sm font-medium text-emerald-300">
             Facturación del mes
           </p>
-          <p className="mt-1 text-4xl font-bold tabular-nums text-white">
+          <p className="mt-1 text-2xl font-bold tabular-nums sm:text-3xl text-white sm:text-4xl">
             {pesos(facturacionMensual)}
           </p>
           <p className="mt-1 text-xs text-zinc-400">
@@ -467,15 +417,15 @@ function AdminPanel() {
 
         <div className="grid grid-cols-2 gap-4 lg:col-span-2">
           <div
-            className={`rounded-xl border p-4 shadow-md ${
+            className={`rounded-xl border p-3 shadow-md sm:p-4 ${
               pruebasPorVencer > 0
                 ? 'border-amber-500/40 bg-amber-500/10'
                 : 'border-zinc-700 bg-zinc-800'
             }`}
           >
-            <p className="text-sm text-zinc-300">Pruebas que vencen</p>
+            <p className="text-xs text-zinc-300 sm:text-sm">Pruebas que vencen</p>
             <p
-              className={`text-3xl font-bold tabular-nums ${
+              className={`text-2xl font-bold tabular-nums sm:text-3xl ${
                 pruebasPorVencer > 0 ? 'text-amber-300' : 'text-zinc-500'
               }`}
             >
@@ -485,15 +435,15 @@ function AdminPanel() {
           </div>
 
           <div
-            className={`rounded-xl border p-4 shadow-md ${
+            className={`rounded-xl border p-3 shadow-md sm:p-4 ${
               enRiesgo > 0
                 ? 'border-rose-500/40 bg-rose-500/10'
                 : 'border-zinc-700 bg-zinc-800'
             }`}
           >
-            <p className="text-sm text-zinc-300">Pagan y no entran</p>
+            <p className="text-xs text-zinc-300 sm:text-sm">Pagan y no entran</p>
             <p
-              className={`text-3xl font-bold tabular-nums ${
+              className={`text-2xl font-bold tabular-nums sm:text-3xl ${
                 enRiesgo > 0 ? 'text-rose-300' : 'text-zinc-500'
               }`}
             >
@@ -502,17 +452,17 @@ function AdminPanel() {
             <p className="text-xs text-zinc-500">hace más de 14 días</p>
           </div>
 
-          <div className="rounded-xl border border-zinc-700 bg-zinc-800 p-4 shadow-md">
-            <p className="text-sm text-zinc-300">En prueba</p>
-            <p className="text-3xl font-bold tabular-nums text-sky-300">
+          <div className="rounded-xl border border-zinc-700 bg-zinc-800 p-3 shadow-md sm:p-4">
+            <p className="text-xs text-zinc-300 sm:text-sm">En prueba</p>
+            <p className="text-2xl font-bold tabular-nums sm:text-3xl text-sky-300">
               {trialUsers}
             </p>
             <p className="text-xs text-zinc-500">de {totalUsers} cuentas</p>
           </div>
 
-          <div className="rounded-xl border border-zinc-700 bg-zinc-800 p-4 shadow-md">
-            <p className="text-sm text-zinc-300">Vencidas</p>
-            <p className="text-3xl font-bold tabular-nums text-zinc-400">
+          <div className="rounded-xl border border-zinc-700 bg-zinc-800 p-3 shadow-md sm:p-4">
+            <p className="text-xs text-zinc-300 sm:text-sm">Vencidas</p>
+            <p className="text-2xl font-bold tabular-nums sm:text-3xl text-zinc-400">
               {expiredUsers}
             </p>
             <p className="text-xs text-zinc-500">para recuperar</p>
@@ -531,7 +481,117 @@ function AdminPanel() {
             {filteredUsers.length === 1 ? 'cuenta' : 'cuentas'}
           </p>
         </div>
-        <div className="overflow-x-auto">
+        {/* En celular la tabla no entra: se corta y quedan afuera las columnas
+            que importan. Cada cliente va como tarjeta. */}
+        <div className="divide-y divide-zinc-700 md:hidden">
+          {currentUsers.map((user) => {
+            const estado = user.datosNegocio?.subscriptionStatus;
+            const dVence = diasHasta(user.datosNegocio?.subscriptionEndDate);
+            const dSin = diasSinEntrar(user);
+            const chip =
+              estado === 'active'
+                ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                : estado === 'trial'
+                  ? 'bg-sky-500/15 text-sky-300 border-sky-500/30'
+                  : 'bg-rose-500/15 text-rose-300 border-rose-500/30';
+            return (
+              <div key={user.uid} className="space-y-2 p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="min-w-0 flex-1 break-all text-sm font-medium text-zinc-100">
+                    {user.email}
+                  </p>
+                  <span
+                    className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${chip}`}
+                  >
+                    {estado === 'active'
+                      ? 'Activo'
+                      : estado === 'trial'
+                        ? 'Prueba'
+                        : 'Vencido'}
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-400">
+                  <span className="text-zinc-300">
+                    {user.datosNegocio?.plan === 'premium'
+                      ? 'Completo'
+                      : 'Básico'}
+                  </span>
+                  <span>·</span>
+                  <span
+                    className={
+                      dSin === null
+                        ? 'text-zinc-600'
+                        : dSin > 14
+                          ? 'font-semibold text-rose-400'
+                          : dSin > 7
+                            ? 'text-amber-300'
+                            : ''
+                    }
+                  >
+                    {dSin === null
+                      ? 'nunca entró'
+                      : dSin === 0
+                        ? 'entró hoy'
+                        : `hace ${dSin} d`}
+                  </span>
+                  {dVence !== null && (
+                    <>
+                      <span>·</span>
+                      <span
+                        className={
+                          dVence < 0
+                            ? 'text-rose-400'
+                            : dVence <= 7
+                              ? 'font-semibold text-amber-300'
+                              : ''
+                        }
+                      >
+                        {dVence < 0
+                          ? `venció hace ${Math.abs(dVence)} d`
+                          : dVence === 0
+                            ? 'vence hoy'
+                            : `vence en ${dVence} d`}
+                      </span>
+                    </>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <select
+                    value={user.datosNegocio?.plan || 'basic'}
+                    onChange={(e) =>
+                      handlePlanChange(user.uid, user.email, e.target.value)
+                    }
+                    className="rounded border border-zinc-600 bg-zinc-800 px-2 py-1.5 text-xs text-white"
+                  >
+                    <option value="basic">Básico</option>
+                    <option value="premium">Premium</option>
+                  </select>
+                  <select
+                    value={estado}
+                    onChange={(e) =>
+                      handleStatusChange(user.uid, user.email, e.target.value)
+                    }
+                    className="rounded border border-zinc-600 bg-zinc-800 px-2 py-1.5 text-xs text-white"
+                  >
+                    <option value="active">Activo</option>
+                    <option value="trial">En Prueba</option>
+                    <option value="expired">Vencido</option>
+                  </select>
+                  <Link
+                    to={`/admin/user/${user.uid}`}
+                    className="ml-auto rounded bg-zinc-700 px-3 py-1.5 text-xs font-medium text-white"
+                  >
+                    Ver
+                  </Link>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="hidden overflow-x-auto md:block">
           <Table>
             <TableHeader>
               <TableRow className="border-b-zinc-700 hover:bg-transparent">
@@ -760,6 +820,56 @@ function AdminPanel() {
           </div>
         )}
       </div>
+      {/* Security settings for Device */}
+      <div className="rounded-lg bg-zinc-800 p-6 shadow-md border border-zinc-700">
+        <h3 className="text-lg font-bold text-white mb-2">Seguridad del Panel Administrador</h3>
+        <p className="text-sm text-zinc-400 mb-4">
+          Configura un PIN para bloquear tu sesión de Administrador en este navegador.
+        </p>
+        
+        {datosNegocio?.pinSeguridad ? (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-4">
+              <span className="inline-flex items-center gap-2 text-emerald-400 font-medium">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                PIN de Seguridad Activado
+              </span>
+              <button
+                onClick={handleRemovePin}
+                disabled={isSavingPin}
+                className="px-4 py-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-md text-sm font-medium transition-colors"
+              >
+                Desactivar PIN
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row gap-4 items-end">
+              <div className="w-full sm:w-1/3">
+                <label className="block text-xs font-medium text-zinc-400 mb-1">Nuevo PIN Numérico</label>
+                <input
+                  type="password"
+                  placeholder="Ej: 1234"
+                  value={nuevoPin}
+                  onChange={(e) => setNuevoPin(e.target.value)}
+                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+            </div>
+            <div>
+              <button
+                onClick={handleSavePin}
+                disabled={isSavingPin || !nuevoPin}
+                className="w-full sm:w-auto px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                Proteger con PIN
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }
