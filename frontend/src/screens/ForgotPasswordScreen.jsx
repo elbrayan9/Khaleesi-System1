@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { sendPasswordReset } from '../services/authService';
 import AppLogo from '../components/AppLogo';
 import Footer from '../components/Footer';
-import ParticleBackground from '../components/ParticleBackground';
+import ThreeBackground from '../components/ThreeBackground';
 import HoverEffectWrapper from '../components/HoverEffectWrapper';
 import TypeAnimation from '../components/TypeAnimation';
 import { AnimatedButton } from '../components/AnimatedButton';
@@ -49,7 +49,7 @@ const ForgotPasswordScreen = () => {
 
   return (
     <div className="relative flex min-h-screen w-full flex-col bg-zinc-900 text-zinc-200">
-      <ParticleBackground />
+      <ThreeBackground />
 
       <main className="relative z-10 flex flex-grow flex-col items-center justify-center p-4">
         <motion.div

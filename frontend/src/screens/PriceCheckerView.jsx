@@ -7,7 +7,7 @@ import { db, auth } from '../firebaseConfig';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ScanBarcode, Search, XCircle } from 'lucide-react';
 import AppLogo from '../components/AppLogo';
-import ParticleBackground from '../components/ParticleBackground';
+import ThreeBackground from '../components/ThreeBackground';
 
 const PriceCheckerView = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -89,7 +89,7 @@ const PriceCheckerView = () => {
 
   return (
     <div className="relative flex min-h-screen w-full flex-col items-center justify-center overflow-hidden bg-zinc-900 p-4 text-white">
-      <ParticleBackground />
+      <ThreeBackground />
 
       <header className="absolute left-0 top-0 z-20 p-6">
         <div className="flex items-center gap-3">

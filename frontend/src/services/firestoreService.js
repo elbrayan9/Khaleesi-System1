@@ -71,9 +71,15 @@ export const addDocument = async (
       lastUpdated: serverTimestamp(),
     };
 
-    // Si hay sucursalId, lo agregamos al documento
+    // Si hay sucursalId, lo agregamos al documento.
+    // Todas las lecturas filtran por sucursal, asi que un documento sin este
+    // campo se guarda bien pero no aparece en ninguna pantalla.
     if (sucursalId) {
       docData.sucursalId = sucursalId;
+    } else {
+      console.error(
+        `[${collectionName}] documento creado SIN sucursalId: no va a aparecer en la lista. Revisar quien llamo a addDocument.`,
+      );
     }
 
     const docRef = await addDoc(collection(db, collPath), docData);
@@ -475,11 +481,20 @@ export const saveDatosNegocio = async (userId, data, sucursalId = null) => {
 
   try {
     if (sucursalId) {
-      // Guardar en el documento de la SUCURSAL
+      // Guardar en el documento de la SUCURSAL.
+      // setDoc con merge y no updateDoc: updateDoc falla si el documento no
+      // existe, y con la cache local esa falla no se ve hasta que el servidor
+      // rechaza la escritura — la pantalla queda mostrando el cambio guardado
+      // mientras el servidor nunca se entera (era el caso de la tienda online).
       const sucursalRef = doc(db, 'sucursales', sucursalId);
-      await updateDoc(sucursalRef, {
-        configuracion: { ...data, lastUpdated: serverTimestamp() },
-      });
+      await setDoc(
+        sucursalRef,
+        {
+          userId, // sin esto la sucursal queda huerfana y no la ve nadie
+          configuracion: { ...data, lastUpdated: serverTimestamp() },
+        },
+        { merge: true },
+      );
       return true;
     } else {
       // Guardar en el documento GLOBAL (legacy)

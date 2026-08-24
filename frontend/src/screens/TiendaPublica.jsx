@@ -17,6 +17,7 @@ function TiendaPublica() {
   const [tienda, setTienda] = useState(null);
   const [productos, setProductos] = useState([]);
   const [estado, setEstado] = useState('cargando'); // cargando | ok | cerrada
+  const [motivo, setMotivo] = useState(''); // por qué no publica (para el dueño)
   const [busqueda, setBusqueda] = useState('');
   const [carrito, setCarrito] = useState({}); // { [id]: cantidad }
   const [nombreCliente, setNombreCliente] = useState('');
@@ -66,6 +67,7 @@ function TiendaPublica() {
         const res = await fn({ sucursalId });
         if (cancelado) return;
         if (!res.data?.activa) {
+          setMotivo(res.data?.motivo || '');
           setEstado('cerrada');
           return;
         }
@@ -148,8 +150,26 @@ function TiendaPublica() {
             Esta tienda no está disponible.
           </p>
           <p className="mt-1 text-sm text-zinc-400">
-            Puede estar desactivada o el enlace no es correcto.
+            {
+              {
+                sucursal_inexistente:
+                  'El enlace apunta a un local que ya no existe. Pedile al comercio el link actualizado.',
+                tienda_desactivada:
+                  'El comercio todavía no publicó su tienda.',
+                suscripcion_vencida:
+                  'La tienda está pausada por el comercio.',
+                plan_basico: 'La tienda está pausada por el comercio.',
+                sucursal_sin_duenio:
+                  'El enlace no es correcto. Pedile al comercio el link actualizado.',
+              }[motivo] || 'Puede estar desactivada o el enlace no es correcto.'
+            }
           </p>
+          {motivo === 'sucursal_inexistente' && (
+            <p className="mx-auto mt-4 max-w-sm rounded-md bg-zinc-800 px-3 py-2 text-xs text-zinc-500">
+              ¿Sos el dueño? Entrá a Configuración y volvé a copiar el link de
+              tu tienda: el que estás usando quedó viejo.
+            </p>
+          )}
         </div>
       </div>
     );

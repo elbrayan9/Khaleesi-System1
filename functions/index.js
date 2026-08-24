@@ -829,33 +829,23 @@ exports.getTiendaPublica = onCall(
       throw new HttpsError('invalid-argument', 'Falta la sucursal.');
     }
     try {
-      const sucDoc = await db.collection('sucursales').doc(sucursalId).get();
-      if (!sucDoc.exists) return { activa: false };
-      const suc = sucDoc.data() || {};
-      const cfg = suc.configuracion || {};
-      if (!cfg.tiendaActiva) return { activa: false };
+      const estado = await estadoTiendaSucursal(sucursalId);
+      // `motivo` es para que el duenio pueda ver por que su tienda no publica.
+      // No expone datos del negocio: es una etiqueta fija.
+      if (!estado.ok) return { activa: false, motivo: estado.motivo };
 
-      // La suscripción debe estar vigente para publicar la tienda.
-      let vigente = false;
-      if (suc.userId) {
-        const negDoc = await db
-          .collection('datosNegocio')
-          .doc(suc.userId)
-          .get();
-        const neg = negDoc.exists ? negDoc.data() : null;
-        // La tienda online es del Plan Completo.
-        vigente =
-          ['active', 'trial'].includes(neg?.subscriptionStatus) &&
-          neg?.plan === 'premium';
-      }
-      if (!vigente) return { activa: false };
+      const { suc, neg } = estado;
+      const cfg = suc.configuracion || {};
+      // Si la sucursal no tiene su propia configuracion, se usan los datos
+      // del documento global, que es de donde los lee la app en ese caso.
+      const dato = (campo) => cfg[campo] || neg?.[campo] || '';
 
       return {
         activa: true,
-        nombre: cfg.nombre || suc.nombre || 'Nuestra tienda',
-        direccion: cfg.direccion || '',
-        whatsapp: cfg.whatsappDueño || '',
-        logoUrl: cfg.logoUrl || '',
+        nombre: dato('nombre') || suc.nombre || 'Nuestra tienda',
+        direccion: dato('direccion'),
+        whatsapp: dato('whatsappDueño'),
+        logoUrl: dato('logoUrl'),
       };
     } catch (error) {
       console.error('[getTiendaPublica] error:', error);
@@ -980,17 +970,38 @@ exports.consultarPagosMp = onCall(
 // ===============================================
 // Devuelve la sucursal si su tienda está publicada (activa + suscripción
 // vigente + Plan Completo), o null. Mismo criterio que getTiendaPublica.
-async function leerTiendaPublicada(sucursalId) {
+// Estado de la tienda de una sucursal, con el motivo por el que no publica.
+// La configuracion puede vivir en dos lugares: en `sucursales/{id}.configuracion`
+// (multisucursal) o en `datosNegocio/{uid}` (el documento global, que es el que
+// usan las cuentas que nunca se migraron). El frontend ya lee de los dos con
+// fallback; si el servidor mirara solo uno, la tienda quedaria "no disponible"
+// para el duenio aunque en su pantalla figure activada.
+async function estadoTiendaSucursal(sucursalId) {
   const sucDoc = await db.collection('sucursales').doc(sucursalId).get();
-  if (!sucDoc.exists) return null;
+  if (!sucDoc.exists) return { ok: false, motivo: 'sucursal_inexistente' };
+
   const suc = sucDoc.data() || {};
-  if (!suc.configuracion?.tiendaActiva || !suc.userId) return null;
+  if (!suc.userId) return { ok: false, motivo: 'sucursal_sin_duenio' };
+
   const negDoc = await db.collection('datosNegocio').doc(suc.userId).get();
   const neg = negDoc.exists ? negDoc.data() : null;
-  const vigente =
-    ['active', 'trial'].includes(neg?.subscriptionStatus) &&
-    neg?.plan === 'premium';
-  return vigente ? suc : null;
+
+  const activa =
+    suc.configuracion?.tiendaActiva === true || neg?.tiendaActiva === true;
+  if (!activa) return { ok: false, motivo: 'tienda_desactivada' };
+
+  if (!['active', 'trial'].includes(neg?.subscriptionStatus)) {
+    return { ok: false, motivo: 'suscripcion_vencida' };
+  }
+  // La tienda online es del Plan Completo.
+  if (neg?.plan !== 'premium') return { ok: false, motivo: 'plan_basico' };
+
+  return { ok: true, suc, neg };
+}
+
+async function leerTiendaPublicada(sucursalId) {
+  const estado = await estadoTiendaSucursal(sucursalId);
+  return estado.ok ? estado.suc : null;
 }
 
 // Número de pedido corto y correlativo por sucursal.
