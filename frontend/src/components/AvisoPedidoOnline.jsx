@@ -34,14 +34,26 @@ function AvisoPedidoOnline() {
 
     sonarAlarma();
     const p = recien[0];
+    // El nombre del cliente y el detalle vienen de la tienda pública: los
+    // escribe cualquiera, sin cuenta. Como esto se inserta como HTML en la
+    // pantalla del comercio (que está con la sesión abierta), hay que escaparlo
+    // o un "cliente" podría ejecutar código acá poniéndolo como su nombre.
+    const esc = (v) =>
+      String(v ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
     const detalle = (p.items || [])
-      .map((it) => `${it.cantidad}x ${it.nombre}`)
+      .map((it) => `${esc(it.cantidad)}x ${esc(it.nombre)}`)
       .join('<br>');
     Swal.fire({
       icon: 'info',
-      title: `¡Nuevo pedido #${p.codigo}!`,
+      title: `¡Nuevo pedido #${esc(p.codigo)}!`,
       html:
-        `<p style="margin:0 0 6px"><strong>${p.cliente?.nombre || ''}</strong> · ` +
+        `<p style="margin:0 0 6px"><strong>${esc(p.cliente?.nombre)}</strong> · ` +
         `${p.tipo === 'delivery' ? 'Envío' : 'Retiro'}</p>` +
         `<p style="margin:0 0 6px">${detalle}</p>` +
         `<p style="margin:0"><strong>Total $${formatCurrency(p.total)}</strong></p>` +

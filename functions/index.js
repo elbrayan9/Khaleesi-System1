@@ -4,6 +4,12 @@ const { onSchedule } = require('firebase-functions/v2/scheduler');
 const functions = require('firebase-functions');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { defineSecret } = require('firebase-functions/params'); // <-- necesario para secrets
+const { setGlobalOptions } = require('firebase-functions/v2');
+
+// Techo de instancias en paralelo. Sin esto, un pico (o alguien golpeando las
+// funciones) escala sin limite y la factura con el. 20 alcanza de sobra para
+// la carga real; si en algun momento queda corto, se sube.
+setGlobalOptions({ maxInstances: 20 });
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -363,10 +369,36 @@ async function enforceDailyLimit(uid, maxPerDay = 10) {
 // da de baja versiones puntuales como gemini-pro / gemini-2.0-flash).
 const MODEL_NAME = 'gemini-flash-latest';
 
+// Tope diario de llamadas a IA por comercio. Cada llamada a Gemini cuesta, y
+// sin tope un bucle en el frontend o un uso abusivo se traduce en factura.
+// Es holgado: un comercio normal no llega ni cerca en un día de trabajo.
+const LIMITE_IA_DIARIO = 300;
+
+async function consumirCuotaIA(uid) {
+  const hoy = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const ref = db.collection('contadores').doc(`ia_${uid}_${hoy}`);
+  const usados = await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const n = (Number(snap.exists ? snap.data()?.usos : 0) || 0) + 1;
+    tx.set(ref, { usos: n, uid, fecha: hoy }, { merge: true });
+    return n;
+  });
+  if (usados > LIMITE_IA_DIARIO) {
+    throw new HttpsError(
+      'resource-exhausted',
+      'Llegaste al límite de usos de IA por hoy. Mañana se renueva.',
+    );
+  }
+}
+
 // Solo Plan Completo (premium) o admin pueden usar las funciones de IA.
 async function enforcePremium(request) {
-  if (request?.auth?.token?.admin === true) return;
   const uid = request?.auth?.uid;
+  if (request?.auth?.token?.admin === true) {
+    // El admin no paga plan, pero igual consume cuota: el tope es de costo.
+    if (uid) await consumirCuotaIA(uid);
+    return;
+  }
   if (!uid) throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
   const doc = await db.collection('datosNegocio').doc(uid).get();
   const plan = doc.exists ? doc.data()?.plan : null;
@@ -376,6 +408,7 @@ async function enforcePremium(request) {
       'Las funciones con IA están disponibles en el Plan Completo.',
     );
   }
+  await consumirCuotaIA(uid);
 }
 const TOPIC_KEYWORDS = [
   'pago',
@@ -850,6 +883,51 @@ exports.getTiendaPublica = onCall(
     } catch (error) {
       console.error('[getTiendaPublica] error:', error);
       throw new HttpsError('internal', 'No se pudo cargar la tienda.');
+    }
+  },
+);
+
+// Catálogo público de una tienda. Existe para que la coleccion `productos` no
+// tenga que ser legible por cualquiera: si lo fuera, se podria descargar el
+// catalogo completo de TODOS los comercios, con costo y stock incluidos.
+// Devuelve solo lo que el cliente necesita ver — nunca el costo.
+exports.getProductosTienda = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
+    const sucursalId = String(request.data?.sucursalId || '').trim();
+    if (!sucursalId) {
+      throw new HttpsError('invalid-argument', 'Falta la sucursal.');
+    }
+    try {
+      const estado = await estadoTiendaSucursal(sucursalId);
+      if (!estado.ok) return { activa: false, motivo: estado.motivo, productos: [] };
+
+      const snap = await db
+        .collection('productos')
+        .where('sucursalId', '==', sucursalId)
+        .limit(500)
+        .get();
+
+      const productos = snap.docs
+        .map((d) => {
+          const p = d.data() || {};
+          return {
+            id: d.id,
+            nombre: p.nombre || '',
+            precio: Number(p.precio) || 0,
+            fotoUrl: p.fotoUrl || p.foto || '',
+            categoria: p.categoria || '',
+            vendidoPor: p.vendidoPor || 'unidad',
+            promo: Number(p.promo) || 0,
+            stock: Number(p.stock) || 0,
+          };
+        })
+        .filter((p) => p.stock > 0 && p.precio > 0);
+
+      return { activa: true, productos };
+    } catch (error) {
+      console.error('[getProductosTienda] error:', error);
+      throw new HttpsError('internal', 'No se pudo cargar el catálogo.');
     }
   },
 );

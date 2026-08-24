@@ -73,18 +73,12 @@ function TiendaPublica() {
         }
         setTienda(res.data);
 
-        const snap = await getDocs(
-          query(
-            collection(db, 'productos'),
-            where('sucursalId', '==', sucursalId),
-          ),
-        );
+        // El catálogo viene por función, no leyendo `productos` directo: así la
+        // colección puede quedar cerrada y no se expone el costo de cada ítem.
+        const fnProductos = httpsCallable(getFunctions(), 'getProductosTienda');
+        const resProd = await fnProductos({ sucursalId });
         if (cancelado) return;
-        setProductos(
-          snap.docs
-            .map((d) => ({ id: d.id, ...d.data() }))
-            .filter((p) => (p.stock ?? 0) > 0 && (p.precio ?? 0) > 0),
-        );
+        setProductos(resProd.data?.productos || []);
         setEstado('ok');
       } catch (_) {
         if (!cancelado) setEstado('cerrada');
