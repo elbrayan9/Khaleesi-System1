@@ -16,6 +16,10 @@ const PriceCheckerView = () => {
   const [error, setError] = useState('');
   const [notFound, setNotFound] = useState(false);
   const [uid, setUid] = useState(undefined); // undefined = todavía no sabemos
+  const [sucursales, setSucursales] = useState([]);
+  const [sucursalId, setSucursalId] = useState(
+    () => localStorage.getItem('verificadorSucursal') || '',
+  );
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -27,6 +31,41 @@ const PriceCheckerView = () => {
   useEffect(() => {
     return onAuthStateChanged(auth, (u) => setUid(u ? u.uid : null));
   }, []);
+
+  // Con varios locales, cada uno puede tener su precio: hay que saber cuál es
+  // esta pantalla. La elección queda guardada porque el verificador se deja
+  // fijo en un local.
+  useEffect(() => {
+    if (!uid) return;
+    let cancelado = false;
+    (async () => {
+      try {
+        const snap = await getDocs(
+          query(collection(db, 'sucursales'), where('userId', '==', uid)),
+        );
+        if (cancelado) return;
+        const lista = snap.docs.map((d) => ({
+          id: d.id,
+          nombre: d.data()?.nombre || 'Sucursal',
+        }));
+        setSucursales(lista);
+        // Si la guardada ya no existe (o no hay ninguna elegida), usa la primera.
+        setSucursalId((actual) => {
+          const sigueExistiendo = lista.some((s) => s.id === actual);
+          return sigueExistiendo ? actual : lista[0]?.id || '';
+        });
+      } catch (err) {
+        console.error('No se pudieron cargar las sucursales:', err);
+      }
+    })();
+    return () => {
+      cancelado = true;
+    };
+  }, [uid]);
+
+  useEffect(() => {
+    if (sucursalId) localStorage.setItem('verificadorSucursal', sucursalId);
+  }, [sucursalId]);
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -46,29 +85,42 @@ const PriceCheckerView = () => {
 
     try {
       const productsRef = collection(db, 'productos');
-      // Búsqueda por código de barras (prioridad), siempre acotada al negocio
-      let q = query(
-        productsRef,
-        where('userId', '==', uid),
-        where('codigoBarras', '==', searchTerm.trim()),
-        limit(1),
-      );
-      let querySnapshot = await getDocs(q);
+      const termino = searchTerm.trim();
 
-      // Si no se encuentra por código de barras, busca por nombre
-      if (querySnapshot.empty) {
-        q = query(
-          productsRef,
-          where('userId', '==', uid),
-          where('nombre', '==', searchTerm.trim()),
-          limit(1),
-        );
-        querySnapshot = await getDocs(q);
-      }
+      // Busca por campo, acotado al negocio y —si hay varios locales— a la
+      // sucursal elegida, porque el precio puede cambiar entre locales.
+      const buscarPor = async (campo) => {
+        const filtros = [where('userId', '==', uid)];
+        if (sucursalId) filtros.push(where('sucursalId', '==', sucursalId));
+        filtros.push(where(campo, '==', termino));
+        try {
+          return await getDocs(query(productsRef, ...filtros, limit(1)));
+        } catch (err) {
+          // Si Firestore pide un índice compuesto para esta combinación,
+          // se cae a la consulta simple y se filtra la sucursal acá.
+          if (!/index/i.test(err?.message || '')) throw err;
+          const amplia = await getDocs(
+            query(
+              productsRef,
+              where('userId', '==', uid),
+              where(campo, '==', termino),
+              limit(10),
+            ),
+          );
+          const docs = amplia.docs.filter(
+            (d) => !sucursalId || d.data()?.sucursalId === sucursalId,
+          );
+          return { empty: docs.length === 0, docs };
+        }
+      };
 
-      if (!querySnapshot.empty) {
-        const productData = querySnapshot.docs[0].data();
-        setProduct({ id: querySnapshot.docs[0].id, ...productData });
+      // Código de barras primero; si no aparece, por nombre exacto.
+      let resultado = await buscarPor('codigoBarras');
+      if (resultado.empty) resultado = await buscarPor('nombre');
+
+      if (!resultado.empty) {
+        const encontrado = resultado.docs[0];
+        setProduct({ id: encontrado.id, ...encontrado.data() });
       } else {
         setNotFound(true);
       }
@@ -104,9 +156,28 @@ const PriceCheckerView = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        <h2 className="mb-8 text-center text-3xl font-bold tracking-tight text-zinc-200 sm:text-4xl">
+        <h2 className="mb-3 text-center text-3xl font-bold tracking-tight text-zinc-200 sm:text-4xl">
           Verificador de Precios
         </h2>
+
+        {sucursales.length > 1 ? (
+          <div className="mb-6 flex items-center gap-2 text-sm">
+            <span className="text-zinc-500">Precios de:</span>
+            <select
+              value={sucursalId}
+              onChange={(e) => setSucursalId(e.target.value)}
+              className="rounded-md border border-zinc-700 bg-zinc-800 px-3 py-1.5 font-semibold text-zinc-200 focus:border-blue-500 focus:outline-none"
+            >
+              {sucursales.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <div className="mb-6" />
+        )}
 
         <form onSubmit={handleSearch} className="w-full max-w-md">
           <div className="relative">
