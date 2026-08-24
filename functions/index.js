@@ -970,6 +970,20 @@ exports.consultarPagosMp = onCall(
 // ===============================================
 // Devuelve la sucursal si su tienda está publicada (activa + suscripción
 // vigente + Plan Completo), o null. Mismo criterio que getTiendaPublica.
+// ¿El dueño de la cuenta es administrador del sistema? Se marca con un custom
+// claim, no en Firestore, así que hay que preguntárselo a Auth.
+async function usuarioEsAdmin(uid) {
+  if (!uid) return false;
+  try {
+    const u = await admin.auth().getUser(uid);
+    return u.customClaims?.admin === true;
+  } catch (error) {
+    // Un usuario borrado o un error transitorio no debe tumbar la tienda.
+    console.error('[usuarioEsAdmin]', uid, error?.message);
+    return false;
+  }
+}
+
 // Estado de la tienda de una sucursal, con el motivo por el que no publica.
 // La configuracion puede vivir en dos lugares: en `sucursales/{id}.configuracion`
 // (multisucursal) o en `datosNegocio/{uid}` (el documento global, que es el que
@@ -990,11 +1004,18 @@ async function estadoTiendaSucursal(sucursalId) {
     suc.configuracion?.tiendaActiva === true || neg?.tiendaActiva === true;
   if (!activa) return { ok: false, motivo: 'tienda_desactivada' };
 
-  if (!['active', 'trial'].includes(neg?.subscriptionStatus)) {
+  // La tienda online es del Plan Completo. El panel de Configuracion deja
+  // activarla si `isPremium || isAdmin`, asi que aca se acepta lo mismo: de lo
+  // contrario un administrador la activa, ve el interruptor encendido, y el
+  // servidor la rechaza sin que nada explique por que.
+  const esAdmin = await usuarioEsAdmin(suc.userId);
+
+  if (!esAdmin && !['active', 'trial'].includes(neg?.subscriptionStatus)) {
     return { ok: false, motivo: 'suscripcion_vencida' };
   }
-  // La tienda online es del Plan Completo.
-  if (neg?.plan !== 'premium') return { ok: false, motivo: 'plan_basico' };
+  if (!esAdmin && neg?.plan !== 'premium') {
+    return { ok: false, motivo: 'plan_basico' };
+  }
 
   return { ok: true, suc, neg };
 }
