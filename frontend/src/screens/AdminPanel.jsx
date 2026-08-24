@@ -284,10 +284,88 @@ function AdminPanel() {
       u.datosNegocio.subscriptionStatus !== 'trial',
   ).length;
 
+  // --- Cuánto factura el mes ---
+  // Precios de lista; deben coincidir con PLANES_PRECIO en functions/index.js.
+  const PRECIO_LISTA = { basic: 20000, premium: 35000 };
+
+  // Lo que se le cobra a UN cliente: su precio congelado si lo tiene vigente,
+  // si no el de lista. Es el mismo criterio que usa crearPagoSuscripcion.
+  const cuotaDe = (u) => {
+    const plan = u.datosNegocio?.plan === 'premium' ? 'premium' : 'basic';
+    const legacy = u.datosNegocio?.precioLegacy?.[plan];
+    if (legacy?.mensual > 0) {
+      const hasta = u.datosNegocio?.precioLegacyHasta;
+      const fin = hasta?.toDate
+        ? hasta.toDate()
+        : hasta
+          ? new Date(hasta)
+          : null;
+      if (!fin || fin.getTime() > Date.now()) return Number(legacy.mensual);
+    }
+    return PRECIO_LISTA[plan];
+  };
+
+  // Facturación mensual: solo los que pagan hoy (los de prueba todavía no).
+  const facturacionMensual = users
+    .filter((u) => u.datosNegocio?.subscriptionStatus === 'active')
+    .reduce((total, u) => total + cuotaDe(u), 0);
+
+  // --- Quién está por caerse ---
+  const diasHasta = (valor) => {
+    if (!valor) return null;
+    const d = valor?.toDate ? valor.toDate() : new Date(valor);
+    if (isNaN(d.getTime())) return null;
+    return Math.ceil((d.getTime() - Date.now()) / 86400000);
+  };
+
+  // Pruebas que se terminan dentro de la semana: son los que hay que llamar
+  // antes de que se vayan.
+  const pruebasPorVencer = users.filter((u) => {
+    if (u.datosNegocio?.subscriptionStatus !== 'trial') return false;
+    const d = diasHasta(u.datosNegocio?.subscriptionEndDate);
+    return d !== null && d >= 0 && d <= 7;
+  }).length;
+
+  const diasSinEntrar = (u) => {
+    const d = diasHasta(u.ultimoLogin);
+    return d === null ? null : Math.abs(d);
+  };
+
+  // Paga pero hace más de 14 días que no entra: baja probable.
+  const enRiesgo = users.filter((u) => {
+    if (u.datosNegocio?.subscriptionStatus !== 'active') return false;
+    const d = diasSinEntrar(u);
+    return d !== null && d > 14;
+  }).length;
+
+  const pesos = (n) =>
+    '$' + Number(n || 0).toLocaleString('es-AR', { maximumFractionDigits: 0 });
+
+  // --- Orden por urgencia ---
+  // Lo que necesita atención va arriba: primero las pruebas que vencen, después
+  // los que pagan pero no entran, después los vencidos, y al final el resto.
+  const urgencia = (u) => {
+    const estado = u.datosNegocio?.subscriptionStatus;
+    if (estado === 'trial') {
+      const d = diasHasta(u.datosNegocio?.subscriptionEndDate);
+      if (d !== null && d >= 0 && d <= 7) return 0;
+    }
+    if (estado === 'active' && (diasSinEntrar(u) ?? 0) > 14) return 1;
+    if (estado !== 'active' && estado !== 'trial') return 2;
+    if (estado === 'trial') return 3;
+    return 4;
+  };
+
   // Pagination Logic
+  const usuariosOrdenados = [...filteredUsers].sort((a, b) => {
+    const dif = urgencia(a) - urgencia(b);
+    if (dif !== 0) return dif;
+    // Dentro del mismo grupo, los más nuevos primero.
+    return new Date(b.fechaCreacion) - new Date(a.fechaCreacion);
+  });
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentUsers = filteredUsers.slice(indexOfFirstItem, indexOfLastItem);
+  const currentUsers = usuariosOrdenados.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
@@ -372,27 +450,87 @@ function AdminPanel() {
         )}
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-lg bg-zinc-800 p-4 shadow-md">
-          <p className="text-sm text-zinc-400">Total Usuarios</p>
-          <p className="text-2xl font-bold text-white">{totalUsers}</p>
+      {/* Lo que mueve la aguja: plata arriba, y a quién hay que llamar */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="rounded-xl border border-emerald-500/25 bg-gradient-to-br from-emerald-500/10 to-zinc-800 p-5 shadow-md lg:col-span-1">
+          <p className="text-sm font-medium text-emerald-300">
+            Facturación del mes
+          </p>
+          <p className="mt-1 text-4xl font-bold tabular-nums text-white">
+            {pesos(facturacionMensual)}
+          </p>
+          <p className="mt-1 text-xs text-zinc-400">
+            {activeUsers} {activeUsers === 1 ? 'cuenta paga' : 'cuentas pagas'} ·
+            respeta precios congelados
+          </p>
         </div>
-        <div className="rounded-lg bg-zinc-800 p-4 shadow-md">
-          <p className="text-sm text-zinc-400">Suscripciones Activas</p>
-          <p className="text-2xl font-bold text-green-400">{activeUsers}</p>
-        </div>
-        <div className="rounded-lg bg-zinc-800 p-4 shadow-md">
-          <p className="text-sm text-zinc-400">En Prueba</p>
-          <p className="text-2xl font-bold text-blue-400">{trialUsers}</p>
-        </div>
-        <div className="rounded-lg bg-zinc-800 p-4 shadow-md">
-          <p className="text-sm text-zinc-400">Vencidas / Inactivas</p>
-          <p className="text-2xl font-bold text-red-400">{expiredUsers}</p>
+
+        <div className="grid grid-cols-2 gap-4 lg:col-span-2">
+          <div
+            className={`rounded-xl border p-4 shadow-md ${
+              pruebasPorVencer > 0
+                ? 'border-amber-500/40 bg-amber-500/10'
+                : 'border-zinc-700 bg-zinc-800'
+            }`}
+          >
+            <p className="text-sm text-zinc-300">Pruebas que vencen</p>
+            <p
+              className={`text-3xl font-bold tabular-nums ${
+                pruebasPorVencer > 0 ? 'text-amber-300' : 'text-zinc-500'
+              }`}
+            >
+              {pruebasPorVencer}
+            </p>
+            <p className="text-xs text-zinc-500">en los próximos 7 días</p>
+          </div>
+
+          <div
+            className={`rounded-xl border p-4 shadow-md ${
+              enRiesgo > 0
+                ? 'border-rose-500/40 bg-rose-500/10'
+                : 'border-zinc-700 bg-zinc-800'
+            }`}
+          >
+            <p className="text-sm text-zinc-300">Pagan y no entran</p>
+            <p
+              className={`text-3xl font-bold tabular-nums ${
+                enRiesgo > 0 ? 'text-rose-300' : 'text-zinc-500'
+              }`}
+            >
+              {enRiesgo}
+            </p>
+            <p className="text-xs text-zinc-500">hace más de 14 días</p>
+          </div>
+
+          <div className="rounded-xl border border-zinc-700 bg-zinc-800 p-4 shadow-md">
+            <p className="text-sm text-zinc-300">En prueba</p>
+            <p className="text-3xl font-bold tabular-nums text-sky-300">
+              {trialUsers}
+            </p>
+            <p className="text-xs text-zinc-500">de {totalUsers} cuentas</p>
+          </div>
+
+          <div className="rounded-xl border border-zinc-700 bg-zinc-800 p-4 shadow-md">
+            <p className="text-sm text-zinc-300">Vencidas</p>
+            <p className="text-3xl font-bold tabular-nums text-zinc-400">
+              {expiredUsers}
+            </p>
+            <p className="text-xs text-zinc-500">para recuperar</p>
+          </div>
         </div>
       </div>
 
       <div className="overflow-hidden rounded-lg bg-zinc-800 shadow-md">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-700 px-4 py-2.5">
+          <p className="text-xs text-zinc-400">
+            Ordenado por lo que necesita atención: primero las pruebas por
+            vencer, después quienes pagan y no entran, y luego los vencidos.
+          </p>
+          <p className="text-xs text-zinc-500">
+            {filteredUsers.length}{' '}
+            {filteredUsers.length === 1 ? 'cuenta' : 'cuentas'}
+          </p>
+        </div>
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -401,6 +539,7 @@ function AdminPanel() {
                 <TableHead className="text-zinc-300">Plan</TableHead>
                 <TableHead className="text-zinc-300">Estado</TableHead>
                 <TableHead className="text-zinc-300">Vencimiento</TableHead>
+                <TableHead className="text-zinc-300">Última conexión</TableHead>
                 <TableHead className="text-zinc-300">Fecha Creación</TableHead>
                 <TableHead className="text-center text-zinc-300">
                   Acciones
@@ -457,7 +596,54 @@ function AdminPanel() {
                     </select>
                   </TableCell>
                   <TableCell className="text-zinc-300">
-                    {formatDate(user.datosNegocio.subscriptionEndDate)}
+                    {(() => {
+                      const d = diasHasta(user.datosNegocio.subscriptionEndDate);
+                      const texto = formatDate(
+                        user.datosNegocio.subscriptionEndDate,
+                      );
+                      if (d === null) return texto;
+                      if (d < 0)
+                        return (
+                          <span className="text-rose-400">
+                            {texto}{' '}
+                            <span className="text-xs">
+                              (venció hace {Math.abs(d)} d)
+                            </span>
+                          </span>
+                        );
+                      if (d <= 7)
+                        return (
+                          <span className="font-semibold text-amber-300">
+                            {texto}{' '}
+                            <span className="text-xs">
+                              ({d === 0 ? 'hoy' : `en ${d} d`})
+                            </span>
+                          </span>
+                        );
+                      return texto;
+                    })()}
+                  </TableCell>
+                  <TableCell>
+                    {(() => {
+                      const d = diasSinEntrar(user);
+                      if (d === null)
+                        return <span className="text-zinc-600">nunca</span>;
+                      const color =
+                        d > 14
+                          ? 'text-rose-400 font-semibold'
+                          : d > 7
+                            ? 'text-amber-300'
+                            : 'text-zinc-300';
+                      return (
+                        <span className={color}>
+                          {d === 0
+                            ? 'hoy'
+                            : d === 1
+                              ? 'ayer'
+                              : `hace ${d} días`}
+                        </span>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell className="text-zinc-400">
                     {formatDate(user.fechaCreacion)}
