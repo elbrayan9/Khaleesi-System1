@@ -59,7 +59,7 @@ function Footer({ simple = false }) {
               Contacto
             </h4>
             <div className="space-y-2 text-sm text-zinc-400">
-              <p>+54 9 3541 21-5803</p>
+              <p>+54 9 3517 69-4103</p>
               <p>khaleesisystempos@gmail.com</p>
               <p>Córdoba, Argentina</p>
             </div>

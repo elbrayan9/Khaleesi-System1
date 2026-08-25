@@ -1025,7 +1025,7 @@ const LandingPage = () => {
 
                 <HoverEffectWrapper className="mt-8 space-y-6">
                   <a
-                    href="https://wa.me/5493541215803"
+                    href="https://wa.me/5493517694103"
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={() => registrarContacto('whatsapp-landing')}
@@ -1051,7 +1051,7 @@ const LandingPage = () => {
                       <h4 className="font-semibold text-white">WhatsA pp</h4>
 
                       <p className="text-sm text-zinc-400">
-                        +54 9 3541 21-5803
+                        +54 9 3517 69-4103
                       </p>
                     </div>
                   </a>

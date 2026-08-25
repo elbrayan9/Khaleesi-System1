@@ -506,7 +506,7 @@ function ConfiguracionTab() {
                       }). Quisiera solicitar el cambio de mi suscripción al Plan Básico.`,
                     );
                     window.open(
-                      `https://wa.me/5493541215803?text=${message}`,
+                      `https://wa.me/5493517694103?text=${message}`,
                       '_blank',
                     );
                   }}
@@ -571,7 +571,7 @@ function ConfiguracionTab() {
                       }). Me gustaría solicitar un upgrade al Plan Premium para acceder a todas las funcionalidades.`,
                     );
                     window.open(
-                      `https://wa.me/5493541215803?text=${message}`,
+                      `https://wa.me/5493517694103?text=${message}`,
                       '_blank',
                     );
                   }}

@@ -261,7 +261,7 @@ function ClientForm({ onSave, clientToEdit, onCancelEdit }) {
             type="tel"
             value={telefono}
             onChange={(e) => setTelefono(e.target.value)}
-            placeholder="Ej: 3541 21-5803"
+            placeholder="Ej: 3517 69-4103"
             className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100 focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
