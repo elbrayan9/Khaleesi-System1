@@ -67,3 +67,6 @@ node_modules/
 
 # dataconnect generated files
 .dataconnect
+
+# Cache de graphify (generado, no va al repo)
+graphify-out/
