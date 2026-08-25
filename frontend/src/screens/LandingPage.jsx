@@ -45,6 +45,7 @@ import TypeAnimation from '../components/TypeAnimation';
 import { AnimatedButton } from '../components/AnimatedButton';
 import HoverEffectWrapper from '../components/HoverEffectWrapper';
 import Tilt3D from '../components/Tilt3D';
+import { registrarContacto } from '../utils/medicion.js';
 
 // Componente para cada tarjeta de característica (CON EFECTO GLOW)
 const FeatureCard = ({
@@ -1027,6 +1028,7 @@ const LandingPage = () => {
                     href="https://wa.me/5493541215803"
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => registrarContacto('whatsapp-landing')}
                     className="flex items-center gap-4 rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 transition-colors hover:border-green-500/50 hover:bg-zinc-800"
                     data-glow-color="rgba(34, 197, 94, 0.5)"
                   >

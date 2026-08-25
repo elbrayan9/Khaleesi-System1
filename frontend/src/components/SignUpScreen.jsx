@@ -4,6 +4,7 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAppContext } from '../context/AppContext.jsx';
 import { signUpWithBusiness, signInWithGoogle } from '../services/authService';
+import { registrarRegistro } from '../utils/medicion.js';
 import { Eye, EyeOff, Check, X } from 'lucide-react';
 import AppLogo from './AppLogo.jsx';
 import Footer from './Footer.jsx';
@@ -75,6 +76,9 @@ function SignUpScreen() {
     setIsLoading(true);
     try {
       await signUpWithBusiness(email, password, nombreNegocio, plan);
+      // Recién acá: la cuenta quedó creada de verdad. Si se informara antes,
+      // se contarían como conversión los intentos fallidos.
+      registrarRegistro(plan);
       mostrarMensaje(
         'Cuenta creada con éxito. Se ha enviado un correo de verificación.',
         'success',
@@ -96,6 +100,7 @@ function SignUpScreen() {
     setIsLoading(true);
     try {
       await signInWithGoogle();
+      registrarRegistro('google');
       navigate('/');
     } catch (error) {
       mostrarMensaje('Error al registrarse con Google.', 'error');

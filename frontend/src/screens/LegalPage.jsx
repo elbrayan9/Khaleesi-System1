@@ -254,8 +254,10 @@ function LegalPage() {
               <LI>Soporte, seguridad, prevención de fraude y mejoras.</LI>
             </ul>
             <P>
-              No vendemos tus datos ni los de tus clientes, ni los usamos para
-              publicidad de terceros.
+              No vendemos tus datos ni los de tus clientes. Los datos que cargás
+              en el sistema —tus ventas, tu stock, tus clientes— nunca se usan
+              para publicidad. Sí medimos las visitas a nuestro sitio público
+              para saber cómo nos encuentran; lo explicamos en el punto 4.
             </P>
 
             <H2>4. Con quién los compartimos</H2>
@@ -288,6 +290,35 @@ function LegalPage() {
             <P>
               Algunos de estos proveedores procesan información fuera de la
               Argentina, con resguardos contractuales adecuados.
+            </P>
+
+            <H2>4 bis. Medición del sitio público y publicidad</H2>
+            <P>
+              En nuestras <strong>páginas públicas</strong> (la portada, el
+              registro y las pantallas abiertas) usamos dos herramientas de
+              medición que instalan cookies en tu navegador:
+            </P>
+            <ul className="ml-5 list-disc">
+              <LI>
+                <strong>Google Analytics</strong>: para saber cuánta gente visita
+                el sitio y qué secciones mira.
+              </LI>
+              <LI>
+                <strong>Píxel de Meta</strong> (Facebook e Instagram): para medir
+                si nuestros anuncios funcionan y poder mostrarlos a quienes ya
+                visitaron el sitio.
+              </LI>
+            </ul>
+            <P>
+              Estas herramientas <strong>no funcionan dentro del sistema</strong>
+              : ni en tu panel ni en ninguna pantalla donde haya datos de tu
+              negocio o de tus clientes. Lo que cargás en Khaleesi no viaja a
+              Meta ni se usa para publicidad.
+            </P>
+            <P>
+              Podés bloquear estas cookies desde la configuración de tu navegador
+              o con una extensión de bloqueo; el sitio y el sistema siguen
+              funcionando igual.
             </P>
 
             <H2>5. Tienda online pública</H2>
