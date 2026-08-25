@@ -48,6 +48,8 @@ import AdminPanel from './screens/AdminPanel.jsx';
 import UserDetailAdmin from './screens/UserDetailAdmin.jsx';
 import LandingPage from './screens/LandingPage.jsx';
 import PaymentInstructions from './screens/PaymentInstructions.jsx';
+import { registrarVista } from './utils/medicion.js';
+import { analytics } from './firebaseConfig.js';
 
 function App() {
   const {
@@ -61,6 +63,13 @@ function App() {
   } = useAppContext();
 
   const location = useLocation();
+
+  // Cada cambio de pantalla cuenta como una vista. Sin esto, al ser una SPA,
+  // toda la visita se registraba como una sola pantalla.
+  useEffect(() => {
+    registrarVista(location.pathname, analytics);
+  }, [location.pathname]);
+
   const [ventaToPrint, setVentaToPrint] = useState(null);
   const [clienteToPrint, setClienteToPrint] = useState(null);
   const printVentaRef = useRef();
