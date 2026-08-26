@@ -1048,7 +1048,7 @@ const LandingPage = () => {
                       </svg>
                     </div>
                     <div>
-                      <h4 className="font-semibold text-white">WhatsA pp</h4>
+                      <h4 className="font-semibold text-white">WhatsApp</h4>
 
                       <p className="text-sm text-zinc-400">
                         +54 9 3517 69-4103
