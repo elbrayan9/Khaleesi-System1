@@ -1,0 +1,260 @@
+<template>
+  <div id="root" data-composition-id="04-facturar" data-width="1080" data-height="1920" data-start="0" data-duration="4.5">
+    <style>
+      @font-face{font-family:"Inter";font-weight:400;font-style:normal;font-display:block;src:url("assets/fonts/Inter-400.woff2") format("woff2"),url("assets/fonts/Inter-400.ttf") format("truetype");}
+      @font-face{font-family:"Inter";font-weight:900;font-style:normal;font-display:block;src:url("assets/fonts/Inter-900.woff2") format("woff2"),url("assets/fonts/Inter-900.ttf") format("truetype");}
+
+      #root{
+        position:absolute;
+        inset:0;
+        width:1080px;
+        height:1920px;
+        overflow:hidden;
+        container-type:size;
+        font-family:"Inter",sans-serif;
+      }
+
+      .facturar-bg{
+        position:absolute;
+        inset:0;
+        background:#27272A;
+      }
+
+      .facturar-glow{
+        position:absolute;
+        top:180px;
+        left:0;
+        right:0;
+        margin:0 auto;
+        width:900px;
+        height:520px;
+        border-radius:50%;
+        background:radial-gradient(closest-side, rgba(37,99,235,0.34), rgba(37,99,235,0.11) 56%, rgba(37,99,235,0) 78%);
+        filter:blur(52px);
+        opacity:0;
+      }
+
+      .facturar-eyebrow{
+        position:absolute;
+        top:232px;
+        left:132px;
+        width:816px;
+        font-weight:400;
+        font-size:34px;
+        letter-spacing:0.16em;
+        color:#2563EB;
+        opacity:0;
+      }
+
+      .facturar-rule{
+        position:absolute;
+        top:302px;
+        left:132px;
+        width:120px;
+        height:6px;
+        border-radius:2px;
+        background:#2563EB;
+        transform-origin:left center;
+      }
+
+      .facturar-headline{
+        position:absolute;
+        top:342px;
+        left:132px;
+        width:880px;
+        font-weight:900;
+        font-size:92px;
+        line-height:1.06;
+        letter-spacing:-0.03em;
+        color:#60A5FA;
+        white-space:nowrap;
+        opacity:0;
+      }
+
+      .facturar-window{
+        position:absolute;
+        top:520px;
+        left:132px;
+        width:816px;
+        border:1.5px solid rgba(37,99,235,0.2);
+        border-radius:14px;
+        background:rgba(37,99,235,0.04);
+        overflow:hidden;
+        opacity:0;
+      }
+
+      .facturar-chrome{
+        height:56px;
+        display:flex;
+        align-items:center;
+        gap:12px;
+        padding-left:24px;
+        background:rgba(37,99,235,0.08);
+        border-bottom:1.5px solid rgba(37,99,235,0.2);
+      }
+
+      .facturar-dot{
+        width:13px;
+        height:13px;
+        border-radius:50%;
+        background:rgba(37,99,235,0.42);
+      }
+
+      .facturar-viewport{
+        position:relative;
+        width:816px;
+        height:1020px;
+        overflow:hidden;
+      }
+
+      .facturar-shot{
+        position:absolute;
+        left:-816px;
+        top:-1792px;
+        width:2076px;
+        display:block;
+      }
+
+      .facturar-ring{
+        position:absolute;
+        left:35px;
+        top:907px;
+        width:747px;
+        height:76px;
+        overflow:visible;
+      }
+
+      .facturar-ring rect{
+        fill:none;
+        stroke:#2563EB;
+        stroke-width:4;
+      }
+
+      .facturar-press{
+        position:absolute;
+        left:47px;
+        top:919px;
+        width:723px;
+        height:53px;
+        border-radius:8px;
+        background:rgba(37,99,235,0.55);
+        opacity:0;
+      }
+
+      .facturar-pill{
+        position:absolute;
+        top:1330px;
+        left:0;
+        right:0;
+        margin:0 auto;
+        width:fit-content;
+        display:flex;
+        align-items:center;
+        gap:20px;
+        padding:26px 58px 26px 46px;
+        border-radius:100px;
+        background:#2563EB;
+        color:#27272A;
+        font-weight:900;
+        font-size:52px;
+        letter-spacing:0.06em;
+        opacity:0;
+      }
+
+      .facturar-check path{
+        fill:none;
+        stroke:#27272A;
+        stroke-width:9;
+        stroke-linecap:round;
+        stroke-linejoin:round;
+      }
+    </style>
+
+    <div class="clip facturar-bg" data-start="0" data-duration="4.5" data-track-index="0"></div>
+
+    <div class="clip facturar-glow" id="facturar-glow" data-start="0" data-duration="4.5" data-track-index="1"></div>
+
+    <div class="clip facturar-eyebrow" id="facturar-eyebrow" data-start="0" data-duration="4.5" data-track-index="2">FACTURAR</div>
+
+    <div class="clip facturar-rule" id="facturar-rule" data-start="0" data-duration="4.5" data-track-index="3"></div>
+
+    <div class="clip facturar-headline" id="facturar-headline" data-start="0" data-duration="4.5" data-track-index="4">Directo a ARCA</div>
+
+    <div class="clip facturar-window" id="facturar-window" data-start="0.9" data-duration="3.6" data-track-index="5">
+      <div class="facturar-chrome">
+        <span class="facturar-dot"></span>
+        <span class="facturar-dot"></span>
+        <span class="facturar-dot"></span>
+      </div>
+      <div class="facturar-viewport">
+        <img class="facturar-shot" src="assets/premium-config.png" alt="Configuracion AFIP">
+        <svg class="clip facturar-ring" id="facturar-ring" viewBox="0 0 747 76" data-start="2.2" data-duration="2.3" data-track-index="6">
+          <rect id="facturar-ring-rect" x="2" y="2" width="743" height="72" rx="14"></rect>
+        </svg>
+        <div class="clip facturar-press" id="facturar-press" data-start="2.6" data-duration="1.9" data-track-index="7"></div>
+      </div>
+    </div>
+
+    <div class="clip facturar-pill" id="facturar-pill" data-start="3.3" data-duration="1.2" data-track-index="8">
+      <svg class="facturar-check" width="58" height="58" viewBox="0 0 58 58">
+        <path id="facturar-check-path" d="M10 31 L24 45 L48 15"></path>
+      </svg>
+      <span>CONECTADO</span>
+    </div>
+
+    <script>
+      (function () {
+        var root = document.querySelector('[data-composition-id="04-facturar"]');
+        var glow = root.querySelector('#facturar-glow');
+        var eyebrow = root.querySelector('#facturar-eyebrow');
+        var rule = root.querySelector('#facturar-rule');
+        var headline = root.querySelector('#facturar-headline');
+        var win = root.querySelector('#facturar-window');
+        var ring = root.querySelector('#facturar-ring');
+        var ringRect = root.querySelector('#facturar-ring-rect');
+        var press = root.querySelector('#facturar-press');
+        var pill = root.querySelector('#facturar-pill');
+        var check = root.querySelector('#facturar-check-path');
+
+        var RING_LEN = 1660;
+        var CHECK_LEN = 60;
+
+        var tl = gsap.timeline({ paused: true });
+
+        // Scene 1 (0.0-1.0s) — eyebrow, regla de acento y titular en el tercio superior.
+        tl.fromTo(glow, { opacity: 0, scale: 0.82 }, { opacity: 0.62, scale: 1, duration: 0.7, ease: 'power2.out' }, 0);
+        tl.fromTo(eyebrow, { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: 0.36, ease: 'power2.out' }, 0.06);
+        tl.fromTo(rule, { scaleX: 0, opacity: 0 }, { scaleX: 1, opacity: 1, duration: 0.34, ease: 'power3.out' }, 0.26);
+        tl.fromTo(headline, { opacity: 0, y: 62, filter: 'blur(18px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.58, ease: 'power3.out' }, 0.4);
+
+        // Scene 2 (1.0-2.2s) — la captura real sube al marco, recortada al bloque AFIP.
+        tl.fromTo(win, { opacity: 0, y: 240, scale: 0.94 }, { opacity: 1, y: 0, scale: 1, duration: 0.86, ease: 'power3.out' }, 1.0);
+        // micro-deriva de camara sosteniendo la co-visibilidad del bloque.
+        tl.to(win, { scale: 1.012, duration: 1.3, ease: 'sine.inOut' }, 1.9);
+
+        // Scene 3 (2.2-3.3s) — el anillo cobalto se dibuja alrededor del boton.
+        tl.set(ringRect, { strokeDasharray: RING_LEN, strokeDashoffset: RING_LEN, opacity: 1 }, 0);
+        tl.fromTo(ring, { opacity: 0 }, { opacity: 1, duration: 0.14, ease: 'none' }, 2.2);
+        tl.to(ringRect, { strokeDashoffset: 0, duration: 0.62, ease: 'power2.inOut' }, 2.22);
+
+        // el boton se presiona solo: compresion + destello (control-target-sync).
+        tl.to(ring, { scaleY: 0.86, scaleX: 0.985, duration: 0.12, ease: 'power2.in' }, 2.92);
+        tl.fromTo(press, { opacity: 0, scaleY: 0.86, scaleX: 0.985 }, { opacity: 0.9, scaleY: 0.86, scaleX: 0.985, duration: 0.12, ease: 'power2.in' }, 2.92);
+        tl.to(ring, { scaleY: 1, scaleX: 1, duration: 0.28, ease: 'back.out(3)' }, 3.04);
+        tl.to(press, { opacity: 0.18, scaleY: 1, scaleX: 1, duration: 0.28, ease: 'back.out(3)' }, 3.04);
+
+        // Scene 4 (3.3-4.5s) — pill CONECTADO con check que se dibuja. Hold.
+        tl.set(check, { strokeDasharray: CHECK_LEN, strokeDashoffset: CHECK_LEN }, 0);
+        tl.fromTo(pill, { opacity: 0, scale: 0.62, y: 34 }, { opacity: 1, scale: 1.06, y: 0, duration: 0.34, ease: 'back.out(2.8)' }, 3.32);
+        tl.to(pill, { scale: 1, duration: 0.2, ease: 'power2.out' }, 3.66);
+        tl.to(check, { strokeDashoffset: 0, duration: 0.36, ease: 'power2.out' }, 3.62);
+        tl.to(press, { opacity: 0.32, duration: 0.3, ease: 'sine.inOut' }, 3.7);
+
+        tl.set({}, {}, 4.5);
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines['04-facturar'] = tl;
+      })();
+    </script>
+  </div>
+</template>

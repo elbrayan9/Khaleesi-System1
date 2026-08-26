@@ -1,0 +1,239 @@
+<template>
+  <div id="root" data-composition-id="04-delivery" data-width="1080" data-height="1920" data-start="0" data-duration="4">
+    <style>
+      @font-face{font-family:"Inter";font-weight:400;font-style:normal;font-display:block;src:url("assets/fonts/Inter-400.woff2") format("woff2");}
+      @font-face{font-family:"Inter";font-weight:900;font-style:normal;font-display:block;src:url("assets/fonts/Inter-900.woff2") format("woff2");}
+
+      #root{
+        position:absolute; inset:0; width:1080px; height:1920px;
+        overflow:hidden; container-type:size;
+        font-family:"Inter", sans-serif;
+      }
+
+      /* ---------- ground ---------- */
+      .dl-bg{
+        position:absolute; inset:0;
+        background:
+          radial-gradient(120% 70% at 50% 18%, rgba(37,99,235,0.16) 0%, rgba(37,99,235,0) 62%),
+          #27272A;
+      }
+
+      /* ---------- headline ---------- */
+      .dl-h{
+        position:absolute; left:80px; width:920px;
+        font-weight:900; font-size:104px; line-height:1.04;
+        letter-spacing:-0.02em; color:#60A5FA;
+      }
+      .dl-h1{ top:236px; }
+      .dl-h2{ top:346px; }
+
+      /* ---------- status bar ---------- */
+      .dl-status{
+        position:absolute; left:80px; top:512px;
+        display:flex; align-items:center; gap:22px;
+        padding:18px 34px 18px 18px;
+        background:rgba(37,99,235,0.15);
+        border:1.5px solid rgba(37,99,235,0.35);
+        border-radius:100px;
+      }
+      .dl-av{
+        width:62px; height:62px; border-radius:50%;
+        background:#2563EB; color:#27272A;
+        font-weight:900; font-size:30px;
+        display:flex; align-items:center; justify-content:center;
+      }
+      .dl-status-t{
+        font-weight:900; font-size:34px; letter-spacing:0.08em;
+        color: #60A5FA;
+      }
+
+      /* ---------- map ---------- */
+      .dl-map{
+        position:absolute; left:80px; top:640px;
+        width:920px; height:900px;
+        background:#303036;
+        border:1.5px solid rgba(37,99,235,0.2);
+        border-radius:14px; overflow:hidden;
+      }
+      .dl-map svg{ display:block; }
+
+      .dl-route{
+        position:absolute; left:80px; top:640px;
+        width:920px; height:900px; pointer-events:none;
+      }
+      .dl-route svg{ display:block; }
+
+      /* ---------- pin ---------- */
+      .dl-pin{
+        position:absolute; left:80px; top:640px;
+        width:56px; height:56px;
+        margin-left:752px; margin-top:672px;
+      }
+      .dl-pin-b{
+        position:absolute; inset:0;
+        border-radius:50% 50% 50% 6px;
+        background:#656565;
+        border:3px solid rgba(255,255,255,0.18);
+      }
+      .dl-pin-d{
+        position:absolute; left:20px; top:20px;
+        width:16px; height:16px; border-radius:50%;
+        background:#303036;
+      }
+
+      /* ---------- rider dot ---------- */
+      .dl-dot{
+        position:absolute; left:80px; top:640px;
+        width:38px; height:38px;
+        margin-left:-19px; margin-top:-19px;
+      }
+      .dl-dot-c{
+        position:absolute; inset:0; border-radius:50%;
+        background:#2563EB; border:4px solid #dbe6ff;
+      }
+      .dl-ring{
+        position:absolute; left:-1px; top:-1px;
+        width:40px; height:40px; border-radius:50%;
+        border:3px solid #2563EB; opacity:0;
+      }
+    </style>
+
+    <!-- ground -->
+    <div class="clip dl-bg" data-start="0" data-duration="4" data-track-index="0"></div>
+
+    <!-- headline -->
+    <div class="clip dl-h dl-h1" data-start="0" data-duration="4" data-track-index="1">Y el cliente</div>
+    <div class="clip dl-h dl-h2" data-start="0" data-duration="4" data-track-index="2">lo ve llegar</div>
+
+    <!-- schematic map -->
+    <div class="clip dl-map" data-start="0" data-duration="4" data-track-index="3">
+      <svg width="920" height="900" viewBox="0 0 920 900" fill="none">
+        <g class="dl-streets" stroke="#4a4a52" stroke-width="4" stroke-linecap="round">
+          <path d="M0 118 H920" />
+          <path d="M0 300 H612" />
+          <path d="M612 300 L700 372 H920" />
+          <path d="M0 486 H920" />
+          <path d="M0 690 H430" />
+          <path d="M430 690 L520 762 H920" />
+          <path d="M148 0 V900" />
+          <path d="M340 0 V486" />
+          <path d="M340 486 L430 560 V900" />
+          <path d="M612 0 V300" />
+          <path d="M700 372 V900" />
+          <path d="M840 0 V486" />
+        </g>
+        <g stroke="#3c3c44" stroke-width="2">
+          <path d="M0 208 H920" />
+          <path d="M0 590 H920" />
+          <path d="M246 0 V900" />
+          <path d="M770 0 V900" />
+        </g>
+        <g fill="rgba(37,99,235,0.05)">
+          <rect x="160" y="130" width="74" height="66" rx="8" />
+          <rect x="352" y="316" width="66" height="60" rx="8" />
+          <rect x="712" y="500" width="46" height="76" rx="8" />
+          <rect x="440" y="702" width="68" height="48" rx="8" />
+        </g>
+      </svg>
+    </div>
+
+    <!-- dashed route -->
+    <div class="clip dl-route" data-start="0" data-duration="4" data-track-index="4">
+      <svg width="920" height="900" viewBox="0 0 920 900" fill="none">
+        <path class="dl-path"
+              d="M148 118 L148 486 L430 486 L430 690 L700 690"
+              stroke="#2563EB" stroke-width="7"
+              stroke-linecap="round" stroke-linejoin="round"
+              stroke-dasharray="22 20" />
+      </svg>
+    </div>
+
+    <!-- client pin -->
+    <div class="clip dl-pin" data-start="0" data-duration="4" data-track-index="5">
+      <div class="dl-pin-b"></div>
+      <div class="dl-pin-d"></div>
+    </div>
+
+    <!-- rider dot -->
+    <div class="clip dl-dot" data-start="0" data-duration="4" data-track-index="6">
+      <div class="dl-ring dl-r1"></div>
+      <div class="dl-ring dl-r2"></div>
+      <div class="dl-ring dl-r3"></div>
+      <div class="dl-ring dl-r4"></div>
+      <div class="dl-dot-c"></div>
+    </div>
+
+    <!-- status bar -->
+    <div class="clip dl-status" data-start="0" data-duration="4" data-track-index="7">
+      <div class="dl-av">L</div>
+      <div class="dl-status-t">EN CAMINO &middot; Lucas</div>
+    </div>
+
+    <script>
+      (function () {
+        var root = document.querySelector('[data-composition-id="04-delivery"]');
+        if (!root) { return; }
+        var q = function (s) { return root.querySelector(s); };
+        var tl = gsap.timeline({ paused: true });
+
+        var path = q('.dl-path');
+        var LEN = 1120;
+        try { LEN = path.getTotalLength(); } catch (e) {}
+
+        // Scene 1 — headline lands, map field establishes
+        tl.fromTo(q('.dl-h1'), { opacity: 0, y: 46 },
+          { opacity: 1, y: 0, duration: 0.5, ease: 'power3.out' }, 0.0);
+        tl.fromTo(q('.dl-h2'), { opacity: 0, y: 46 },
+          { opacity: 1, y: 0, duration: 0.5, ease: 'power3.out' }, 0.14);
+
+        tl.fromTo(q('.dl-map'), { opacity: 0, y: 40, scale: 0.965 },
+          { opacity: 1, y: 0, scale: 1, duration: 0.6, ease: 'power2.out' }, 0.32);
+        tl.fromTo(root.querySelectorAll('.dl-streets path'), { opacity: 0 },
+          { opacity: 1, duration: 0.34, ease: 'none', stagger: 0.035 }, 0.46);
+
+        // slow push-in under the whole shot
+        tl.to(q('.dl-map'), { scale: 1.035, duration: 2.5, ease: 'none' }, 1.0);
+
+        // Scene 2 — pin, dashed route draws, rider advances
+        tl.fromTo(q('.dl-pin'), { opacity: 0, scale: 0.3, y: -26 },
+          { opacity: 1, scale: 1, y: 0, duration: 0.5, ease: 'back.out(2.2)' }, 1.02);
+
+        tl.fromTo(path, { strokeDashoffset: LEN, opacity: 0.95 },
+          { strokeDashoffset: 0, opacity: 1, duration: 1.0, ease: 'power1.inOut' }, 1.0);
+
+        tl.fromTo(q('.dl-dot'), { opacity: 0, x: 148, y: 118, scale: 0.4 },
+          { opacity: 1, scale: 1, duration: 0.34, ease: 'back.out(2.4)' }, 1.02);
+
+        // travel along the polyline (segment lengths 368 / 282 / 204 / 270)
+        tl.to(q('.dl-dot'), {
+          keyframes: [
+            { x: 148, y: 486, duration: 0.66, ease: 'none' },
+            { x: 430, y: 486, duration: 0.50, ease: 'none' },
+            { x: 430, y: 690, duration: 0.37, ease: 'none' },
+            { x: 700, y: 690, duration: 0.62, ease: 'power2.out' }
+          ]
+        }, 1.20);
+
+        // bounded halo pulses (no repeat — discrete tweens)
+        var rings = ['.dl-r1', '.dl-r2', '.dl-r3', '.dl-r4'];
+        var at = [1.10, 1.62, 2.14, 2.66];
+        for (var i = 0; i < rings.length; i++) {
+          tl.fromTo(q(rings[i]), { opacity: 0.55, scale: 0.7 },
+            { opacity: 0, scale: 2.6, duration: 0.9, ease: 'power2.out' }, at[i]);
+        }
+
+        // Scene 3 — live status bar
+        tl.fromTo(q('.dl-status'), { opacity: 0, x: -50, scale: 0.94 },
+          { opacity: 1, x: 0, scale: 1, duration: 0.46, ease: 'power3.out' }, 2.28);
+        tl.fromTo(q('.dl-av'), { opacity: 0, scale: 0.35 },
+          { opacity: 1, scale: 1, duration: 0.4, ease: 'back.out(2.6)' }, 2.42);
+        tl.fromTo(q('.dl-status-t'), { opacity: 0, y: 12 },
+          { opacity: 1, y: 0, duration: 0.36, ease: 'power2.out' }, 2.52);
+
+        tl.pause(0);
+        window.__timelines = window.__timelines || {};
+        window.__timelines['04-delivery'] = tl;
+      })();
+    </script>
+  </div>
+</template>

@@ -1,0 +1,253 @@
+<template>
+  <div id="root" data-composition-id="03-pedido-entra" data-width="1080" data-height="1920" data-start="0" data-duration="6.5">
+
+    <style>
+      @font-face{font-family:"Inter";font-weight:400;font-style:normal;font-display:block;src:url("assets/fonts/Inter-400.woff2") format("woff2"),url("assets/fonts/Inter-400.ttf") format("truetype");}
+      @font-face{font-family:"Inter";font-weight:900;font-style:normal;font-display:block;src:url("assets/fonts/Inter-900.woff2") format("woff2"),url("assets/fonts/Inter-900.ttf") format("truetype");}
+
+      #root{
+        position:absolute; inset:0; width:1080px; height:1920px; overflow:hidden;
+        font-family:"Inter", sans-serif; -webkit-font-smoothing:antialiased;
+      }
+
+      /* ---------- ground (full-bleed lives on a clip layer) ---------- */
+      .pe-bg{
+        position:absolute; inset:0;
+        background:
+          radial-gradient(120% 62% at 50% 30%, rgba(37,99,235,0.14) 0%, rgba(37,99,235,0) 64%),
+          #27272A;
+      }
+      .pe-dots{
+        position:absolute; inset:0;
+        background-image:radial-gradient(rgba(37,99,235,0.15) 2px, rgba(0,0,0,0) 2px);
+        background-size:60px 60px;
+      }
+
+      .pe-world{position:absolute; inset:0;}
+
+      /* ---------- eyebrow ---------- */
+      .pe-eyebrow{
+        position:absolute; left:90px; top:196px;
+        display:flex; align-items:center; gap:22px;
+      }
+      .pe-eyebrow .rule{width:60px; height:4px; border-radius:2px; background:#2563EB;}
+      .pe-eyebrow .lbl{
+        font-weight:400; font-size:26px; letter-spacing:0.20em;
+        text-transform:uppercase; color:#2563EB;
+      }
+
+      /* ---------- device windows ---------- */
+      .pe-win{
+        position:absolute; box-sizing:border-box;
+        background:#1B1B1E;
+        border:1.5px solid rgba(37,99,235,0.28);
+        border-radius:18px;
+        box-shadow:0 34px 90px rgba(0,0,0,0.55), 0 0 0 1px rgba(37,99,235,0.10);
+        overflow:hidden;
+      }
+      .pe-topbar{
+        position:absolute; left:0; top:0; height:44px; width:100%;
+        box-sizing:border-box;
+        background:rgba(37,99,235,0.06);
+        border-bottom:1px solid rgba(37,99,235,0.18);
+        display:flex; align-items:center; gap:11px; padding-left:22px;
+      }
+      .pe-topbar span{width:11px; height:11px; border-radius:50%; background:rgba(96,165,250,0.34);}
+
+      /* ===== window 1 — the public store, as the customer sees it ===== */
+      .pe-win1{left:60px; top:250px; width:960px; height:744px;}
+      .pe-view1{position:absolute; left:0; top:44px; width:960px; height:700px; overflow:hidden; background:#1A1A1C;}
+      .pe-stage1{position:absolute; left:0; top:0; width:960px; height:700px;}
+
+      /* crop A — search + the two product cards (source 336,76 · 769x334 @1.2484) */
+      .pe-cropA{position:absolute; left:0; top:0; width:960px; height:417px; overflow:hidden;}
+      /* crop B — the pinned green order bar (source 336,758 · 769x142 @1.2484) */
+      .pe-cropB{position:absolute; left:0; top:523px; width:960px; height:177px; overflow:hidden;}
+      /* real captures — UI fidelity: no grade, no filter, no tint over product pixels */
+      .pe-shotA{position:absolute; left:-419.5px; top:-94.9px; width:1797.7px; height:1123.6px; display:block;}
+      .pe-shotB{position:absolute; left:-419.5px; top:-946.3px; width:1797.7px; height:1123.6px; display:block;}
+
+      .pe-btnring{
+        position:absolute; left:2px; top:590px; width:956px; height:67px;
+        border:4px solid #2563EB; border-radius:16px; opacity:0; box-sizing:border-box;
+      }
+      .pe-btnflash{
+        position:absolute; left:6px; top:596px; width:948px; height:55px;
+        border-radius:12px; background:#FFFFFF; opacity:0;
+      }
+
+      /* ---------- the cobalt particle ---------- */
+      .pe-particle{
+        position:absolute; left:526px; top:948px; width:26px; height:26px; border-radius:50%;
+        background:#2563EB; box-shadow:0 0 34px 10px rgba(37,99,235,0.55);
+      }
+
+      /* ===== window 2 — the shop counter ===== */
+      .pe-win2{left:60px; top:1060px; width:960px; height:514px;}
+      .pe-view2{position:absolute; left:0; top:44px; width:960px; height:470px; overflow:hidden; background:#1A1A1C;}
+      .pe-stage2{position:absolute; left:0; top:0; width:960px; height:470px;}
+
+      /* phase A — the "Nuevo pedido" alarm modal (source 281,235 · 878x430 @1.0930) */
+      .pe-shotAl{position:absolute; left:-307.1px; top:-256.9px; width:1573.9px; height:983.7px; display:block;}
+      /* phase B — the counter order card (source 250,105 · 600x294 @1.6) */
+      .pe-stage2b{opacity:0;}
+      .pe-shotMo{position:absolute; left:-400px; top:-168px; width:2304px; height:1440px; display:block;}
+
+      /* placeholder-name cover chips */
+      .pe-chip{
+        position:absolute; box-sizing:border-box;
+        border-radius:100px; background:#232A3F; border:1px solid rgba(37,99,235,0.45);
+        color:#93C5FD; display:flex; align-items:center; justify-content:center;
+        font-weight:400; letter-spacing:0.01em;
+      }
+      .pe-chip-al{left:350px; top:252px; width:258px; height:42px; font-size:20px;}
+      .pe-chip-mo{left:40px; top:112px; width:206px; height:48px; font-size:23px;}
+
+      .pe-confring{
+        position:absolute; left:40px; top:321px; width:722px; height:69px;
+        border:4px solid #2563EB; border-radius:14px; opacity:0; box-sizing:border-box;
+      }
+
+      /* alarm rings — they live OUTSIDE the window rect (scale > 1 only) */
+      .pe-alarmring{
+        position:absolute; left:60px; top:1060px; width:960px; height:514px;
+        border:5px solid #2563EB; border-radius:22px; opacity:0; box-sizing:border-box;
+      }
+
+      /* ---------- closing line ---------- */
+      .pe-foot{
+        position:absolute; left:0; top:1608px; width:1080px; text-align:center;
+        font-size:34px; font-weight:400; color:#656565; letter-spacing:0.01em;
+      }
+    </style>
+
+    <div class="clip pe-bg" data-start="0" data-duration="6.5" data-track-index="0">
+      <div class="pe-dots"></div>
+    </div>
+
+    <div class="pe-world" id="pe-world">
+
+      <div class="clip pe-eyebrow" data-start="0" data-duration="6.5" data-track-index="1">
+        <span class="rule" id="pe-rule"></span>
+        <span class="lbl">PEDIDOS ONLINE</span>
+      </div>
+
+      <!-- Scene 1 — the store rises -->
+      <div class="clip pe-win pe-win1" data-start="0" data-duration="6.5" data-track-index="2">
+        <div class="pe-topbar"><span></span><span></span><span></span></div>
+        <div class="pe-view1">
+          <div class="pe-stage1" id="pe-stage1">
+            <div class="pe-cropA"><img class="pe-shotA" src="assets/tienda-cliente.png" alt=""></div>
+            <div class="pe-cropB" id="pe-cropB">
+              <img class="pe-shotB" src="assets/tienda-cliente.png" alt="">
+            </div>
+            <div class="pe-btnflash" id="pe-btnflash"></div>
+            <div class="pe-btnring" id="pe-btnring"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scene 2 — the order leaves the phone -->
+      <div class="clip pe-particle" data-start="1.72" data-duration="0.75" data-track-index="3"></div>
+
+      <!-- Scene 3/4 — the counter -->
+      <div class="clip pe-win pe-win2" data-start="2.3" data-duration="4.2" data-track-index="4">
+        <div class="pe-topbar"><span></span><span></span><span></span></div>
+        <div class="pe-view2">
+          <div class="pe-stage2" id="pe-stage2a">
+            <img class="pe-shotAl" src="assets/tienda-alarma.png" alt="">
+            <div class="pe-chip pe-chip-al">Martín G. · Retiro</div>
+          </div>
+          <div class="pe-stage2 pe-stage2b" id="pe-stage2b">
+            <img class="pe-shotMo" src="assets/tienda-pedido-mostrador.png" alt="">
+            <div class="pe-chip pe-chip-mo">Martín G.</div>
+            <div class="pe-confring" id="pe-confring"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="clip pe-alarmring" id="pe-alarm1" data-start="2.55" data-duration="1.1" data-track-index="5"></div>
+      <div class="clip pe-alarmring" id="pe-alarm2" data-start="2.75" data-duration="1.1" data-track-index="6"></div>
+
+      <!-- Scene 5 — the close -->
+      <div class="clip pe-foot" data-start="5.2" data-duration="1.3" data-track-index="7">Vos solo lo preparas.</div>
+    </div>
+
+    <script>
+      (function () {
+        var cs = document.currentScript;
+        var root = (cs && cs.closest && cs.closest('[data-composition-id="03-pedido-entra"]'))
+                || document.querySelector('[data-composition-id="03-pedido-entra"]');
+        var q = function (s) { return root.querySelector(s); };
+
+        var tl = gsap.timeline({ paused: true });
+
+        var world  = q('#pe-world');
+        var rule   = q('#pe-rule');
+        var eyeLbl = q('.pe-eyebrow .lbl');
+        var win1   = q('.pe-win1');
+        var barB   = q('#pe-cropB');
+        var ring   = q('#pe-btnring');
+        var flash  = q('#pe-btnflash');
+        var dot    = q('.pe-particle');
+        var win2   = q('.pe-win2');
+        var stA    = q('#pe-stage2a');
+        var stB    = q('#pe-stage2b');
+        var cring  = q('#pe-confring');
+        var al1    = q('#pe-alarm1');
+        var al2    = q('#pe-alarm2');
+        var foot   = q('.pe-foot');
+
+        /* ---- macro camera: one slow continuous 3% push-in ---- */
+        tl.fromTo(world, { scale: 1, transformOrigin: '50% 46%' },
+                         { scale: 1.03, duration: 6.5, ease: 'none' }, 0);
+
+        /* ---- Scene 1 (0.0-1.4s) — eyebrow, then the real store rises ---- */
+        tl.fromTo(rule, { scaleX: 0, transformOrigin: 'left center' },
+                        { scaleX: 1, duration: 0.34, ease: 'power3.out' }, 0.02);
+        tl.fromTo(eyeLbl, { opacity: 0, x: -18 },
+                          { opacity: 1, x: 0, duration: 0.36, ease: 'power2.out' }, 0.10);
+        tl.fromTo(win1, { opacity: 0, y: 92 },
+                        { opacity: 1, y: 0, duration: 0.76, ease: 'power3.out' }, 0.22);
+
+        /* ---- Scene 2 (1.4-2.3s) — the ring strokes, the bar presses itself ---- */
+        tl.fromTo(ring, { opacity: 1, scaleX: 0, transformOrigin: 'left center' },
+                        { scaleX: 1, duration: 0.40, ease: 'power3.out' }, 1.40);
+        tl.fromTo(barB, { scaleY: 1, transformOrigin: '50% 100%' },
+                        { scaleY: 0.965, duration: 0.12, ease: 'power2.in' }, 1.86);
+        tl.to(barB, { scaleY: 1, duration: 0.28, ease: 'back.out(2.4)' }, 1.98);
+        tl.fromTo(flash, { opacity: 0 }, { opacity: 0.34, duration: 0.08, ease: 'power2.out' }, 1.88);
+        tl.to(flash, { opacity: 0, duration: 0.34, ease: 'power2.out' }, 1.98);
+        tl.to(ring, { opacity: 0, duration: 0.30, ease: 'power2.out' }, 2.06);
+
+        /* the order travels downward, out of the store window */
+        tl.fromTo(dot, { opacity: 0, y: -14, scale: 0.35 },
+                       { opacity: 1, y: 18, scale: 1, duration: 0.20, ease: 'power2.out' }, 1.74);
+        tl.to(dot, { y: 96, duration: 0.36, ease: 'power2.in' }, 1.94);
+        tl.to(dot, { y: 118, scale: 0.2, opacity: 0, duration: 0.16, ease: 'power2.out' }, 2.30);
+
+        /* ---- Scene 3 (2.3-3.8s) — the counter lands, the alarm rings ---- */
+        tl.fromTo(win2, { opacity: 0, y: 64, scale: 0.965 },
+                        { opacity: 1, y: 0, scale: 1, duration: 0.52, ease: 'power3.out' }, 2.32);
+        tl.fromTo(al1, { scale: 1, opacity: 0.85 },
+                       { scale: 1.30, opacity: 0, duration: 1.05, ease: 'power2.out' }, 2.56);
+        tl.fromTo(al2, { scale: 1, opacity: 0.60 },
+                       { scale: 1.52, opacity: 0, duration: 1.05, ease: 'power2.out' }, 2.76);
+
+        /* ---- Scene 4 (3.8-5.2s) — crossfade to the order card, stroke Confirmar ---- */
+        tl.to(stA, { opacity: 0, duration: 0.44, ease: 'power2.inOut' }, 3.82);
+        tl.fromTo(stB, { opacity: 0 },
+                       { opacity: 1, duration: 0.44, ease: 'power2.inOut' }, 3.82);
+        tl.fromTo(cring, { opacity: 1, scaleX: 0, transformOrigin: 'left center' },
+                         { scaleX: 1, duration: 0.46, ease: 'power3.out' }, 4.46);
+
+        /* ---- Scene 5 (5.2-6.5s) — the closing line, then hold ---- */
+        tl.fromTo(foot, { opacity: 0, y: 20 },
+                        { opacity: 1, y: 0, duration: 0.52, ease: 'power2.out' }, 5.22);
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines['03-pedido-entra'] = tl;
+      })();
+    </script>
+  </div>
+</template>

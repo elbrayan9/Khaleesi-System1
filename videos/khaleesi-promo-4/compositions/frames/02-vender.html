@@ -1,0 +1,177 @@
+<template>
+  <div id="root" data-composition-id="02-vender" data-width="1080" data-height="1920" data-start="0" data-duration="5">
+
+    <style>
+      @font-face{font-family:"Inter";font-weight:400;font-style:normal;font-display:block;src:url("assets/fonts/Inter-400.woff2") format("woff2"),url("assets/fonts/Inter-400.ttf") format("truetype");}
+      @font-face{font-family:"Inter";font-weight:900;font-style:normal;font-display:block;src:url("assets/fonts/Inter-900.woff2") format("woff2"),url("assets/fonts/Inter-900.ttf") format("truetype");}
+
+      #root{
+        position:absolute; inset:0; width:1080px; height:1920px;
+        overflow:hidden;
+        font-family:"Inter", sans-serif;
+        --vd-bg:#27272A;
+        --vd-primary:#2563EB;
+        --vd-text:#60A5FA;
+      }
+
+      .vd-bg{
+        position:absolute; inset:0;
+        background:
+          radial-gradient(120% 68% at 50% 24%, rgba(37,99,235,0.13) 0%, rgba(37,99,235,0) 62%),
+          #27272A;
+      }
+      .vd-dots{
+        position:absolute; inset:0;
+        background-image:radial-gradient(rgba(37,99,235,0.16) 2px, rgba(0,0,0,0) 2px);
+        background-size:60px 60px;
+        background-position:0 0;
+      }
+
+      .vd-eyebrow{
+        position:absolute; left:88px; top:302px;
+        display:flex; align-items:center; gap:22px;
+      }
+      .vd-eyebrow .rule{ width:60px; height:4px; border-radius:2px; background:var(--vd-primary); }
+      .vd-eyebrow .lbl{
+        font-weight:400; font-size:26px; letter-spacing:0.20em;
+        text-transform:uppercase; color:var(--vd-primary);
+      }
+
+      .vd-head{
+        position:absolute; left:88px; top:372px; width:920px;
+        font-weight:900; font-size:100px; line-height:1.06;
+        letter-spacing:-0.02em; color:var(--vd-text);
+      }
+      .vd-head .ln{ display:block; overflow:hidden; }
+      .vd-head .ln i{ display:block; font-style:normal; }
+      .vd-head .accentword{ color:var(--vd-primary); }
+
+      /* ---- device window: the real Nueva Venta screen -------------------- */
+      .vd-device{
+        position:absolute; left:40px; top:820px; width:1000px; height:584px;
+        box-sizing:border-box;
+        background:#1B1B1E;
+        border:1.5px solid rgba(37,99,235,0.28);
+        border-radius:18px;
+        box-shadow:0 34px 90px rgba(0,0,0,0.55), 0 0 0 1px rgba(37,99,235,0.10);
+        overflow:hidden;
+      }
+      .vd-bar{
+        position:absolute; left:0; top:0; width:1000px; height:44px;
+        box-sizing:border-box;
+        background:rgba(37,99,235,0.06);
+        border-bottom:1px solid rgba(37,99,235,0.18);
+        display:flex; align-items:center; gap:11px; padding-left:22px;
+      }
+      .vd-bar span{ width:11px; height:11px; border-radius:50%; background:rgba(96,165,250,0.34); }
+
+      .vd-view{
+        position:absolute; left:0; top:44px; width:1000px; height:540px;
+        overflow:hidden;
+      }
+      /* stage carries the crop geometry; the push-in scales this whole layer
+         so every ring stays locked to the button it marks. */
+      .vd-stage{
+        position:absolute; left:0; top:0; width:1000px; height:540px;
+      }
+      /* real 1440x900 screenshot, scaled 1.38504 and offset so the crop starts
+         at source (278,430) — the three buttons read at full legibility.
+         UI-fidelity treatment: no grading, no filters, nothing over the pixels. */
+      .vd-shot{
+        position:absolute; left:-385px; top:-595.6px;
+        width:1994.5px; height:1246.5px;
+        display:block;
+      }
+
+      .vd-ring{
+        position:absolute; left:4.7px; width:990.6px; height:59.9px;
+        box-sizing:border-box;
+        border:3px solid var(--vd-primary);
+        border-radius:10px;
+        opacity:0;
+      }
+      #vd-ring-1{ top:230.5px; }
+      #vd-ring-2{ top:294.2px; }
+      #vd-ring-3{ top:357.9px; }
+    </style>
+
+    <div class="clip vd-bg"   data-start="0" data-duration="5" data-track-index="0"></div>
+    <div class="clip vd-dots" data-start="0" data-duration="5" data-track-index="1"></div>
+
+    <div class="clip vd-eyebrow" data-start="0" data-duration="5" data-track-index="2">
+      <span class="rule" id="vd-rule"></span>
+      <span class="lbl">VENDER</span>
+    </div>
+
+    <div class="clip vd-head" data-start="0" data-duration="5" data-track-index="3">
+      <span class="ln"><i><span class="accentword">Tres</span> formas</i></span>
+      <span class="ln"><i>de cargar</i></span>
+    </div>
+
+    <div class="clip vd-device" data-start="0" data-duration="5" data-track-index="4">
+      <div class="vd-bar"><span></span><span></span><span></span></div>
+      <div class="vd-view">
+        <div class="vd-stage" id="vd-stage">
+          <img class="vd-shot" src="assets/premium-venta.png" alt="">
+          <div class="vd-ring" id="vd-ring-1"></div>
+          <div class="vd-ring" id="vd-ring-2"></div>
+          <div class="vd-ring" id="vd-ring-3"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        var cs = document.currentScript;
+        var root = (cs && cs.closest('[data-composition-id="02-vender"]'))
+                || document.querySelector('[data-composition-id="02-vender"]');
+        var q  = function (s) { return root.querySelector(s); };
+        var qa = function (s) { return Array.prototype.slice.call(root.querySelectorAll(s)); };
+
+        var tl = gsap.timeline({ paused: true });
+
+        var rule   = q('#vd-rule');
+        var eyeLbl = q('.vd-eyebrow .lbl');
+        var lines  = qa('.vd-head .ln i');
+        var device = q('.vd-device');
+        var stage  = q('#vd-stage');
+        var rings  = [q('#vd-ring-1'), q('#vd-ring-2'), q('#vd-ring-3')];
+
+        // ---- Scene 1 (0.0-1.0s) — eyebrow rule + headline land -------------
+        tl.fromTo(rule, { scaleX: 0, transformOrigin: 'left center' },
+                        { scaleX: 1, duration: 0.36, ease: 'power3.out' }, 0.02);
+        tl.fromTo(eyeLbl, { opacity: 0, x: -18 },
+                          { opacity: 1, x: 0, duration: 0.38, ease: 'power2.out' }, 0.10);
+        tl.fromTo(lines, { yPercent: 110, opacity: 0 },
+                         { yPercent: 0, opacity: 1, duration: 0.54, ease: 'power3.out', stagger: 0.13 }, 0.22);
+
+        // ---- Scene 2 (1.0-2.0s) — the real screen rises into the window ----
+        tl.fromTo(device, { opacity: 0, y: 104 },
+                          { opacity: 1, y: 0, duration: 0.80, ease: 'power3.out' }, 1.00);
+
+        // ---- Scene 3 (2.0-4.0s) — one button at a time, ~0.65s each --------
+        // each ring strokes on, holds bright, then settles to a marked state
+        // that stays lit while the next one takes over.
+        var starts = [2.00, 2.65, 3.30];
+        for (var i = 0; i < 3; i++) {
+          var r = rings[i];
+          var t = starts[i];
+          tl.fromTo(r, { opacity: 0, scaleX: 1.012, scaleY: 1.18, transformOrigin: '50% 50%' },
+                       { opacity: 1, scaleX: 1, scaleY: 1, duration: 0.26, ease: 'power3.out' }, t);
+          tl.fromTo(r, { boxShadow: '0 0 0px 0px rgba(37,99,235,0.00)' },
+                       { boxShadow: '0 0 26px 2px rgba(37,99,235,0.42)', duration: 0.26, ease: 'power2.out' }, t);
+          tl.to(r, { boxShadow: '0 0 0px 0px rgba(37,99,235,0.00)', opacity: 0.55,
+                     duration: 0.30, ease: 'power2.inOut' }, t + 0.34);
+        }
+
+        // ---- Scene 4 (4.0-5.0s) — all three marked, slow 3% push-in, hold --
+        tl.to(rings, { opacity: 0.72, duration: 0.34, ease: 'power2.out' }, 3.96);
+        tl.fromTo(stage, { scale: 1, transformOrigin: '50% 60%' },
+                         { scale: 1.03, duration: 1.10, ease: 'none' }, 3.90);
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines['02-vender'] = tl;
+      })();
+    </script>
+  </div>
+</template>

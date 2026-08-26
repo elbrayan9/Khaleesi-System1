@@ -1,0 +1,536 @@
+<template>
+  <style>
+    @font-face{font-family:"Inter";font-weight:400;font-style:normal;font-display:block;src:url("assets/fonts/Inter-400.woff2") format("woff2");}
+    @font-face{font-family:"Inter";font-weight:900;font-style:normal;font-display:block;src:url("assets/fonts/Inter-900.woff2") format("woff2");}
+
+    #root{
+      position:relative;
+      width:1080px;
+      height:1920px;
+      overflow:hidden;
+      font-family:"Inter",sans-serif;
+      container-type:size;
+    }
+
+    /* ---------- ground ---------- */
+    .fc-bg{
+      position:absolute;
+      inset:0;
+      background:
+        radial-gradient(90% 46% at 50% 40%, rgba(37,99,235,0.16) 0%, rgba(37,99,235,0) 62%),
+        #27272A;
+    }
+
+    /* ---------- the ONE surface everything happens on ---------- */
+    .fc-surface{
+      position:absolute;
+      left:60px;
+      top:260px;
+      width:960px;
+      height:1300px;
+      border-radius:14px;
+      background:rgba(37,99,235,0.04);
+      border:1.5px solid rgba(37,99,235,0.20);
+      overflow:hidden;
+    }
+    .fc-surface-bar{
+      position:absolute;
+      left:0;top:0;
+      width:960px;height:78px;
+      border-bottom:1.5px solid rgba(37,99,235,0.20);
+      background:rgba(37,99,235,0.05);
+    }
+    .fc-dot{
+      position:absolute;
+      top:34px;
+      width:11px;height:11px;
+      border-radius:50%;
+      background:rgba(37,99,235,0.35);
+    }
+    .fc-dot.d1{left:34px;}
+    .fc-dot.d2{left:57px;}
+    .fc-dot.d3{left:80px;}
+    .fc-surface-eyebrow{
+      position:absolute;
+      left:118px;top:29px;
+      font-weight:400;
+      font-size:19px;
+      letter-spacing:0.14em;
+      color: #60A5FA;
+    }
+
+    /* ---------- Scene 1 — sale panel ---------- */
+    .fc-sale{
+      position:absolute;
+      left:120px;
+      top:600px;
+      width:840px;
+    }
+    .fc-label{
+      font-weight:400;
+      font-size:20px;
+      letter-spacing:0.16em;
+      color:#656565;
+    }
+    .fc-line{
+      position:relative;
+      margin-top:34px;
+      font-weight:400;
+      font-size:34px;
+      color:#60A5FA;
+      white-space:nowrap;
+    }
+    .fc-line .amt{
+      color:#3B82F6;
+    }
+    .fc-rule{
+      margin-top:38px;
+      width:840px;
+      height:1.5px;
+      background:rgba(37,99,235,0.20);
+    }
+    .fc-totalrow{
+      position:relative;
+      margin-top:34px;
+      height:96px;
+    }
+    .fc-total-k{
+      position:absolute;
+      left:0;top:8px;
+      font-weight:400;
+      font-size:20px;
+      letter-spacing:0.16em;
+      color:#656565;
+    }
+    .fc-total-v{
+      position:absolute;
+      left:0;top:34px;
+      font-weight:900;
+      font-size:66px;
+      line-height:1;
+      letter-spacing:-0.02em;
+      color: #60A5FA;
+    }
+    .fc-btn{
+      position:absolute;
+      right:0;top:16px;
+      padding:22px 46px;
+      border-radius:100px;
+      background:#2563EB;
+      color:#27272A;
+      font-weight:900;
+      font-size:30px;
+      letter-spacing:0.01em;
+    }
+    .fc-btn-flash{
+      position:absolute;
+      right:-14px;top:2px;
+      width:calc(100% + 0px);
+      height:0;
+    }
+    .fc-flash{
+      position:absolute;
+      right:-16px;top:0px;
+      width:266px;height:100px;
+      border-radius:100px;
+      border:2px solid #2563EB;
+      opacity:0;
+    }
+
+    /* ---------- Scene 3 — invoice ---------- */
+    .fc-invoice{
+      position:absolute;
+      left:120px;
+      top:800px;
+      width:840px;
+      padding:38px 44px 42px 44px;
+      box-sizing:border-box;
+      border-radius:12px;
+      background:rgba(37,99,235,0.06);
+      border:1.5px solid rgba(37,99,235,0.20);
+    }
+    .fc-inv-head{
+      font-weight:900;
+      font-size:42px;
+      letter-spacing:0.03em;
+      color:#60A5FA;
+    }
+    .fc-inv-rule{
+      margin-top:26px;
+      width:752px;height:1.5px;
+      background:rgba(37,99,235,0.20);
+    }
+    .fc-inv-row{
+      margin-top:26px;
+      font-weight:400;
+      font-size:30px;
+      letter-spacing:0.06em;
+      color:#3B82F6;
+    }
+    .fc-inv-ok{
+      position:relative;
+      margin-top:36px;
+      height:56px;
+    }
+    .fc-inv-check{
+      position:absolute;
+      left:0;top:0;
+      width:56px;height:56px;
+    }
+    .fc-inv-ok-t{
+      position:absolute;
+      left:76px;top:10px;
+      font-weight:900;
+      font-size:32px;
+      color: #60A5FA;
+      letter-spacing:0.01em;
+    }
+
+    /* ---------- Scene 4 — QR ---------- */
+    .fc-qr{
+      position:absolute;
+      left:322px;
+      top:660px;
+      width:436px;
+      height:436px;
+      box-sizing:border-box;
+      padding:29px;
+      border-radius:12px;
+      background:rgba(37,99,235,0.07);
+      border:1.5px solid rgba(37,99,235,0.24);
+    }
+    .fc-qr-grid{
+      position:relative;
+      width:378px;
+      height:378px;
+    }
+    .fc-mod{
+      position:absolute;
+      width:29px;
+      height:29px;
+      background:#2563EB;
+      border-radius:2px;
+    }
+    .fc-finder{
+      position:absolute;
+      width:87px;
+      height:87px;
+      box-sizing:border-box;
+      border:9px solid #2563EB;
+      border-radius:8px;
+    }
+    .fc-finder i{
+      position:absolute;
+      left:14px;top:14px;
+      width:41px;height:41px;
+      background:#2563EB;
+      border-radius:3px;
+      display:block;
+    }
+    .fc-qr-cap{
+      position:absolute;
+      left:0;
+      top:1130px;
+      width:1080px;
+      text-align:center;
+      font-weight:400;
+      font-size:30px;
+      letter-spacing:0.06em;
+      color:#656565;
+    }
+
+    /* ---------- Scene 5 — paid ---------- */
+    .fc-paid{
+      position:absolute;
+      left:322px;
+      top:826px;
+      width:436px;
+      height:104px;
+      box-sizing:border-box;
+      border-radius:100px;
+      background:#2563EB;
+    }
+    .fc-paid-in{
+      position:absolute;
+      left:74px;top:26px;
+      font-weight:900;
+      font-size:40px;
+      letter-spacing:0.06em;
+      color:#27272A;
+    }
+    .fc-paid-check{
+      position:absolute;
+      left:0px;top:0px;
+      width:104px;height:104px;
+    }
+    .fc-kicker{
+      position:absolute;
+      left:0;
+      top:1370px;
+      width:1080px;
+      text-align:center;
+      font-weight:400;
+      font-size:36px;
+      letter-spacing:0.02em;
+      color:#656565;
+    }
+  </style>
+
+  <div id="root" data-composition-id="03-flujo-completo" data-width="1080" data-height="1920">
+
+    <div class="clip fc-bg" data-start="0" data-duration="6.5" data-track-index="0"></div>
+
+    <div class="clip fc-surface" data-start="0" data-duration="6.5" data-track-index="1">
+      <div class="fc-surface-bar"></div>
+      <div class="fc-dot d1"></div>
+      <div class="fc-dot d2"></div>
+      <div class="fc-dot d3"></div>
+      <div class="fc-surface-eyebrow">PUNTO DE VENTA</div>
+    </div>
+
+    <div class="clip fc-sale" data-start="0" data-duration="6.5" data-track-index="2">
+      <div class="fc-label">VENTA</div>
+      <div class="fc-line l1" data-text="2x Yerba Playadito 1kg &nbsp;&mdash;&nbsp; $9.800"></div>
+      <div class="fc-line l2" data-text="1x Azucar Ledesma &nbsp;&mdash;&nbsp; $1.900"></div>
+      <div class="fc-rule"></div>
+      <div class="fc-totalrow">
+        <div class="fc-total-k">TOTAL</div>
+        <div class="fc-total-v">$0</div>
+        <div class="fc-flash"></div>
+        <div class="fc-btn">Facturar</div>
+      </div>
+    </div>
+
+    <div class="clip fc-invoice" data-start="0" data-duration="6.5" data-track-index="3">
+      <div class="fc-inv-head">FACTURA B</div>
+      <div class="fc-inv-rule"></div>
+      <div class="fc-inv-row r1">CAE 75104382916045</div>
+      <div class="fc-inv-row r2">Vto. CAE 30/08</div>
+      <div class="fc-inv-ok">
+        <svg class="fc-inv-check" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="28" cy="28" r="26" stroke="#2563EB" stroke-width="3"/>
+          <path class="fc-inv-tick" d="M16 29 L25 38 L41 20" stroke="#2563EB" stroke-width="4"
+                stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        </svg>
+        <div class="fc-inv-ok-t">Autorizada por ARCA</div>
+      </div>
+    </div>
+
+    <div class="clip fc-qr" data-start="0" data-duration="6.5" data-track-index="4">
+      <div class="fc-qr-grid"></div>
+    </div>
+
+    <div class="clip fc-qr-cap" data-start="0" data-duration="6.5" data-track-index="5">Escanea para pagar</div>
+
+    <div class="clip fc-paid" data-start="0" data-duration="6.5" data-track-index="6">
+      <svg class="fc-paid-check" viewBox="0 0 104 104" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path class="fc-paid-tick" d="M32 53 L46 67 L74 37" stroke="#27272A" stroke-width="7"
+              stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      </svg>
+      <div class="fc-paid-in">COBRADO</div>
+    </div>
+
+    <div class="clip fc-kicker" data-start="0" data-duration="6.5" data-track-index="7">Sin cambiar de pantalla.</div>
+
+  </div>
+
+  <script>
+    (function () {
+      var root = document.currentScript.closest('#root') || document.getElementById('root');
+      var q = function (s) { return root.querySelector(s); };
+
+      /* ---------- deterministic typewriter split ---------- */
+      function splitLine(el) {
+        var html = el.getAttribute('data-text');
+        var tmp = document.createElement('div');
+        tmp.innerHTML = html;
+        var text = tmp.textContent;
+        el.textContent = '';
+        var spans = [];
+        for (var i = 0; i < text.length; i++) {
+          var s = document.createElement('span');
+          s.textContent = text.charAt(i) === ' ' ? ' ' : text.charAt(i);
+          if (text.charAt(i) === '$') s.className = 'amt';
+          el.appendChild(s);
+          spans.push(s);
+        }
+        return spans;
+      }
+
+      var l1 = q('.fc-line.l1');
+      var l2 = q('.fc-line.l2');
+      var l1c = splitLine(l1);
+      var l2c = splitLine(l2);
+
+      /* ---------- deterministic fake QR (decorative only) ---------- */
+      var PATTERN = [
+        '000' + '1010100' + '000',
+        '000' + '0110010' + '000',
+        '000' + '1001101' + '000',
+        '0100101100010',
+        '1011010110110',
+        '0110011001011',
+        '1101101011010',
+        '0010110100110',
+        '1101001011001',
+        '1000110101100',
+        '000' + '1001101010',
+        '000' + '0110010110',
+        '000' + '1011010011'
+      ];
+      var grid = q('.fc-qr-grid');
+      var mods = [];
+      for (var r = 0; r < PATTERN.length; r++) {
+        for (var c = 0; c < 13; c++) {
+          if (PATTERN[r].charAt(c) !== '1') continue;
+          var m = document.createElement('div');
+          m.className = 'fc-mod';
+          m.style.left = (c * 29) + 'px';
+          m.style.top = (r * 29) + 'px';
+          grid.appendChild(m);
+          mods.push(m);
+        }
+      }
+      var FINDERS = [[0, 0], [0, 291], [291, 0]];
+      var finders = [];
+      for (var f = 0; f < FINDERS.length; f++) {
+        var fd = document.createElement('div');
+        fd.className = 'fc-finder';
+        fd.style.top = FINDERS[f][0] + 'px';
+        fd.style.left = FINDERS[f][1] + 'px';
+        fd.appendChild(document.createElement('i'));
+        grid.appendChild(fd);
+        finders.push(fd);
+      }
+
+      /* ---------- refs ---------- */
+      var surface = q('.fc-surface');
+      var sale = q('.fc-sale');
+      var label = q('.fc-label');
+      var rule = q('.fc-rule');
+      var totK = q('.fc-total-k');
+      var totV = q('.fc-total-v');
+      var btn = q('.fc-btn');
+      var flash = q('.fc-flash');
+      var invoice = q('.fc-invoice');
+      var invHead = q('.fc-inv-head');
+      var invRule = q('.fc-inv-rule');
+      var invR1 = q('.fc-inv-row.r1');
+      var invR2 = q('.fc-inv-row.r2');
+      var invOk = q('.fc-inv-ok');
+      var invTick = q('.fc-inv-tick');
+      var invOkT = q('.fc-inv-ok-t');
+      var qr = q('.fc-qr');
+      var qrCap = q('.fc-qr-cap');
+      var paid = q('.fc-paid');
+      var paidTick = q('.fc-paid-tick');
+      var paidIn = q('.fc-paid-in');
+      var kicker = q('.fc-kicker');
+
+      gsap.set([surface, sale, btn, flash, paid], { transformOrigin: '50% 50%' });
+      gsap.set(invoice, { transformOrigin: '0% 0%' });
+      gsap.set(qr, { transformOrigin: '50% 50%' });
+      gsap.set([invoice, qr, qrCap, paid, kicker, btn, flash], { opacity: 0 });
+      gsap.set([l1c, l2c], { opacity: 0 });
+
+      var TICK_LEN = 44, PAID_LEN = 62;
+      gsap.set(invTick, { strokeDasharray: TICK_LEN, strokeDashoffset: TICK_LEN });
+      gsap.set(paidTick, { strokeDasharray: PAID_LEN, strokeDashoffset: PAID_LEN });
+
+      var counter = { v: 0 };
+      var fmt = function (n) {
+        var s = String(Math.round(n));
+        var out = '';
+        for (var i = 0; i < s.length; i++) {
+          if (i > 0 && (s.length - i) % 3 === 0) out += '.';
+          out += s.charAt(i);
+        }
+        return '$' + out;
+      };
+
+      var tl = gsap.timeline({ paused: true });
+
+      /* ===== Scene 1 (0.0–1.3s) — the sale loads ===== */
+      tl.fromTo(surface, { scale: 0.94, opacity: 0 },
+        { scale: 1, opacity: 1, duration: 0.44, ease: 'power2.out' }, 0);
+      tl.fromTo(label, { y: 16, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.3, ease: 'power2.out' }, 0.16);
+
+      tl.to(l1c, { opacity: 1, duration: 0.001, stagger: 0.0125 }, 0.30);
+      tl.to(l2c, { opacity: 1, duration: 0.001, stagger: 0.0125 }, 0.66);
+
+      tl.fromTo(rule, { scaleX: 0, opacity: 0 },
+        { scaleX: 1, opacity: 1, duration: 0.3, ease: 'power2.out' }, 0.92);
+      gsap.set(rule, { transformOrigin: '0% 50%' });
+      tl.fromTo(totK, { opacity: 0 }, { opacity: 1, duration: 0.24 }, 0.96);
+      tl.fromTo(totV, { y: 18, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.28, ease: 'power2.out' }, 1.00);
+      tl.fromTo(counter, { v: 0 }, {
+        v: 11700, duration: 0.44, ease: 'power2.out',
+        onUpdate: function () { totV.textContent = fmt(counter.v); }
+      }, 1.00);
+
+      /* ===== Scene 2 (1.3–2.6s) — Facturar presses itself, panel slides up ===== */
+      tl.fromTo(btn, { scale: 0.72, opacity: 0 },
+        { scale: 1, opacity: 1, duration: 0.34, ease: 'back.out(2)' }, 1.36);
+      tl.to(btn, { scale: 0.9, duration: 0.13, ease: 'power2.in' }, 1.82);
+      tl.to(btn, { scale: 1, duration: 0.22, ease: 'back.out(3)' }, 1.95);
+      tl.fromTo(flash, { scale: 0.9, opacity: 0.9 },
+        { scale: 1.5, opacity: 0, duration: 0.46, ease: 'power2.out' }, 1.94);
+
+      tl.to(sale, { y: -232, duration: 0.62, ease: 'power3.inOut' }, 2.06);
+      tl.to(btn, { opacity: 0.35, duration: 0.4, ease: 'power2.out' }, 2.20);
+
+      /* ===== Scene 3 (2.6–3.9s) — the invoice draws itself ===== */
+      tl.fromTo(invoice, { y: 44, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.4, ease: 'power2.out' }, 2.58);
+      tl.fromTo(invHead, { y: 20, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.3, ease: 'power2.out' }, 2.70);
+      gsap.set(invRule, { transformOrigin: '0% 50%' });
+      tl.fromTo(invRule, { scaleX: 0 }, { scaleX: 1, duration: 0.34, ease: 'power2.out' }, 2.84);
+      tl.fromTo(invR1, { x: -18, opacity: 0 },
+        { x: 0, opacity: 1, duration: 0.28, ease: 'power2.out' }, 2.98);
+      tl.fromTo(invR2, { x: -18, opacity: 0 },
+        { x: 0, opacity: 1, duration: 0.28, ease: 'power2.out' }, 3.20);
+      tl.fromTo(invOk, { opacity: 0 }, { opacity: 1, duration: 0.2 }, 3.42);
+      tl.to(invTick, { strokeDashoffset: 0, duration: 0.34, ease: 'power2.out' }, 3.46);
+      tl.fromTo(invOkT, { x: -14, opacity: 0 },
+        { x: 0, opacity: 1, duration: 0.32, ease: 'power2.out' }, 3.56);
+
+      /* ===== Scene 4 (3.9–5.2s) — invoice shrinks to a thumb, QR grows ===== */
+      tl.to(sale, { y: -430, opacity: 0, duration: 0.5, ease: 'power2.inOut' }, 3.92);
+      tl.to(invoice, { scale: 0.26, x: 6, y: -428, duration: 0.62, ease: 'power3.inOut' }, 3.94);
+
+      tl.fromTo(qr, { scale: 0.62, opacity: 0 },
+        { scale: 1, opacity: 1, duration: 0.5, ease: 'back.out(1.6)' }, 4.16);
+      tl.fromTo(mods, { scale: 0, opacity: 0 },
+        {
+          scale: 1, opacity: 1, duration: 0.22, ease: 'power2.out',
+          stagger: { each: 0.0042, grid: [13, 13], from: 'center' }
+        }, 4.26);
+      tl.fromTo(finders, { scale: 0.4, opacity: 0 },
+        { scale: 1, opacity: 1, duration: 0.3, ease: 'back.out(2)', stagger: 0.07 }, 4.62);
+      tl.fromTo(qrCap, { y: 18, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.34, ease: 'power2.out' }, 4.86);
+
+      /* ===== Scene 5 (5.2–6.5s) — COBRADO lands, QR recedes, hold ===== */
+      tl.to(qr, { opacity: 0.22, scale: 0.97, duration: 0.44, ease: 'power2.out' }, 5.22);
+      tl.to(qrCap, { opacity: 0.25, duration: 0.36, ease: 'power2.out' }, 5.24);
+
+      tl.fromTo(paid, { scale: 0.66, opacity: 0 },
+        { scale: 1, opacity: 1, duration: 0.42, ease: 'back.out(1.9)' }, 5.30);
+      tl.to(paidTick, { strokeDashoffset: 0, duration: 0.36, ease: 'power2.out' }, 5.58);
+      tl.fromTo(paidIn, { x: 16, opacity: 0 },
+        { x: 0, opacity: 1, duration: 0.32, ease: 'power2.out' }, 5.62);
+
+      tl.fromTo(kicker, { y: 22, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.4, ease: 'power2.out' }, 5.92);
+
+      /* quiet settle — final beat holds */
+      tl.to(surface, { scale: 1.012, duration: 0.5, ease: 'sine.out' }, 5.95);
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines['03-flujo-completo'] = tl;
+    })();
+  </script>
+</template>

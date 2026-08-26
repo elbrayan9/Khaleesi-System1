@@ -1,0 +1,162 @@
+<template>
+  <div id="root" data-composition-id="01-promesa" data-width="1080" data-height="1920" data-start="0" data-duration="4">
+    <style>
+      @font-face{font-family:"Inter";font-weight:400;font-style:normal;font-display:block;src:url("assets/fonts/Inter-400.woff2") format("woff2"),url("assets/fonts/Inter-400.ttf") format("truetype");}
+      @font-face{font-family:"Inter";font-weight:900;font-style:normal;font-display:block;src:url("assets/fonts/Inter-900.woff2") format("woff2"),url("assets/fonts/Inter-900.ttf") format("truetype");}
+
+      #root{
+        position:absolute;
+        inset:0;
+        width:1080px;
+        height:1920px;
+        overflow:hidden;
+        container-type:size;
+        font-family:"Inter",sans-serif;
+      }
+
+      .promesa-bg{
+        position:absolute;
+        inset:0;
+        background:#27272A;
+      }
+
+      .promesa-glow{
+        position:absolute;
+        top:520px;
+        left:0;
+        right:0;
+        margin:0 auto;
+        width:940px;
+        height:600px;
+        border-radius:50%;
+        background:radial-gradient(closest-side, rgba(37,99,235,0.40), rgba(37,99,235,0.13) 55%, rgba(37,99,235,0) 78%);
+        filter:blur(46px);
+        opacity:0;
+      }
+
+      .promesa-stage{
+        position:absolute;
+        top:600px;
+        left:70px;
+        width:940px;
+        text-align:center;
+      }
+
+      .promesa-line-a{
+        display:block;
+        font-weight:900;
+        font-size:132px;
+        line-height:1.04;
+        letter-spacing:-0.03em;
+        color:#60A5FA;
+        white-space:nowrap;
+      }
+
+      .promesa-word{
+        display:inline-block;
+        margin:0 16px;
+        opacity:0;
+      }
+
+      .promesa-line-b{
+        display:block;
+        margin-top:34px;
+        font-weight:900;
+        font-size:96px;
+        line-height:1.12;
+        letter-spacing:-0.02em;
+        color:#2563EB;
+        opacity:0;
+      }
+
+      .promesa-pills{
+        position:absolute;
+        top:1300px;
+        left:90px;
+        width:900px;
+        display:flex;
+        flex-wrap:wrap;
+        justify-content:center;
+        gap:18px 16px;
+      }
+
+      .promesa-pill{
+        display:inline-block;
+        padding:16px 34px;
+        border-radius:100px;
+        background:rgba(37,99,235,0.08);
+        border:1.5px solid rgba(37,99,235,0.2);
+        color:#656565;
+        font-weight:400;
+        font-size:34px;
+        letter-spacing:0.08em;
+        opacity:0;
+      }
+    </style>
+
+    <div class="clip promesa-bg" data-start="0" data-duration="4" data-track-index="0"></div>
+
+    <div class="clip promesa-glow" id="promesa-glow" data-start="0" data-duration="4" data-track-index="1"></div>
+
+    <div class="clip promesa-stage" data-start="0" data-duration="4" data-track-index="2">
+      <span class="promesa-line-a">
+        <span class="promesa-word">Tu</span><span class="promesa-word">almacen</span>
+      </span>
+      <span class="promesa-line-b" id="promesa-line-b">entero, en un solo sistema.</span>
+    </div>
+
+    <div class="clip promesa-pills" data-start="0" data-duration="4" data-track-index="3">
+      <span class="promesa-pill">VENDER</span>
+      <span class="promesa-pill">CARGAR</span>
+      <span class="promesa-pill">FACTURAR</span>
+      <span class="promesa-pill">COBRAR</span>
+      <span class="promesa-pill">MEDIR</span>
+      <span class="promesa-pill">REPARTIR</span>
+    </div>
+
+    <script>
+      (function () {
+        var root = document.querySelector('[data-composition-id="01-promesa"]');
+        var words = root.querySelectorAll('.promesa-word');
+        var lineB = root.querySelector('#promesa-line-b');
+        var glow = root.querySelector('#promesa-glow');
+        var pills = root.querySelectorAll('.promesa-pill');
+
+        var tl = gsap.timeline({ paused: true });
+
+        // Scene 1 (0.0-1.4s) — text-reveal por palabra desde abajo.
+        tl.fromTo(words,
+          { opacity: 0, y: 90, filter: 'blur(22px)' },
+          { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.52, ease: 'power3.out', stagger: 0.18 },
+          0.08);
+
+        tl.fromTo(glow,
+          { opacity: 0, scale: 0.78 },
+          { opacity: 0.5, scale: 1, duration: 0.7, ease: 'power2.out' },
+          0.25);
+
+        // Scene 2 (1.4-2.6s) — la linea de acento cae con scale-pop corto.
+        tl.fromTo(lineB,
+          { opacity: 0, y: -40, scale: 0.86 },
+          { opacity: 1, y: 0, scale: 1.04, duration: 0.36, ease: 'back.out(2.6)' },
+          1.42);
+        tl.to(lineB, { scale: 1, duration: 0.22, ease: 'power2.out' }, 1.78);
+
+        // Scene 3 (2.6-4.0s) — el glow respira detras del azul.
+        tl.to(glow, { opacity: 0.8, scale: 1.08, duration: 0.62, ease: 'sine.inOut' }, 2.6);
+        tl.to(glow, { opacity: 0.55, scale: 1.0, duration: 0.62, ease: 'sine.inOut' }, 3.22);
+
+        // Scene 3 — seis pastillas grises entran con stagger de 80ms.
+        tl.fromTo(pills,
+          { opacity: 0, y: 26, scale: 0.94 },
+          { opacity: 1, y: 0, scale: 1, duration: 0.34, ease: 'power2.out', stagger: 0.08 },
+          2.62);
+
+        tl.set({}, {}, 4);
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines['01-promesa'] = tl;
+      })();
+    </script>
+  </div>
+</template>

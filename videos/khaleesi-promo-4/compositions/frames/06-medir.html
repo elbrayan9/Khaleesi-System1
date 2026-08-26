@@ -1,0 +1,175 @@
+<template>
+  <div id="root" data-composition-id="06-medir" data-width="1080" data-height="1920" data-start="0" data-duration="5.5">
+
+    <style>
+      @font-face{font-family:"Inter";font-weight:400;font-style:normal;font-display:block;src:url("assets/fonts/Inter-400.woff2") format("woff2"),url("assets/fonts/Inter-400.ttf") format("truetype");}
+      @font-face{font-family:"Inter";font-weight:900;font-style:normal;font-display:block;src:url("assets/fonts/Inter-900.woff2") format("woff2"),url("assets/fonts/Inter-900.ttf") format("truetype");}
+
+      #root{
+        position:absolute; inset:0; width:1080px; height:1920px;
+        overflow:hidden;
+        font-family:"Inter", sans-serif;
+        --md-bg:#27272A;
+        --md-primary:#2563EB;
+        --md-text:#60A5FA;
+      }
+
+      .md-bg{
+        position:absolute; inset:0;
+        background:
+          radial-gradient(120% 66% at 50% 26%, rgba(37,99,235,0.13) 0%, rgba(37,99,235,0) 62%),
+          #27272A;
+      }
+      .md-dots{
+        position:absolute; inset:0;
+        background-image:radial-gradient(rgba(37,99,235,0.16) 2px, rgba(0,0,0,0) 2px);
+        background-size:60px 60px;
+        background-position:0 0;
+      }
+
+      .md-eyebrow{
+        position:absolute; left:88px; top:300px;
+        display:flex; align-items:center; gap:22px;
+      }
+      .md-eyebrow .rule{ width:60px; height:4px; border-radius:2px; background:var(--md-primary); }
+      .md-eyebrow .lbl{
+        font-weight:400; font-size:26px; letter-spacing:0.20em;
+        text-transform:uppercase; color:var(--md-primary);
+      }
+
+      .md-head{
+        position:absolute; left:88px; top:372px; width:904px;
+        font-weight:900; font-size:104px; line-height:1.06;
+        letter-spacing:-0.02em; color:var(--md-text);
+      }
+      .md-head .ln{ display:block; overflow:hidden; }
+      .md-head .ln i{ display:block; font-style:normal; }
+      .md-head .accentword{ color:var(--md-primary); }
+
+      /* ---- device window: the real Estadisticas screen ------------------- */
+      .md-device{
+        position:absolute; left:24px; top:780px; width:1032px; height:470px;
+        box-sizing:border-box;
+        background:#1B1B1E;
+        border:1.5px solid rgba(37,99,235,0.28);
+        border-radius:18px;
+        box-shadow:0 34px 90px rgba(0,0,0,0.55), 0 0 0 1px rgba(37,99,235,0.10);
+        overflow:hidden;
+      }
+      .md-bar{
+        position:absolute; left:0; top:0; width:1032px; height:44px;
+        box-sizing:border-box;
+        background:rgba(37,99,235,0.06);
+        border-bottom:1px solid rgba(37,99,235,0.18);
+        display:flex; align-items:center; gap:11px; padding-left:22px;
+      }
+      .md-bar span{ width:11px; height:11px; border-radius:50%; background:rgba(96,165,250,0.34); }
+
+      .md-view{
+        position:absolute; left:0; top:44px; width:1032px; height:426px;
+        overflow:hidden;
+      }
+      /* the stage carries the crop geometry; the slow push-in scales this whole
+         layer so ring + underline stay locked to the pixels they point at. */
+      .md-stage{
+        position:absolute; left:0; top:0; width:992px; height:324px;
+      }
+      /* real screenshot, 1425x1235, scaled 0.858874 and offset so the crop
+         starts at source (265,78): the "Analisis con IA" panel and the four
+         Business Intelligence metric cards both read.
+         UI-fidelity treatment: no grading, no filters, nothing over the pixels
+         except the two cobalt accents. */
+      .md-shot{
+        position:absolute; left:-227.6px; top:-67.0px;
+        width:1224.0px; height:1060.7px;
+        display:block;
+      }
+      .md-marks{
+        position:absolute; left:0; top:0; width:992px; height:324px;
+        overflow:visible;
+      }
+      .md-ring{
+        fill:none; stroke:#2563EB; stroke-width:3;
+        stroke-dasharray:420; stroke-dashoffset:420;
+      }
+      .md-ul{
+        position:absolute; left:249px; top:313px;
+        width:239px; height:6px; border-radius:3px;
+        background:var(--md-primary);
+      }
+    </style>
+
+    <div class="clip md-bg"   data-start="0" data-duration="5.5" data-track-index="0"></div>
+    <div class="clip md-dots" data-start="0" data-duration="5.5" data-track-index="1"></div>
+
+    <div class="clip md-eyebrow" data-start="0" data-duration="5.5" data-track-index="2">
+      <span class="rule" id="md-rule"></span>
+      <span class="lbl">MEDIR</span>
+    </div>
+
+    <div class="clip md-head" data-start="0" data-duration="5.5" data-track-index="3">
+      <span class="ln"><i>Los <span class="accentword">numeros</span></i></span>
+      <span class="ln"><i>solos</i></span>
+    </div>
+
+    <div class="clip md-device" data-start="0" data-duration="5.5" data-track-index="4">
+      <div class="md-bar"><span></span><span></span><span></span></div>
+      <div class="md-view">
+        <div class="md-stage" id="md-stage">
+          <img class="md-shot" src="assets/premium-ia.png" alt="">
+          <svg class="md-marks" viewBox="0 0 992 324" width="992" height="324">
+            <rect class="md-ring" id="md-ring" x="828" y="15" width="153" height="47" rx="10" ry="10"></rect>
+          </svg>
+          <div class="md-ul" id="md-ul"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        var cs = document.currentScript;
+        var root = (cs && cs.closest('[data-composition-id="06-medir"]'))
+                || document.querySelector('[data-composition-id="06-medir"]');
+        var q  = function (s) { return root.querySelector(s); };
+        var qa = function (s) { return Array.prototype.slice.call(root.querySelectorAll(s)); };
+
+        var tl = gsap.timeline({ paused: true });
+
+        var rule   = q('#md-rule');
+        var eyeLbl = q('.md-eyebrow .lbl');
+        var lines  = qa('.md-head .ln i');
+        var device = q('.md-device');
+        var stage  = q('#md-stage');
+        var ring   = q('#md-ring');
+        var ul     = q('#md-ul');
+
+        // ---- Scene 1 (0.0-1.0s) — eyebrow rule + headline land -------------
+        tl.fromTo(rule, { scaleX: 0, transformOrigin: 'left center' },
+                        { scaleX: 1, duration: 0.36, ease: 'power3.out' }, 0.02);
+        tl.fromTo(eyeLbl, { opacity: 0, x: -18 },
+                          { opacity: 1, x: 0, duration: 0.38, ease: 'power2.out' }, 0.10);
+        tl.fromTo(lines, { yPercent: 110, opacity: 0 },
+                         { yPercent: 0, opacity: 1, duration: 0.54, ease: 'power3.out', stagger: 0.13 }, 0.20);
+
+        // ---- Scene 2 (1.0-2.2s) — the real screen rises into the window ----
+        tl.fromTo(device, { opacity: 0, y: 104 },
+                          { opacity: 1, y: 0, duration: 0.82, ease: 'power3.out' }, 1.00);
+
+        // slow 3% push-in, running underneath from the moment the screen lands
+        tl.fromTo(stage, { scale: 1, transformOrigin: '42% 46%' },
+                         { scale: 1.03, duration: 4.00, ease: 'none' }, 1.00);
+
+        // ---- Scene 3 (2.2-3.4s) — cobalt ring strokes "Analizar mis ventas"
+        tl.fromTo(ring, { strokeDashoffset: 420, opacity: 1 },
+                        { strokeDashoffset: 0, duration: 0.86, ease: 'power2.inOut' }, 2.24);
+
+        // ---- Scene 4 (3.4-5.0s) — cobalt underline draws under Ganancia Neta
+        tl.fromTo(ul, { scaleX: 0, opacity: 1, transformOrigin: 'left center' },
+                      { scaleX: 1, duration: 0.62, ease: 'power3.out' }, 3.44);
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines['06-medir'] = tl;
+      })();
+    </script>
+  </div>
+</template>

@@ -1,0 +1,187 @@
+<template>
+<div id="root" data-composition-id="01-cuatro-apps" data-width="1080" data-height="1920">
+
+  <style>
+    @font-face{font-family:"Inter";font-weight:400;font-style:normal;font-display:block;src:url("assets/fonts/Inter-400.woff2") format("woff2"),url("assets/fonts/Inter-400.ttf") format("truetype");}
+    @font-face{font-family:"Inter";font-weight:900;font-style:normal;font-display:block;src:url("assets/fonts/Inter-900.woff2") format("woff2"),url("assets/fonts/Inter-900.ttf") format("truetype");}
+
+    #root{
+      position:absolute; inset:0; width:1080px; height:1920px; overflow:hidden;
+      font-family:"Inter", sans-serif; container-type:size;
+    }
+
+    .cuatro-bg{
+      position:absolute; inset:0; width:1080px; height:1920px;
+      background:
+        radial-gradient(120% 70% at 50% 18%, #303035 0%, #27272A 55%, #202023 100%);
+    }
+    .cuatro-bg-grid{
+      position:absolute; inset:0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.028) 1.5px, transparent 1.5px),
+        linear-gradient(90deg, rgba(255,255,255,0.028) 1.5px, transparent 1.5px);
+      background-size:120px 120px;
+    }
+
+    .cuatro-head{
+      position:absolute; left:80px; top:300px; width:920px;
+      font-weight:900; font-size:96px; line-height:1.12; letter-spacing:-0.02em;
+      color:#E8E8EA;
+    }
+    .cuatro-head .cuatro-line{ display:block; }
+    .cuatro-head .cuatro-w{ display:inline-block; will-change:transform,opacity; }
+
+    .cuatro-sub{
+      position:absolute; left:82px; top:596px; width:920px;
+      font-weight:400; font-size:40px; line-height:1.4; letter-spacing:-0.01em;
+      color:#A3A3AA;
+    }
+
+    .cuatro-grid{
+      position:absolute; left:80px; top:720px; width:920px; height:800px;
+    }
+    .cuatro-card{
+      position:absolute; width:436px; height:376px;
+      background:rgba(255,255,255,0.035);
+      border:1.5px solid rgba(255,255,255,0.10);
+      border-radius:14px;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      gap:34px; will-change:transform,opacity;
+    }
+    .cuatro-c0{ left:0;   top:0; }
+    .cuatro-c1{ left:484px; top:0; }
+    .cuatro-c2{ left:0;   top:424px; }
+    .cuatro-c3{ left:484px; top:424px; }
+
+    .cuatro-card svg{ display:block; }
+    .cuatro-ico{ stroke:#77777E; fill:none; stroke-width:5; stroke-linecap:round; stroke-linejoin:round; }
+    .cuatro-ico-fill{ fill:#5E5E65; }
+
+    .cuatro-label{
+      font-weight:400; font-size:26px; letter-spacing:0.16em; color:#87878E;
+    }
+
+    .cuatro-links{
+      position:absolute; left:80px; top:720px; width:920px; height:800px;
+    }
+    .cuatro-link{
+      position:absolute; background-image:linear-gradient(90deg,#5B5B62 0 22px, transparent 22px 44px);
+      background-size:44px 100%; height:4px; border-radius:2px;
+    }
+    .cuatro-link-v{
+      position:absolute; background-image:linear-gradient(180deg,#5B5B62 0 22px, transparent 22px 44px);
+      background-size:100% 44px; width:4px; border-radius:2px;
+    }
+  </style>
+
+  <div class="cuatro-bg clip" data-start="0" data-duration="3.5" data-track-index="0">
+    <div class="cuatro-bg-grid"></div>
+  </div>
+
+  <div class="cuatro-head clip" data-start="0" data-duration="3.5" data-track-index="1">
+    <span class="cuatro-line"><span class="cuatro-w">Cuatro</span> <span class="cuatro-w">lugares</span></span>
+    <span class="cuatro-line"><span class="cuatro-w">distintos</span></span>
+  </div>
+
+  <div class="cuatro-sub clip" data-start="0" data-duration="3.5" data-track-index="2">y ninguno se habla con el otro.</div>
+
+  <div class="cuatro-links clip" data-start="0" data-duration="3.5" data-track-index="3">
+    <div class="cuatro-link"   id="cuatro-lk0" style="left:444px; top:186px; width:80px;"></div>
+    <div class="cuatro-link"   id="cuatro-lk1" style="left:444px; top:610px; width:80px;"></div>
+    <div class="cuatro-link-v" id="cuatro-lk2" style="left:216px; top:384px; height:80px;"></div>
+    <div class="cuatro-link-v" id="cuatro-lk3" style="left:700px; top:384px; height:80px;"></div>
+  </div>
+
+  <div class="cuatro-grid clip" data-start="0" data-duration="3.5" data-track-index="4">
+    <div class="cuatro-card cuatro-c0" id="cuatro-card0">
+      <svg width="132" height="132" viewBox="0 0 132 132">
+        <rect class="cuatro-ico" x="26" y="16" width="82" height="100" rx="8"></rect>
+        <line class="cuatro-ico" x1="46" y1="16" x2="46" y2="116"></line>
+        <line class="cuatro-ico" x1="62" y1="44" x2="94" y2="44"></line>
+        <line class="cuatro-ico" x1="62" y1="66" x2="94" y2="66"></line>
+        <line class="cuatro-ico" x1="62" y1="88" x2="80" y2="88"></line>
+      </svg>
+      <div class="cuatro-label">CAJA</div>
+    </div>
+
+    <div class="cuatro-card cuatro-c1" id="cuatro-card1">
+      <svg width="132" height="132" viewBox="0 0 132 132">
+        <path class="cuatro-ico" d="M32 14 h56 l16 16 v88 h-72 z"></path>
+        <line class="cuatro-ico" x1="46" y1="48" x2="88" y2="48"></line>
+        <line class="cuatro-ico" x1="46" y1="68" x2="88" y2="68"></line>
+        <circle class="cuatro-ico" cx="86" cy="96" r="16"></circle>
+      </svg>
+      <div class="cuatro-label">FACTURAS</div>
+    </div>
+
+    <div class="cuatro-card cuatro-c2" id="cuatro-card2">
+      <svg width="132" height="132" viewBox="0 0 132 132">
+        <rect class="cuatro-ico" x="16" y="34" width="100" height="66" rx="9"></rect>
+        <line class="cuatro-ico" x1="16" y1="56" x2="116" y2="56"></line>
+        <line class="cuatro-ico" x1="34" y1="80" x2="60" y2="80"></line>
+      </svg>
+      <div class="cuatro-label">COBROS</div>
+    </div>
+
+    <div class="cuatro-card cuatro-c3" id="cuatro-card3">
+      <svg width="132" height="132" viewBox="0 0 132 132">
+        <path class="cuatro-ico" d="M20 34 a10 10 0 0 1 10-10 h72 a10 10 0 0 1 10 10 v48 a10 10 0 0 1 -10 10 h-46 l-26 22 v-22 h-0 a10 10 0 0 1 -10 -10 z"></path>
+        <circle class="cuatro-ico-fill" cx="48" cy="58" r="6"></circle>
+        <circle class="cuatro-ico-fill" cx="66" cy="58" r="6"></circle>
+        <circle class="cuatro-ico-fill" cx="84" cy="58" r="6"></circle>
+      </svg>
+      <div class="cuatro-label">PEDIDOS</div>
+    </div>
+  </div>
+
+  <script>
+  (function(){
+    var root = document.querySelector('[data-composition-id="01-cuatro-apps"]');
+    var q = function(s){ return root.querySelector(s); };
+    var tl = gsap.timeline({ paused: true });
+
+    // Scene 1 (0.0-1.0s) — headline word-by-word text-reveal + muted subline
+    var words = root.querySelectorAll('.cuatro-w');
+    tl.fromTo(words,
+      { yPercent: 110, opacity: 0 },
+      { yPercent: 0, opacity: 1, duration: 0.42, ease: 'power3.out', stagger: 0.11 },
+      0.05);
+
+    tl.fromTo(q('.cuatro-sub'),
+      { y: 26, opacity: 0 },
+      { y: 0, opacity: 1, duration: 0.45, ease: 'power2.out' },
+      0.62);
+
+    // Scene 2 (1.0-2.4s) — four grey cards assemble into the 2x2 grid, ~140ms stagger
+    var cards = [q('#cuatro-card0'), q('#cuatro-card1'), q('#cuatro-card2'), q('#cuatro-card3')];
+    tl.fromTo(cards,
+      { y: 46, scale: 0.94, opacity: 0 },
+      { y: 0, scale: 1, opacity: 1, duration: 0.5, ease: 'power3.out', stagger: 0.14 },
+      1.0);
+
+    // Scene 3 (2.4-3.5s) — broken dashed connectors that never meet
+    tl.fromTo('#cuatro-lk0', { opacity: 0, scaleX: 0.2 }, { opacity: 1, scaleX: 1, duration: 0.3, ease: 'power2.out' }, 2.42);
+    tl.fromTo('#cuatro-lk1', { opacity: 0, scaleX: 0.2 }, { opacity: 1, scaleX: 1, duration: 0.3, ease: 'power2.out' }, 2.56);
+    tl.fromTo('#cuatro-lk2', { opacity: 0, scaleY: 0.2 }, { opacity: 1, scaleY: 1, duration: 0.3, ease: 'power2.out' }, 2.50);
+    tl.fromTo('#cuatro-lk3', { opacity: 0, scaleY: 0.2 }, { opacity: 1, scaleY: 1, duration: 0.3, ease: 'power2.out' }, 2.64);
+
+    // desynchronised tremor — each card on its own clock, nothing lines up
+    var offsets = [2.46, 2.68, 2.58, 2.80];
+    var amps = [7, -6, -8, 6];
+    for (var i = 0; i < 4; i++) {
+      tl.to(cards[i], {
+        keyframes: [
+          { x: amps[i], rotation: amps[i] * 0.05, duration: 0.11, ease: 'power1.inOut' },
+          { x: -amps[i] * 0.7, rotation: -amps[i] * 0.035, duration: 0.13, ease: 'power1.inOut' },
+          { x: amps[i] * 0.4, rotation: amps[i] * 0.02, duration: 0.12, ease: 'power1.inOut' },
+          { x: 0, rotation: 0, duration: 0.16, ease: 'power2.out' }
+        ]
+      }, offsets[i]);
+    }
+
+    window.__timelines = window.__timelines || {};
+    window.__timelines["01-cuatro-apps"] = tl;
+  })();
+  </script>
+</div>
+</template>

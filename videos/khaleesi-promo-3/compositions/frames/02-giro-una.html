@@ -1,0 +1,114 @@
+<template>
+  <div id="root" data-composition-id="02-giro-una" data-width="1080" data-height="1920">
+    <style>
+      @font-face{font-family:"Inter";font-weight:400;font-style:normal;font-display:block;src:url("assets/fonts/Inter-400.woff2") format("woff2"),url("assets/fonts/Inter-400.ttf") format("truetype");}
+      @font-face{font-family:"Inter";font-weight:900;font-style:normal;font-display:block;src:url("assets/fonts/Inter-900.woff2") format("woff2"),url("assets/fonts/Inter-900.ttf") format("truetype");}
+
+      #root{
+        position:absolute;
+        inset:0;
+        width:1080px;
+        height:1920px;
+        overflow:hidden;
+        container-type:size;
+        font-family:"Inter",sans-serif;
+      }
+
+      .giro-una-bg{
+        position:absolute;
+        inset:0;
+        background:#27272A;
+      }
+
+      .giro-una-glow{
+        position:absolute;
+        top:840px;
+        left:0;
+        right:0;
+        margin:0 auto;
+        width:920px;
+        height:520px;
+        border-radius:50%;
+        background:radial-gradient(closest-side, rgba(37,99,235,0.45), rgba(37,99,235,0.16) 55%, rgba(37,99,235,0) 78%);
+        filter:blur(46px);
+        opacity:0;
+      }
+
+      .giro-una-a{
+        position:absolute;
+        top:640px;
+        left:90px;
+        width:900px;
+        text-align:center;
+        font-weight:900;
+        font-size:168px;
+        line-height:1.04;
+        letter-spacing:-0.03em;
+        color:#C7CAD1;
+        white-space:nowrap;
+        opacity:0;
+      }
+
+      .giro-una-b{
+        position:absolute;
+        top:880px;
+        left:60px;
+        width:960px;
+        text-align:center;
+        font-weight:900;
+        font-size:112px;
+        line-height:1.1;
+        letter-spacing:-0.02em;
+        color:#3B82F6;
+        opacity:0;
+      }
+    </style>
+
+    <div class="clip giro-una-bg" data-start="0" data-duration="3" data-track-index="0"></div>
+
+    <div class="clip giro-una-glow" id="giro-una-glow" data-start="0" data-duration="3" data-track-index="1"></div>
+
+    <div class="clip giro-una-a" id="giro-una-a" data-start="0" data-duration="3" data-track-index="2">Todo eso</div>
+
+    <div class="clip giro-una-b" id="giro-una-b" data-start="0" data-duration="3" data-track-index="3">en una sola pantalla.</div>
+
+    <script>
+      (function () {
+        var root = document.querySelector('[data-composition-id="02-giro-una"]');
+        var lineA = root.querySelector('#giro-una-a');
+        var lineB = root.querySelector('#giro-una-b');
+        var glow = root.querySelector('#giro-una-glow');
+
+        var tl = gsap.timeline({ paused: true });
+
+        // Scene 1 (0.0-1.0s) — corte seco a canvas limpio: "Todo eso" entra con blur-in corto.
+        tl.fromTo(lineA,
+          { opacity: 0, filter: 'blur(30px)', scale: 1.06 },
+          { opacity: 1, filter: 'blur(0px)', scale: 1, duration: 0.42, ease: 'power2.out' },
+          0.06);
+        tl.to(lineA, { scale: 0.985, duration: 0.6, ease: 'sine.out' }, 0.5);
+
+        // Scene 2 (1.0-1.9s) — cae la linea azul con scale-pop; unico elemento en color.
+        tl.fromTo(lineB,
+          { opacity: 0, scale: 0.62, y: -40, filter: 'blur(14px)' },
+          { opacity: 1, scale: 1.05, y: 0, filter: 'blur(0px)', duration: 0.44, ease: 'back.out(2.6)' },
+          1.02);
+        tl.to(lineB, { scale: 1, duration: 0.26, ease: 'power2.out' }, 1.46);
+
+        tl.fromTo(glow,
+          { opacity: 0, scale: 0.7 },
+          { opacity: 0.58, scale: 1, duration: 0.52, ease: 'power2.out' },
+          1.04);
+
+        // Scene 3 (1.9-3.0s) — quieto; solo el glow respira detras del azul.
+        tl.to(glow, { opacity: 0.84, scale: 1.08, duration: 0.55, ease: 'sine.inOut' }, 1.9);
+        tl.to(glow, { opacity: 0.54, scale: 0.99, duration: 0.55, ease: 'sine.inOut' }, 2.45);
+
+        tl.set({}, {}, 3);
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines['02-giro-una'] = tl;
+      })();
+    </script>
+  </div>
+</template>

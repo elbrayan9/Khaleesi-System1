@@ -1,0 +1,205 @@
+<template>
+  <div id="root" data-composition-id="01-carga-manual" data-width="1080" data-height="1920">
+    <style>
+      @font-face{font-family:"Inter";font-weight:400;font-style:normal;font-display:block;src:url("assets/fonts/Inter-400.woff2") format("woff2"),url("assets/fonts/Inter-400.ttf") format("truetype");}
+      @font-face{font-family:"Inter";font-weight:900;font-style:normal;font-display:block;src:url("assets/fonts/Inter-900.woff2") format("woff2"),url("assets/fonts/Inter-900.ttf") format("truetype");}
+
+      #root{
+        position:absolute; inset:0; width:1080px; height:1920px;
+        overflow:hidden;
+        font-family:"Inter", sans-serif;
+        -webkit-font-smoothing:antialiased;
+      }
+
+      .cm-bg{
+        position:absolute; inset:0;
+        background:#27272A;
+      }
+      .cm-bg-vig{
+        position:absolute; inset:0;
+        background:radial-gradient(120% 70% at 50% 38%, rgba(37,99,235,0.10) 0%, rgba(37,99,235,0.0) 60%);
+      }
+
+      /* endless table rows behind the type */
+      .cm-rows{
+        position:absolute; left:90px; right:90px; top:980px;
+        display:flex; flex-direction:column; gap:0;
+      }
+      .cm-row{
+        display:flex; align-items:center; gap:24px;
+        height:74px;
+        border-bottom:1.5px solid rgba(37,99,235,0.20);
+        padding:0 22px;
+      }
+      .cm-row-i{
+        font-weight:400; font-size:22px; letter-spacing:0.05em;
+        color:#3B82F6; width:56px; flex:none;
+      }
+      .cm-row-bar{
+        height:14px; border-radius:6px;
+        background:rgba(37,99,235,0.15);
+      }
+      .cm-row-chip{
+        margin-left:auto; height:26px; width:96px;
+        border-radius:100px; background:rgba(37,99,235,0.08);
+        border:1.5px solid rgba(37,99,235,0.20);
+      }
+
+      .cm-stage{
+        position:absolute; left:0; right:0; top:0;
+        display:flex; flex-direction:column; align-items:center;
+      }
+
+      .cm-eyebrow{
+        position:absolute; left:0; right:0; top:250px;
+        text-align:center;
+        font-weight:400; font-size:26px; letter-spacing:0.08em;
+        text-transform:uppercase; color: #60A5FA;
+      }
+      .cm-accentline{
+        position:absolute; left:510px; top:320px;
+        width:60px; height:4px; border-radius:2px; background:#2563EB;
+      }
+
+      .cm-head{
+        position:absolute; left:70px; right:70px; top:470px;
+        text-align:center;
+        font-weight:900; font-size:104px; line-height:1.06;
+        letter-spacing:-0.02em; color:#60A5FA;
+      }
+      .cm-word{
+        display:inline-block; overflow:hidden; vertical-align:top;
+        padding:0 0 0.06em 0;
+      }
+      .cm-word > span{ display:inline-block; }
+
+      .cm-sub{
+        position:absolute; left:0; right:0; top:830px;
+        display:flex; align-items:center; justify-content:center; gap:44px;
+      }
+      .cm-sub-text{
+        font-weight:400; font-size:56px; letter-spacing:-0.01em;
+        color:#656565;
+      }
+      .cm-counter{
+        display:flex; align-items:baseline; gap:10px;
+        padding:14px 34px;
+        border-radius:100px;
+        background:rgba(37,99,235,0.08);
+        border:1.5px solid rgba(37,99,235,0.20);
+        font-weight:900; font-size:52px; letter-spacing:0.02em;
+        color: #60A5FA;
+        font-variant-numeric:tabular-nums;
+      }
+      .cm-counter .cm-sep{ font-weight:400; color:#3B82F6; font-size:40px; }
+      .cm-counter .cm-tot{ font-weight:400; color:#3B82F6; font-size:40px; }
+      .cm-num{ display:inline-block; min-width:3ch; text-align:right; }
+
+      .cm-fade{
+        position:absolute; left:0; right:0; top:1380px; height:220px;
+        background:linear-gradient(180deg, rgba(39,39,42,0) 0%, #27272A 85%);
+      }
+    </style>
+
+    <!-- ground -->
+    <div class="clip cm-bg" data-start="0" data-duration="3.5" data-track-index="0">
+      <div class="cm-bg-vig"></div>
+    </div>
+
+    <!-- Scene 3: endless table rows -->
+    <div class="clip cm-rows" id="cm-rows" data-start="2.3" data-duration="1.2" data-track-index="1">
+      <div class="cm-row"><span class="cm-row-i">041</span><span class="cm-row-bar" style="width:300px"></span><span class="cm-row-chip"></span></div>
+      <div class="cm-row"><span class="cm-row-i">042</span><span class="cm-row-bar" style="width:420px"></span><span class="cm-row-chip"></span></div>
+      <div class="cm-row"><span class="cm-row-i">043</span><span class="cm-row-bar" style="width:250px"></span><span class="cm-row-chip"></span></div>
+      <div class="cm-row"><span class="cm-row-i">044</span><span class="cm-row-bar" style="width:380px"></span><span class="cm-row-chip"></span></div>
+      <div class="cm-row"><span class="cm-row-i">045</span><span class="cm-row-bar" style="width:200px"></span><span class="cm-row-chip"></span></div>
+      <div class="cm-row"><span class="cm-row-i">046</span><span class="cm-row-bar" style="width:340px"></span><span class="cm-row-chip"></span></div>
+      <div class="cm-row"><span class="cm-row-i">047</span><span class="cm-row-bar" style="width:290px"></span><span class="cm-row-chip"></span></div>
+      <div class="cm-row"><span class="cm-row-i">048</span><span class="cm-row-bar" style="width:430px"></span><span class="cm-row-chip"></span></div>
+    </div>
+    <div class="clip cm-fade" data-start="2.3" data-duration="1.2" data-track-index="2"></div>
+
+    <!-- Scene 1: hero line -->
+    <div class="clip cm-eyebrow" id="cm-eyebrow" data-start="0" data-duration="3.5" data-track-index="3">Todos los dias</div>
+    <div class="clip cm-accentline" id="cm-accentline" data-start="0" data-duration="3.5" data-track-index="4"></div>
+
+    <div class="clip cm-head" id="cm-head" data-start="0" data-duration="3.5" data-track-index="5">
+      <span class="cm-word"><span>Cargar</span></span>
+      <span class="cm-word"><span>los</span></span>
+      <span class="cm-word"><span>productos</span></span>
+    </div>
+
+    <!-- Scene 2: sub line + counter -->
+    <div class="clip cm-sub" data-start="1.2" data-duration="2.3" data-track-index="6">
+      <div class="cm-sub-text" id="cm-subtext">uno por uno.</div>
+      <div class="cm-counter" id="cm-counter">
+        <span class="cm-num" id="cm-num">1</span>
+        <span class="cm-sep">/</span>
+        <span class="cm-tot">300</span>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+    <script>
+      (function () {
+        var root = document.querySelector('[data-composition-id="01-carga-manual"]');
+        var tl = gsap.timeline({ paused: true });
+
+        var words = root.querySelectorAll('#cm-head .cm-word > span');
+        var counter = root.querySelector('#cm-counter');
+        var numEl = root.querySelector('#cm-num');
+        var rows = root.querySelectorAll('#cm-rows .cm-row');
+
+        // --- Scene 1 (0.0-1.2s): text-reveal per word, from below, fast
+        tl.fromTo(root.querySelector('#cm-eyebrow'),
+          { opacity: 0, y: -14 },
+          { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out' }, 0.0);
+
+        tl.fromTo(root.querySelector('#cm-accentline'),
+          { scaleX: 0, transformOrigin: 'left center', opacity: 1 },
+          { scaleX: 1, duration: 0.45, ease: 'power3.out' }, 0.12);
+
+        tl.fromTo(words,
+          { yPercent: 115, opacity: 0 },
+          { yPercent: 0, opacity: 1, duration: 0.5, ease: 'power3.out', stagger: 0.11 }, 0.18);
+
+        // --- Scene 2 (1.2-2.3s): sub line + counter arrive, count-up starts slow
+        tl.fromTo(root.querySelector('#cm-subtext'),
+          { opacity: 0, y: 26 },
+          { opacity: 1, y: 0, duration: 0.42, ease: 'power2.out' }, 1.20);
+
+        tl.fromTo(counter,
+          { opacity: 0, scale: 0.86 },
+          { opacity: 1, scale: 1, duration: 0.44, ease: 'back.out(2)' }, 1.36);
+
+        // --- count-up: 1 -> 47, deterministic, seek-safe (onUpdate writes from progress)
+        var cnt = { v: 1 };
+        tl.to(cnt, {
+          v: 47,
+          duration: 1.78,
+          ease: 'power1.in',
+          onUpdate: function () {
+            numEl.textContent = String(Math.round(cnt.v));
+          }
+        }, 1.62);
+
+        // tired micro-pulse on the counter pill while it climbs
+        tl.fromTo(counter,
+          { borderColor: 'rgba(37,99,235,0.20)' },
+          { borderColor: 'rgba(37,99,235,0.45)', duration: 1.6, ease: 'power1.inOut' }, 1.7);
+
+        // --- Scene 3 (2.3-3.5s): endless rows creep up behind, very faint
+        tl.fromTo(rows,
+          { opacity: 0, y: 34 },
+          { opacity: 0.5, y: 0, duration: 0.55, ease: 'power2.out', stagger: 0.075 }, 2.30);
+
+        tl.fromTo(root.querySelector('#cm-rows'),
+          { y: 40 },
+          { y: 0, duration: 1.2, ease: 'none' }, 2.30);
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines['01-carga-manual'] = tl;
+      })();
+    </script>
+  </div>
+</template>

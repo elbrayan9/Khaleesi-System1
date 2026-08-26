@@ -1,0 +1,170 @@
+<template>
+  <div id="root" data-composition-id="04-numeros" data-width="1080" data-height="1920" data-start="0" data-duration="4">
+
+    <style>
+      @font-face{font-family:"Inter";font-weight:400;font-style:normal;font-display:block;src:url("assets/fonts/Inter-400.woff2") format("woff2"),url("assets/fonts/Inter-400.ttf") format("truetype");}
+      @font-face{font-family:"Inter";font-weight:900;font-style:normal;font-display:block;src:url("assets/fonts/Inter-900.woff2") format("woff2"),url("assets/fonts/Inter-900.ttf") format("truetype");}
+
+      #root{
+        position:absolute; inset:0; width:1080px; height:1920px;
+        overflow:hidden;
+        font-family:"Inter", sans-serif;
+        --nm-bg:#27272A;
+        --nm-primary:#2563EB;
+        --nm-text:#60A5FA;
+        --nm-muted:#3B82F6;
+        --nm-light:#656565;
+        --nm-card:rgba(37,99,235,0.04);
+        --nm-border:rgba(37,99,235,0.20);
+      }
+
+      .nm-bg{
+        position:absolute; inset:0;
+        background:
+          radial-gradient(120% 70% at 50% 22%, rgba(37,99,235,0.13) 0%, rgba(37,99,235,0) 62%),
+          #27272A;
+      }
+      .nm-dots{
+        position:absolute; inset:0;
+        background-image:radial-gradient(rgba(37,99,235,0.16) 2px, rgba(0,0,0,0) 2px);
+        background-size:60px 60px;
+        background-position:0 0;
+      }
+
+      .nm-eyebrow{
+        position:absolute; left:88px; top:232px;
+        display:flex; align-items:center; gap:22px;
+      }
+      .nm-eyebrow .rule{ width:60px; height:4px; border-radius:2px; background:var(--nm-primary); }
+      .nm-eyebrow .lbl{
+        font-weight:400; font-size:26px; letter-spacing:0.20em;
+        text-transform:uppercase; color:var(--nm-primary);
+      }
+
+      .nm-head{
+        position:absolute; left:88px; top:300px; width:904px;
+        font-weight:900; font-size:104px; line-height:1.06;
+        letter-spacing:-0.02em; color:var(--nm-text);
+      }
+      .nm-head .ln{ display:block; overflow:hidden; }
+      .nm-head .ln i{ display:block; font-style:normal; }
+      .nm-head .accentword{ color:var(--nm-primary); }
+
+      /* ---- device frame: the real product screen ------------------------- */
+      .nm-device{
+        position:absolute; left:44px; top:660px; width:992px; height:704px;
+        box-sizing:border-box;
+        background:#1B1B1E;
+        border:1.5px solid rgba(37,99,235,0.28);
+        border-radius:18px;
+        box-shadow:0 34px 90px rgba(0,0,0,0.55), 0 0 0 1px rgba(37,99,235,0.10);
+        overflow:hidden;
+      }
+      .nm-bar{
+        position:absolute; left:0; top:0; width:992px; height:44px;
+        box-sizing:border-box;
+        background:rgba(37,99,235,0.06);
+        border-bottom:1px solid rgba(37,99,235,0.18);
+        display:flex; align-items:center; gap:11px; padding-left:22px;
+      }
+      .nm-bar span{ width:11px; height:11px; border-radius:50%; background:rgba(96,165,250,0.34); }
+
+      .nm-view{
+        position:absolute; left:0; top:44px; width:992px; height:660px;
+        overflow:hidden;
+      }
+      /* stage carries the crop geometry; the push-in scales this whole layer
+         so the accent underline stays locked to the card it points at. */
+      .nm-stage{
+        position:absolute; left:0; top:0; width:992px; height:660px;
+      }
+      /* real screenshot, 1440x900, scaled 0.855 and offset so the crop starts
+         at source (252,125) — the four metric cards read at full legibility.
+         UI-fidelity treatment: no color grading, no filters on product pixels. */
+      .nm-shot{
+        position:absolute; left:-215.5px; top:-152px;
+        width:1231.2px; height:769.5px;
+        display:block;
+      }
+      .nm-ul{
+        position:absolute; left:255px; top:192px;
+        width:236px; height:6px; border-radius:3px;
+        background:var(--nm-primary);
+      }
+      .nm-glow{
+        position:absolute; left:243px; top:66px;
+        width:260px; height:128px; border-radius:12px;
+        background:rgba(37,99,235,0.16);
+      }
+    </style>
+
+    <div class="clip nm-bg"   data-start="0" data-duration="4" data-track-index="0"></div>
+    <div class="clip nm-dots" data-start="0" data-duration="4" data-track-index="1"></div>
+
+    <div class="clip nm-eyebrow" data-start="0" data-duration="4" data-track-index="2">
+      <span class="rule" id="nm-rule"></span>
+      <span class="lbl">CIERRE DE CAJA</span>
+    </div>
+
+    <div class="clip nm-head" data-start="0" data-duration="4" data-track-index="3">
+      <span class="ln"><i>Los <span class="accentword">numeros</span></i></span>
+      <span class="ln"><i>ya estan</i></span>
+    </div>
+
+    <div class="clip nm-device" data-start="0" data-duration="4" data-track-index="4">
+      <div class="nm-bar"><span></span><span></span><span></span></div>
+      <div class="nm-view">
+        <div class="nm-stage" id="nm-stage">
+          <img class="nm-shot" id="nm-shot" src="assets/real-estadisticas.png" alt="">
+          <div class="nm-glow" id="nm-glow"></div>
+          <div class="nm-ul" id="nm-ul"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        var cs = document.currentScript;
+        var root = (cs && cs.closest('[data-composition-id="04-numeros"]'))
+                || document.querySelector('[data-composition-id="04-numeros"]');
+        var q  = function (s) { return root.querySelector(s); };
+        var qa = function (s) { return Array.prototype.slice.call(root.querySelectorAll(s)); };
+
+        var tl = gsap.timeline({ paused: true });
+
+        var lines  = qa('.nm-head .ln i');
+        var rule   = q('#nm-rule');
+        var eyeLbl = q('.nm-eyebrow .lbl');
+        var device = q('.nm-device');
+        var stage  = q('#nm-stage');
+        var ul     = q('#nm-ul');
+        var glow   = q('#nm-glow');
+
+        // ---- Scene 1 (0.0-1.0s) — eyebrow rule + headline land -------------
+        tl.fromTo(rule, { scaleX: 0, transformOrigin: 'left center' },
+                        { scaleX: 1, duration: 0.36, ease: 'power3.out' }, 0.02);
+        tl.fromTo(eyeLbl, { opacity: 0, x: -18 },
+                          { opacity: 1, x: 0, duration: 0.38, ease: 'power2.out' }, 0.10);
+        tl.fromTo(lines, { yPercent: 110, opacity: 0 },
+                         { yPercent: 0, opacity: 1, duration: 0.52, ease: 'power3.out', stagger: 0.13 }, 0.20);
+
+        // ---- Scene 2 (1.0-2.3s) — the real screen rises into the frame -----
+        tl.fromTo(device, { opacity: 0, y: 96 },
+                          { opacity: 1, y: 0, duration: 0.78, ease: 'power3.out' }, 1.00);
+
+        // ---- Scene 3 (2.3-3.5s) — slow continuous push-in + accent ---------
+        // 1.000 -> 1.035, origin over the "Ganancia Neta" card.
+        tl.fromTo(stage, { scale: 1, transformOrigin: '38% 22%' },
+                         { scale: 1.035, duration: 2.50, ease: 'none' }, 1.00);
+
+        tl.fromTo(glow, { opacity: 0 },
+                        { opacity: 1, duration: 0.44, ease: 'power2.out' }, 2.34);
+        tl.fromTo(ul, { scaleX: 0, opacity: 1, transformOrigin: 'left center' },
+                      { scaleX: 1, duration: 0.52, ease: 'power3.out' }, 2.42);
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines['04-numeros'] = tl;
+      })();
+    </script>
+  </div>
+</template>

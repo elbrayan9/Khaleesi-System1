@@ -1,0 +1,282 @@
+<template>
+  <style>
+    @font-face{font-family:"Inter";font-weight:400;font-style:normal;font-display:block;src:url("assets/fonts/Inter-400.woff2") format("woff2");}
+    @font-face{font-family:"Inter";font-weight:900;font-style:normal;font-display:block;src:url("assets/fonts/Inter-900.woff2") format("woff2");}
+
+    #root{
+      position:relative;
+      width:1080px;
+      height:1920px;
+      overflow:hidden;
+      font-family:"Inter",sans-serif;
+      container-type:size;
+    }
+
+    .cierre-bg{
+      position:absolute;
+      inset:0;
+      background:
+        radial-gradient(110% 60% at 50% 46%, rgba(37,99,235,0.18) 0%, rgba(37,99,235,0) 64%),
+        #27272A;
+    }
+
+    /* atmosphere — concentric closing rings (closing frame only) */
+    .cierre-rings{
+      position:absolute;
+      left:0;
+      top:0;
+      width:1080px;
+      height:1920px;
+    }
+    .cierre-ring{
+      position:absolute;
+      left:540px;
+      top:880px;
+      margin-left:-450px;
+      margin-top:-450px;
+      width:900px;
+      height:900px;
+      border-radius:50%;
+      border:1.5px solid rgba(37,99,235,0.20);
+    }
+    .cierre-ring.r2{
+      margin-left:-330px;margin-top:-330px;width:660px;height:660px;
+      border-color:rgba(37,99,235,0.26);
+    }
+    .cierre-ring.r3{
+      margin-left:-215px;margin-top:-215px;width:430px;height:430px;
+      border-color:rgba(37,99,235,0.32);
+    }
+
+    /* brand lockup + CTA are flex-centered siblings on the SAME center */
+    .cierre-stage{
+      position:absolute;
+      left:0;
+      top:880px;
+      width:1080px;
+      height:0;
+    }
+
+    .cierre-brand{
+      position:absolute;
+      left:140px;
+      top:-260px;
+      width:800px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:44px;
+    }
+    .cierre-badge{
+      width:200px;
+      height:200px;
+      border-radius:50%;
+      background:rgba(37,99,235,0.15);
+      border:1.5px solid rgba(37,99,235,0.20);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .cierre-badge img{
+      width:110px;
+      height:110px;
+      display:block;
+      filter:invert(1);
+    }
+    .cierre-wordmark{
+      font-weight:900;
+      font-size:8.2cqw;
+      line-height:1.08;
+      letter-spacing:-0.02em;
+      color:#60A5FA;
+      text-align:center;
+      white-space:nowrap;
+    }
+
+    .cierre-cta{
+      position:absolute;
+      left:140px;
+      top:-62px;
+      width:800px;
+      height:124px;
+      border-radius:100px;
+      background:#2563EB;
+      color:#27272A;
+      font-weight:900;
+      font-size:4.0cqw;
+      letter-spacing:-0.01em;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      white-space:nowrap;
+    }
+
+    .cierre-glow{
+      position:absolute;
+      left:100px;
+      top:-102px;
+      width:880px;
+      height:204px;
+      border-radius:100px;
+      background:radial-gradient(60% 70% at 50% 50%, rgba(37,99,235,0.55) 0%, rgba(37,99,235,0) 70%);
+      opacity:0;
+    }
+    .cierre-ripple{
+      position:absolute;
+      left:440px;
+      top:-100px;
+      width:200px;
+      height:200px;
+      margin:0;
+      border-radius:50%;
+      border:3px solid rgba(96,165,250,0.9);
+      opacity:0;
+    }
+
+    .cierre-cursor{
+      position:absolute;
+      left:600px;
+      top:-24px;
+      width:56px;
+      height:66px;
+      opacity:0;
+    }
+    .cierre-cursor svg{display:block;width:56px;height:66px;}
+
+    .cierre-url{
+      position:absolute;
+      left:0;
+      top:1230px;
+      width:1080px;
+      text-align:center;
+      font-weight:400;
+      font-size:2.5cqw;
+      letter-spacing:0.16em;
+      color:#3B82F6;
+    }
+
+    .cierre-accentline{
+      position:absolute;
+      left:510px;
+      top:1150px;
+      width:60px;
+      height:4px;
+      border-radius:2px;
+      background:#2563EB;
+      transform-origin:50% 50%;
+    }
+  </style>
+
+  <div id="root" data-composition-id="05-cierre" data-width="1080" data-height="1920">
+    <div class="clip cierre-bg" data-start="0" data-duration="3.5" data-track-index="0"></div>
+
+    <div class="clip cierre-rings" data-start="0" data-duration="3.5" data-track-index="1">
+      <div class="cierre-ring r1"></div>
+      <div class="cierre-ring r2"></div>
+      <div class="cierre-ring r3"></div>
+    </div>
+
+    <div class="clip cierre-stage" data-start="0" data-duration="3.5" data-track-index="2">
+      <div class="cierre-brand">
+        <div class="cierre-badge"><img src="assets/logo-0a274843.svg" alt=""></div>
+        <div class="cierre-wordmark">Khaleesi System</div>
+      </div>
+
+      <div class="cierre-glow"></div>
+      <div class="cierre-cta">Probalo gratis 7 dias</div>
+      <div class="cierre-ripple"></div>
+
+      <div class="cierre-cursor">
+        <svg viewBox="0 0 28 33" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M2 1.6 L2 27.4 L8.6 21.2 L13.1 31.2 L17.6 29.1 L13.2 19.4 L22.4 18.6 Z"
+                fill="#F5F5F5" stroke="#27272A" stroke-width="1.6" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </div>
+
+    <div class="clip cierre-accentline" data-start="0" data-duration="3.5" data-track-index="3"></div>
+    <div class="clip cierre-url" data-start="0" data-duration="3.5" data-track-index="4">khaleesisystem.com.ar</div>
+  </div>
+
+  <script>
+    (function () {
+      var root = document.currentScript.closest('#root') || document.getElementById('root');
+      var q = function (s) { return root.querySelector(s); };
+      var qa = function (s) { return Array.prototype.slice.call(root.querySelectorAll(s)); };
+
+      var rings = qa('.cierre-ring');
+      var brand = q('.cierre-brand');
+      var badge = q('.cierre-badge');
+      var word = q('.cierre-wordmark');
+      var cta = q('.cierre-cta');
+      var glow = q('.cierre-glow');
+      var ripple = q('.cierre-ripple');
+      var cursor = q('.cierre-cursor');
+      var accent = q('.cierre-accentline');
+      var url = q('.cierre-url');
+
+      // shared center origin — this is what sells the morph as one element
+      gsap.set([brand, cta, glow, ripple], { transformOrigin: '50% 50%' });
+      gsap.set(cursor, { transformOrigin: '10% 10%' });
+      gsap.set(cta, { scale: 0.6, opacity: 0 });
+
+      var tl = gsap.timeline({ paused: true });
+
+      // ---- Scene 1 (0.0–1.2s): brand presence, scale-in, resting breath ----
+      tl.fromTo(brand,
+        { scale: 0.72, opacity: 0 },
+        { scale: 1, opacity: 1, duration: 0.52, ease: 'back.out(1.5)' }, 0);
+
+      tl.fromTo(word,
+        { y: 26, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.44, ease: 'power2.out' }, 0.22);
+
+      rings.forEach(function (r, i) {
+        tl.fromTo(r,
+          { scale: 0.86, opacity: 0 },
+          { scale: 1, opacity: 1, duration: 0.7, ease: 'power2.out' }, 0.05 + i * 0.09);
+      });
+
+      // faint rotation-only resting breath, scoped to the mark
+      tl.fromTo(badge, { rotation: -1.6 }, { rotation: 1.6, duration: 0.6, ease: 'sine.inOut' }, 0.6);
+
+      // ---- Scene 2 (1.2–2.2s): signature move — same-center morph to the CTA ----
+      tl.to(brand, { scale: 0.52, opacity: 0, duration: 0.46, ease: 'power2.in' }, 1.20);
+      tl.fromTo(cta,
+        { scale: 0.6, opacity: 0 },
+        { scale: 1, opacity: 1, duration: 0.52, ease: 'back.out(1.6)' }, 1.30);
+
+      tl.fromTo(rings, { scale: 1 }, { scale: 0.94, duration: 0.7, ease: 'power2.out' }, 1.25);
+
+      // address + rule resolve under the CTA
+      tl.fromTo(accent, { scaleX: 0, opacity: 0 }, { scaleX: 1, opacity: 1, duration: 0.34, ease: 'power2.out' }, 1.72);
+      tl.fromTo(url, { y: 18, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: 'power2.out' }, 1.84);
+
+      // ---- Scene 3 (2.2–2.9s): cursor decel-arrival from lower right, off-center aim ----
+      tl.fromTo(cursor,
+        { x: 330, y: 300, opacity: 0 },
+        { opacity: 1, duration: 0.01, ease: 'none' }, 2.20);
+      tl.fromTo(cursor,
+        { x: 330, y: 300 },
+        { x: 34, y: -6, duration: 0.62, ease: 'power2.out' }, 2.21);
+
+      // ---- Scene 4 (2.9–3.5s): lockstep press + release flash, held ----
+      tl.to([cta, cursor], { scale: 0.94, duration: 0.11, ease: 'power2.in' }, 2.92);
+      tl.to([cta, cursor], { scale: 1, duration: 0.22, ease: 'back.out(2.6)' }, 3.03);
+
+      tl.fromTo(ripple,
+        { scale: 0.35, opacity: 0.85 },
+        { scale: 2.4, opacity: 0, duration: 0.46, ease: 'power2.out' }, 2.98);
+      tl.fromTo(glow,
+        { opacity: 0 },
+        { opacity: 1, duration: 0.12, ease: 'power2.out' }, 2.98);
+      tl.to(glow, { opacity: 0.38, duration: 0.34, ease: 'power2.out' }, 3.10);
+
+      // final-frame settle on the pressed state
+      tl.to(rings, { scale: 0.97, duration: 0.4, ease: 'sine.out' }, 3.10);
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines['05-cierre'] = tl;
+    })();
+  </script>
+</template>

@@ -1,0 +1,25 @@
+# Qué se versiona de los videos y qué no.
+#
+# Se versiona lo que no se puede volver a generar: los frames de cada escena,
+# el index.html armado, la locución y los guiones. Con eso se rehace un video
+# entero con assemble-index.mjs + transitions.mjs + generar-subtitulos.mjs.
+#
+# Queda afuera lo pesado y reproducible. Son 60 de los 85 MB de la carpeta.
+
+# Capturas del sitio hechas para armar los videos. Se vuelven a sacar con
+# `hyperframes capture` y el sitio cambia igual, así que la copia vieja no
+# sirve de referencia.
+*/capture/
+
+# Comparaciones visuales entre renders. Sólo tienen sentido durante el trabajo.
+*/snapshots/
+
+# Diagnósticos del renderizador.
+*/.debug/
+
+# Los MP4 salen de las fuentes en menos de un minuto, así que no ocupan lugar
+# en la historia del repo. Excepción: los `-sub`, que son los que están
+# publicados en Meta y en las redes — conviene poder mirar exactamente qué se
+# subió sin tener que rehacerlo.
+*/renders/*.mp4
+!*/renders/*-sub.mp4

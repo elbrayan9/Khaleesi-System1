@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js" integrity="sha384-sG0Hv1tP1lZCk9KQmrIbY/XNwi+OY84GQqhMscbnsoBFqAz8KNCil1kvfL3Hbbk2" crossorigin="anonymous"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 1080px;
+        height: 1920px;
+        overflow: hidden;
+        background: #000;
+      }
+      #root {
+        position: relative;
+        width: 1080px;
+        height: 1920px;
+        overflow: hidden;
+        background: #27272A;
+      }
+      .scene {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="20"
+      data-width="1080"
+      data-height="1920"
+    >
+      <div
+        id="el-01-cuatro-apps"
+        class="scene"
+        data-composition-id="01-cuatro-apps"
+        data-composition-src="compositions/frames/01-cuatro-apps.html"
+        data-start="0"
+        data-duration="3.5"
+        data-track-index="0"
+      ></div>
+
+      <div
+        id="el-02-giro-una"
+        class="scene"
+        data-composition-id="02-giro-una"
+        data-composition-src="compositions/frames/02-giro-una.html"
+        data-start="3.5"
+        data-duration="3"
+        data-track-index="1"
+      ></div>
+
+      <div
+        id="el-03-flujo-completo"
+        class="scene"
+        data-composition-id="03-flujo-completo"
+        data-composition-src="compositions/frames/03-flujo-completo.html"
+        data-start="6.5"
+        data-duration="6.5"
+        data-track-index="0"
+      ></div>
+
+      <div
+        id="el-04-numeros"
+        class="scene"
+        data-composition-id="04-numeros"
+        data-composition-src="compositions/frames/04-numeros.html"
+        data-start="13"
+        data-duration="4"
+        data-track-index="1"
+      ></div>
+
+      <div
+        id="el-05-cierre"
+        class="scene"
+        data-composition-id="05-cierre"
+        data-composition-src="compositions/frames/05-cierre.html"
+        data-start="16.5"
+        data-duration="3.5"
+        data-track-index="0"
+      ></div>
+
+      <audio
+        id="el-voz"
+        class="clip"
+        src="assets/audio/vo.wav"
+        data-start="0"
+        data-duration="15.64"
+        data-track-index="10"
+      ></audio>
+      <!-- subtitulos:inicio -->
+
+      <style>
+        /* Subtítulos: van sobre la zona segura de Reels (los últimos 220px los
+           tapa la interfaz de Instagram), y por debajo del texto grande de cada
+           frame para no competir con él. */
+        #root .subtitulo {
+          position: absolute;
+          left: 90px;
+          right: 90px;
+          top: 1500px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+          pointer-events: none;
+        }
+        #root .subtitulo span {
+          display: inline-block;
+          max-width: 100%;
+          padding: 14px 26px;
+          border-radius: 16px;
+          background: rgba(9, 9, 12, 0.82);
+          color: #FFFFFF;
+          /* NO Inter: la copia incluida en el proyecto está recortada y sus
+             minúsculas se dibujan como mayúsculas, así que "sacás" salía
+             "SACáS". Una fuente del sistema tiene el alfabeto completo. */
+          font-family: "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+          font-weight: 700;
+          font-size: 46px;
+          /* Los frames ponen su texto en mayúsculas y eso se hereda. Acá no:
+             la Inter incluida no tiene mayúsculas acentuadas (saldría "SACáS"),
+             y en minúscula el subtítulo se distingue del título grande en vez
+             de leerse como una repetición. */
+          text-transform: none;
+          line-height: 1.25;
+          letter-spacing: -0.01em;
+          text-wrap: balance;
+        }
+      </style>
+      <div
+        id="sub-30"
+        class="clip subtitulo"
+        data-start="0.16"
+        data-duration="1.07"
+        data-track-index="30"
+      ><span>El cuaderno de la caja.</span></div>
+      <div
+        id="sub-31"
+        class="clip subtitulo"
+        data-start="1.23"
+        data-duration="0.90"
+        data-track-index="31"
+      ><span>La app de facturar.</span></div>
+      <div
+        id="sub-32"
+        class="clip subtitulo"
+        data-start="2.13"
+        data-duration="0.90"
+        data-track-index="32"
+      ><span>La de cobrar.</span></div>
+      <div
+        id="sub-33"
+        class="clip subtitulo"
+        data-start="2.87"
+        data-duration="2.23"
+        data-track-index="33"
+      ><span>Todo eso, en una sola pantalla.</span></div>
+      <div
+        id="sub-34"
+        class="clip subtitulo"
+        data-start="5.27"
+        data-duration="1.10"
+        data-track-index="34"
+      ><span>Cargás la venta.</span></div>
+      <div
+        id="sub-35"
+        class="clip subtitulo"
+        data-start="6.37"
+        data-duration="1.17"
+        data-track-index="35"
+      ><span>Facturás en ARCA.</span></div>
+      <div
+        id="sub-36"
+        class="clip subtitulo"
+        data-start="7.53"
+        data-duration="0.96"
+        data-track-index="36"
+      ><span>Cobrás por QR.</span></div>
+      <div
+        id="sub-37"
+        class="clip subtitulo"
+        data-start="8.50"
+        data-duration="1.72"
+        data-track-index="37"
+      ><span>Sin salir de la pantalla.</span></div>
+      <div
+        id="sub-38"
+        class="clip subtitulo"
+        data-start="10.37"
+        data-duration="1.28"
+        data-track-index="38"
+      ><span>Y al cerrar la caja,</span></div>
+      <div
+        id="sub-39"
+        class="clip subtitulo"
+        data-start="11.66"
+        data-duration="1.35"
+        data-track-index="39"
+      ><span>los números ya están.</span></div>
+      <div
+        id="sub-40"
+        class="clip subtitulo"
+        data-start="13.17"
+        data-duration="0.94"
+        data-track-index="40"
+      ><span>Khaleesi System.</span></div>
+      <div
+        id="sub-41"
+        class="clip subtitulo"
+        data-start="14.11"
+        data-duration="1.53"
+        data-track-index="41"
+      ><span>Probalo gratis siete días.</span></div>
+      <!-- subtitulos:fin -->
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      window.__timelines["main"] = gsap.timeline({ paused: true });
+      // ── frame transitions (injected by transitions.mjs) ──
+      (function () { var tl = window.__timelines["main"];
+        tl.to("#el-04-numeros", { opacity: 0, duration: 0.5, ease: "power2.inOut" }, 16.5);
+        tl.fromTo("#el-05-cierre", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.inOut" }, 16.5);
+        tl.to({}, { duration: 20 }, 0); // full-span anchor — main.duration() == composition total (Studio master duration)
+      })();
+    </script>
+  </body>
+</html>

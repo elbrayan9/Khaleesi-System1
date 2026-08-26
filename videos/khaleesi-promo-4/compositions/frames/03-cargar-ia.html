@@ -1,0 +1,244 @@
+<template>
+  <style>
+    @font-face{font-family:"Inter";font-weight:400;font-style:normal;font-display:block;src:url("assets/fonts/Inter-400.woff2") format("woff2"),url("assets/fonts/Inter-400.ttf") format("truetype");}
+    @font-face{font-family:"Inter";font-weight:900;font-style:normal;font-display:block;src:url("assets/fonts/Inter-900.woff2") format("woff2"),url("assets/fonts/Inter-900.ttf") format("truetype");}
+
+    #root{
+      position:absolute;
+      inset:0;
+      width:1080px;
+      height:1920px;
+      overflow:hidden;
+      container-type:size;
+      font-family:"Inter",sans-serif;
+    }
+
+    .cargar-bg{
+      position:absolute;
+      inset:0;
+      background:
+        radial-gradient(120% 62% at 50% 20%, rgba(37,99,235,0.16) 0%, rgba(37,99,235,0) 62%),
+        #27272A;
+    }
+    .cargar-dots{
+      position:absolute;
+      inset:0;
+      background-image:radial-gradient(rgba(37,99,235,0.16) 2px, rgba(0,0,0,0) 2px);
+      background-size:64px 64px;
+      opacity:0;
+    }
+
+    .cargar-accentline{
+      position:absolute;
+      left:90px;
+      top:262px;
+      width:120px;
+      height:6px;
+      border-radius:2px;
+      background:#2563EB;
+    }
+    .cargar-eyebrow{
+      position:absolute;
+      left:90px;
+      top:302px;
+      font-size:28px;
+      font-weight:400;
+      letter-spacing:0.14em;
+      text-transform:uppercase;
+      color:#60A5FA;
+    }
+    .cargar-head{
+      position:absolute;
+      left:90px;
+      top:356px;
+      width:900px;
+      font-size:132px;
+      font-weight:900;
+      line-height:1.05;
+      letter-spacing:-0.03em;
+      color:#60A5FA;
+    }
+    .cargar-head span{display:block;}
+
+    /* --- device / window frame holding the real product screenshot -------- */
+    .cargar-shot{
+      position:absolute;
+      left:70px;
+      top:770px;
+      width:940px;
+      height:548px;
+      border-radius:20px;
+      overflow:hidden;
+      border:1.5px solid rgba(37,99,235,0.30);
+      box-shadow:0 34px 80px rgba(0,0,0,0.55);
+      background:#18181B;
+    }
+    .cargar-shot img{
+      position:absolute;
+      left:0;
+      top:0;
+      width:1440px;
+      height:900px;
+      transform-origin:0 0;
+      /* crop: source rect x250 y345, 780x455, scaled 1.2051 -> 940x548 */
+      transform:scale(1.2051) translate(-250px, -345px);
+    }
+
+    /* cobalt ring + glow over the "Cargar con camara" button ---------------- */
+    .cargar-ringglow{
+      position:absolute;
+      left:11px;
+      top:15px;
+      width:234px;
+      height:56px;
+      border-radius:14px;
+      background:rgba(37,99,235,0.20);
+      opacity:0;
+    }
+    .cargar-ring{
+      position:absolute;
+      left:11px;
+      top:15px;
+      width:234px;
+      height:56px;
+      overflow:visible;
+    }
+    .cargar-ring rect{
+      fill:none;
+      stroke:#2563EB;
+      stroke-width:5;
+      stroke-linecap:round;
+    }
+
+    /* floating cobalt tags that land on the form fields --------------------- */
+    .cargar-tag{
+      position:absolute;
+      padding:7px 20px;
+      border-radius:100px;
+      background:rgba(37,99,235,0.92);
+      border:1.5px solid rgba(96,165,250,0.55);
+      color:#F4F4F5;
+      font-size:22px;
+      font-weight:400;
+      letter-spacing:0.06em;
+      white-space:nowrap;
+      opacity:0;
+    }
+    .cargar-tag-codigo{ left:44px;  top:203px; }
+    .cargar-tag-nombre{ left:274px; top:203px; }
+    .cargar-tag-categoria{ left:44px; top:326px; }
+
+    .cargar-close{
+      position:absolute;
+      left:90px;
+      top:1408px;
+      width:900px;
+      font-size:52px;
+      font-weight:400;
+      line-height:1.35;
+      color:#656565;
+      opacity:0;
+    }
+  </style>
+
+  <div
+    id="root"
+    data-composition-id="03-cargar-ia"
+    data-width="1080"
+    data-height="1920"
+    data-start="0"
+    data-duration="5"
+  >
+    <div class="clip cargar-bg" data-start="0" data-duration="5" data-track-index="0"></div>
+    <div class="clip cargar-dots" id="cargar-dots" data-start="0" data-duration="5" data-track-index="1"></div>
+
+    <div class="clip cargar-accentline" id="cargar-accentline" data-start="0" data-duration="5" data-track-index="2"></div>
+    <div class="clip cargar-eyebrow" id="cargar-eyebrow" data-start="0" data-duration="5" data-track-index="3">Cargar</div>
+    <div class="clip cargar-head" id="cargar-head" data-start="0" data-duration="5" data-track-index="4">
+      <span class="cargar-hl">Una foto</span>
+      <span class="cargar-hl">y listo</span>
+    </div>
+
+    <div class="clip cargar-shot" id="cargar-shot" data-start="0" data-duration="5" data-track-index="5">
+      <img src="assets/productos.png" alt="Gestion de Productos" />
+
+      <div class="cargar-ringglow" id="cargar-ringglow"></div>
+      <svg class="cargar-ring" id="cargar-ring" viewBox="0 0 234 56">
+        <rect id="cargar-ringrect" x="2.5" y="2.5" width="229" height="51" rx="13"></rect>
+      </svg>
+
+      <div class="cargar-tag cargar-tag-nombre" id="cargar-tag-nombre">Nombre</div>
+      <div class="cargar-tag cargar-tag-codigo" id="cargar-tag-codigo">Codigo</div>
+      <div class="cargar-tag cargar-tag-categoria" id="cargar-tag-categoria">Categoria</div>
+    </div>
+
+    <div class="clip cargar-close" id="cargar-close" data-start="0" data-duration="5" data-track-index="6">Vos solo pones el precio.</div>
+  </div>
+
+  <script>
+    (function () {
+      var root = document.querySelector('[data-composition-id="03-cargar-ia"]');
+      var q = function (s) { return root.querySelector(s); };
+      var qa = function (s) { return Array.prototype.slice.call(root.querySelectorAll(s)); };
+
+      var tl = gsap.timeline({ paused: true });
+
+      // --- Scene 1 (0.0-1.0s): eyebrow + accent rule + headline -------------
+      tl.fromTo(q('#cargar-dots'),
+        { opacity: 0 },
+        { opacity: 0.55, duration: 0.6, ease: 'power1.out' }, 0);
+
+      tl.fromTo(q('#cargar-accentline'),
+        { opacity: 0, scaleX: 0, transformOrigin: 'left center' },
+        { opacity: 1, scaleX: 1, duration: 0.34, ease: 'power3.out' }, 0.02);
+
+      tl.fromTo(q('#cargar-eyebrow'),
+        { opacity: 0, y: 16 },
+        { opacity: 1, y: 0, duration: 0.34, ease: 'power2.out' }, 0.1);
+
+      tl.fromTo(qa('.cargar-hl'),
+        { opacity: 0, y: 52 },
+        { opacity: 1, y: 0, duration: 0.44, ease: 'power3.out', stagger: 0.14 }, 0.12);
+
+      // --- Scene 2 (1.0-2.1s): the real screenshot rises into its window ----
+      tl.fromTo(q('#cargar-shot'),
+        { opacity: 0, y: 160, scale: 0.962, transformOrigin: '50% 50%' },
+        { opacity: 1, y: 0, scale: 1, duration: 0.9, ease: 'power3.out' }, 1.0);
+
+      // --- Scene 3 (2.1-3.6s): ring strokes the button, tags fly to fields --
+      var ringRect = q('#cargar-ringrect');
+      var ringLen = 560;
+      try { ringLen = ringRect.getTotalLength(); } catch (e) { ringLen = 560; }
+      gsap.set(ringRect, { strokeDasharray: ringLen, strokeDashoffset: ringLen });
+
+      tl.to(ringRect, { strokeDashoffset: 0, duration: 0.55, ease: 'power2.inOut' }, 2.1);
+      tl.to(q('#cargar-ringglow'), { opacity: 1, duration: 0.45, ease: 'power1.out' }, 2.35);
+
+      // each tag launches from the button and lands on its field
+      tl.fromTo(q('#cargar-tag-nombre'),
+        { opacity: 0, x: -152, y: -165, scale: 0.72, transformOrigin: '50% 50%' },
+        { opacity: 1, x: 0, y: 0, scale: 1, duration: 0.5, ease: 'back.out(1.5)' }, 2.6);
+
+      tl.fromTo(q('#cargar-tag-codigo'),
+        { opacity: 0, x: 78, y: -165, scale: 0.72, transformOrigin: '50% 50%' },
+        { opacity: 1, x: 0, y: 0, scale: 1, duration: 0.5, ease: 'back.out(1.5)' }, 3.0);
+
+      tl.fromTo(q('#cargar-tag-categoria'),
+        { opacity: 0, x: 78, y: -288, scale: 0.72, transformOrigin: '50% 50%' },
+        { opacity: 1, x: 0, y: 0, scale: 1, duration: 0.5, ease: 'back.out(1.5)' }, 3.4);
+
+      // --- Scene 4 (3.6-5.0s): grey closing line + slow 3% push-in, hold ----
+      tl.fromTo(q('#cargar-close'),
+        { opacity: 0, y: 28 },
+        { opacity: 1, y: 0, duration: 0.6, ease: 'power2.out' }, 3.6);
+
+      tl.to(q('#cargar-shot'),
+        { scale: 1.03, duration: 1.4, ease: 'sine.inOut' }, 3.6);
+
+      tl.set({}, {}, 5);
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines['03-cargar-ia'] = tl;
+    })();
+  </script>
+</template>

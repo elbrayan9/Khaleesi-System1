@@ -1,0 +1,123 @@
+<template>
+  <div id="root" data-composition-id="02-giro-tienda" data-width="1080" data-height="1920">
+    <style>
+      @font-face{font-family:"Inter";font-weight:400;font-style:normal;font-display:block;src:url("assets/fonts/Inter-400.woff2") format("woff2"),url("assets/fonts/Inter-400.ttf") format("truetype");}
+      @font-face{font-family:"Inter";font-weight:900;font-style:normal;font-display:block;src:url("assets/fonts/Inter-900.woff2") format("woff2"),url("assets/fonts/Inter-900.ttf") format("truetype");}
+
+      #root{
+        position:absolute;
+        inset:0;
+        width:1080px;
+        height:1920px;
+        overflow:hidden;
+        container-type:size;
+        font-family:"Inter",sans-serif;
+      }
+
+      .giro2-bg{
+        position:absolute;
+        inset:0;
+        background:#27272A;
+      }
+
+      .giro2-glow{
+        position:absolute;
+        top:770px;
+        left:0;
+        right:0;
+        margin:0 auto;
+        width:940px;
+        height:540px;
+        border-radius:50%;
+        background:radial-gradient(closest-side, rgba(37,99,235,0.44), rgba(37,99,235,0.15) 55%, rgba(37,99,235,0) 78%);
+        filter:blur(44px);
+        opacity:0;
+      }
+
+      .giro2-stage{
+        position:absolute;
+        top:660px;
+        left:40px;
+        width:1000px;
+        text-align:center;
+      }
+
+      .giro2-line{
+        display:block;
+        font-weight:900;
+        letter-spacing:-0.02em;
+        line-height:1.08;
+        white-space:nowrap;
+      }
+
+      .giro2-line-a{
+        font-size:86px;
+        color:rgba(255,255,255,0.86);
+      }
+
+      .giro2-word{
+        display:inline-block;
+        margin:0 12px;
+        opacity:0;
+      }
+
+      .giro2-line-b{
+        margin-top:26px;
+        font-size:84px;
+        letter-spacing:-0.03em;
+        color:#60A5FA;
+        opacity:0;
+      }
+    </style>
+
+    <div class="clip giro2-bg" data-start="0" data-duration="3" data-track-index="0"></div>
+
+    <div class="clip giro2-glow" id="giro2-glow" data-start="0" data-duration="3" data-track-index="1"></div>
+
+    <div class="clip giro2-stage" data-start="0" data-duration="3" data-track-index="2">
+      <span class="giro2-line giro2-line-a">
+        <span class="giro2-word">¿Y</span><span class="giro2-word">si</span><span class="giro2-word">tuvieras</span>
+      </span>
+      <span class="giro2-line giro2-line-b" id="giro2-tienda">tu propia tienda?</span>
+    </div>
+
+    <script>
+      (function () {
+        var root = document.querySelector('[data-composition-id="02-giro-tienda"]');
+        var words = root.querySelectorAll('.giro2-word');
+        var tienda = root.querySelector('#giro2-tienda');
+        var glow = root.querySelector('#giro2-glow');
+
+        var tl = gsap.timeline({ paused: true });
+
+        // Scene 1 (0.0-1.0s) — corte seco: "¿Y si tuvieras" entra con blur-in por palabra.
+        tl.fromTo(words,
+          { opacity: 0, filter: 'blur(26px)', y: 24 },
+          { opacity: 1, filter: 'blur(0px)', y: 0, duration: 0.44, ease: 'power2.out', stagger: 0.13 },
+          0.05);
+
+        // Scene 2 (1.0-1.9s) — "tu propia tienda?" cae en su lugar en azul, con scale-pop.
+        tl.fromTo(tienda,
+          { opacity: 0, scale: 0.62, y: -44, filter: 'blur(10px)' },
+          { opacity: 1, scale: 1.05, y: 0, filter: 'blur(0px)', duration: 0.42, ease: 'back.out(2.4)' },
+          1.0);
+        tl.to(tienda, { scale: 1, duration: 0.26, ease: 'power2.out' }, 1.42);
+
+        // el glow azul acompana la caida
+        tl.fromTo(glow,
+          { opacity: 0, scale: 0.74 },
+          { opacity: 0.55, scale: 1, duration: 0.5, ease: 'power2.out' },
+          1.02);
+
+        // Scene 3 (1.9-3.0s) — quieto; el glow respira detras del azul.
+        tl.to(glow, { opacity: 0.82, scale: 1.08, duration: 0.55, ease: 'sine.inOut' }, 1.9);
+        tl.to(glow, { opacity: 0.52, scale: 0.99, duration: 0.55, ease: 'sine.inOut' }, 2.45);
+
+        tl.set({}, {}, 3);
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines['02-giro-tienda'] = tl;
+      })();
+    </script>
+  </div>
+</template>
