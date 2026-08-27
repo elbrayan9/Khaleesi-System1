@@ -1,39 +1,49 @@
 // frontend/src/App.jsx
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppContext } from './context/AppContext.jsx';
 import AppLogo from './components/AppLogo.jsx';
 import LoginScreen from './components/LoginScreen.jsx';
 import SignUpScreen from './components/SignUpScreen.jsx';
-import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
 import Layout from './components/Layout.jsx';
-import PublicProductView from './screens/PublicProductView';
-import BulkPrintView from './screens/BulkPrintView';
-import PriceCheckerView from './screens/PriceCheckerView.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
-import VentaTab from './components/VentaTab.jsx';
-import ProductosTab from './components/ProductosTab.jsx';
-import ClientesTab from './components/ClientesTab.jsx';
-import VendedoresTab from './components/VendedoresTab.jsx';
-import ProveedoresTab from './components/ProveedoresTab.jsx';
-import PedidosTab from './components/PedidosTab.jsx';
-import PresupuestosTab from './components/PresupuestosTab.jsx';
-import EstadisticasTab from '@/components/EstadisticasTab.jsx';
-import ReportesTab from './components/ReportesTab.jsx';
-import NotasCDTab from './components/NotasCDTab.jsx';
-import ConfiguracionTab from './components/ConfiguracionTab.jsx';
 import PrintReceipt from './components/PrintReceipt.jsx';
-import ScannerPistola from './screens/ScannerPistola.jsx';
-import TiendaPublica from './screens/TiendaPublica.jsx';
-import LegalPage from './screens/LegalPage.jsx';
-import PedidosOnline from './screens/PedidosOnline.jsx';
-import PagosRecibidos from './screens/PagosRecibidos.jsx';
-import AppRepartidor from './screens/AppRepartidor.jsx';
 import PrintNota from './components/PrintNota.jsx';
 import SaleDetailModal from './components/SaleDetailModal.jsx';
 import NotaDetailModal from './components/NotaDetailModal.jsx';
+
+// ── Pantallas cargadas por separado ──
+//
+// Todo esto vive detrás de un login o de una URL que casi nadie escribe a mano,
+// pero se descargaba junto con la landing: quien llegaba de un anuncio se bajaba
+// el sistema entero para leer los precios. Medido en un Android con 4G, la
+// primera pantalla tardaba 6,1 s en aparecer.
+//
+// Sólo quedan arriba (carga inmediata) la landing, el login y el registro, que
+// son las tres primeras pantallas de alguien que llega de la publicidad.
+const ForgotPasswordScreen = lazy(() => import('./screens/ForgotPasswordScreen'));
+const PublicProductView = lazy(() => import('./screens/PublicProductView'));
+const BulkPrintView = lazy(() => import('./screens/BulkPrintView'));
+const PriceCheckerView = lazy(() => import('./screens/PriceCheckerView.jsx'));
+const VentaTab = lazy(() => import('./components/VentaTab.jsx'));
+const ProductosTab = lazy(() => import('./components/ProductosTab.jsx'));
+const ClientesTab = lazy(() => import('./components/ClientesTab.jsx'));
+const VendedoresTab = lazy(() => import('./components/VendedoresTab.jsx'));
+const ProveedoresTab = lazy(() => import('./components/ProveedoresTab.jsx'));
+const PedidosTab = lazy(() => import('./components/PedidosTab.jsx'));
+const PresupuestosTab = lazy(() => import('./components/PresupuestosTab.jsx'));
+const EstadisticasTab = lazy(() => import('@/components/EstadisticasTab.jsx'));
+const ReportesTab = lazy(() => import('./components/ReportesTab.jsx'));
+const NotasCDTab = lazy(() => import('./components/NotasCDTab.jsx'));
+const ConfiguracionTab = lazy(() => import('./components/ConfiguracionTab.jsx'));
+const ScannerPistola = lazy(() => import('./screens/ScannerPistola.jsx'));
+const TiendaPublica = lazy(() => import('./screens/TiendaPublica.jsx'));
+const LegalPage = lazy(() => import('./screens/LegalPage.jsx'));
+const PedidosOnline = lazy(() => import('./screens/PedidosOnline.jsx'));
+const PagosRecibidos = lazy(() => import('./screens/PagosRecibidos.jsx'));
+const AppRepartidor = lazy(() => import('./screens/AppRepartidor.jsx'));
 import { formatCurrency, enviarNotaPorWhatsapp } from './utils/helpers.js';
 import {
   generarPdfVenta,
@@ -44,12 +54,28 @@ import {
   printVentaTicket,
   printNotaTicket,
 } from './services/thermalPrinterService';
-import AdminPanel from './screens/AdminPanel.jsx';
-import UserDetailAdmin from './screens/UserDetailAdmin.jsx';
 import LandingPage from './screens/LandingPage.jsx';
-import PaymentInstructions from './screens/PaymentInstructions.jsx';
+
+const AdminPanel = lazy(() => import('./screens/AdminPanel.jsx'));
+const UserDetailAdmin = lazy(() => import('./screens/UserDetailAdmin.jsx'));
+const PaymentInstructions = lazy(() => import('./screens/PaymentInstructions.jsx'));
 import { registrarVista } from './utils/medicion.js';
 import { analytics } from './firebaseConfig.js';
+
+// Lo que se ve mientras baja una pantalla. Se muestra por milisegundos, así que
+// va sin animaciones ni logo: un indicador elaborado alcanzaría a aparecer y
+// desaparecer de golpe, que se ve peor que un fondo quieto.
+function PantallaCargando() {
+  return (
+    <div
+      className="flex min-h-screen items-center justify-center bg-zinc-900 text-zinc-400"
+      role="status"
+      aria-live="polite"
+    >
+      <span className="text-sm">Cargando…</span>
+    </div>
+  );
+}
 
 function App() {
   const {
@@ -387,6 +413,11 @@ function App() {
   return (
     <>
       <AnimatePresence mode="wait">
+        {/* Suspense es obligatorio con las pantallas cargadas por separado: es
+            lo que se muestra mientras baja la que corresponde. El respaldo es
+            el mismo indicador que usa el arranque, para que el cambio de
+            pantalla no se sienta distinto. */}
+        <Suspense fallback={<PantallaCargando />}>
         <Routes>
           {/* Rutas Públicas */}
           <Route
@@ -482,6 +513,7 @@ function App() {
             element={<Navigate to={isLoggedIn ? '/dashboard' : '/'} replace />}
           />
         </Routes>
+        </Suspense>
       </AnimatePresence>
 
       <PrintReceipt

@@ -38,9 +38,12 @@ import {
 import AppLogo from '../components/AppLogo';
 import Footer from '../components/Footer';
 import ThreeBackground from '../components/ThreeBackground';
-import profileImage from '../assets/profile.jpg';
-import dashboardDesktop from '../assets/dashboard-desktop.png';
-import dashboardMobile from '../assets/dashboard-mobile.png';
+// WebP y al tamaño en que realmente se muestran. La foto de perfil venía en
+// 747x1024 (264 KB) para dibujarse en un círculo de 96px: ahora son 192px y
+// 8 KB. Las tres juntas bajaron de 399 KB a 47 KB.
+import profileImage from '../assets/profile.webp';
+import dashboardDesktop from '../assets/dashboard-desktop.webp';
+import dashboardMobile from '../assets/dashboard-mobile.webp';
 import TypeAnimation from '../components/TypeAnimation';
 import { AnimatedButton } from '../components/AnimatedButton';
 import HoverEffectWrapper from '../components/HoverEffectWrapper';
