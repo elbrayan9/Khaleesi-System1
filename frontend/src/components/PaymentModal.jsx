@@ -7,6 +7,8 @@ import CobroMercadoPagoModal from './CobroMercadoPagoModal';
 import CobroPointModal from './CobroPointModal';
 import CobroQrInteroperableModal from './CobroQrInteroperableModal';
 import { useAppContext } from '../context/AppContext.jsx';
+import useAtajosTeclado from '../hooks/useAtajosTeclado.js';
+import TeclaAtajo from './ui/TeclaAtajo.jsx';
 
 // Cache por sesión de los posnet detectados por sucursal (evita relistar en
 // cada apertura del modal). undefined = no consultado todavía.
@@ -194,6 +196,24 @@ function PaymentModal({
     // Pasamos pagos, tipo de factura, vuelto y propina al AppContext.
     onConfirm(pagos, tipoFactura, vueltoAcumulado, Number(propina) || 0);
   };
+
+  // Cerrar con Escape y confirmar con F2, para terminar la venta sin soltar el
+  // teclado. F2 es la misma tecla que abrió este modal: se aprieta dos veces y
+  // la venta queda cerrada.
+  //
+  // Enter queda afuera a propósito: dentro de este modal se tipean montos, y
+  // rematar una venta por apretar Enter de más sería peor que ahorrar un clic.
+  useAtajosTeclado(
+    {
+      Escape: onClose,
+      // Mismo freno que el botón: si falta cubrir el total, no confirma. Sin
+      // esto el atajo cerraría ventas a medio pagar, que el botón no permite.
+      F2: () => {
+        if (montoRestante <= 0) handleConfirmar();
+      },
+    },
+    isOpen && !showMP && !showPoint && !showQr,
+  );
 
   if (!isOpen) return null;
 
@@ -433,6 +453,7 @@ function PaymentModal({
             className="rounded-md bg-zinc-600 px-4 py-2 hover:bg-zinc-500"
           >
             Cancelar
+            <TeclaAtajo className="border-zinc-400">Esc</TeclaAtajo>
           </button>
           <button
             onClick={handleConfirmar}
@@ -440,6 +461,7 @@ function PaymentModal({
             className="rounded-md bg-green-600 px-4 py-2 font-bold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-zinc-500"
           >
             Confirmar Venta
+            {montoRestante <= 0 && <TeclaAtajo>F2</TeclaAtajo>}
           </button>
         </div>
       </div>

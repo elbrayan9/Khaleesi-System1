@@ -4,6 +4,7 @@ import SearchBar from './SearchBar.jsx';
 import { useAppContext } from '../context/AppContext.jsx';
 import { formatCurrency } from '../utils/helpers.js';
 import { Trash2, PlusCircle, MinusCircle, FileText } from 'lucide-react';
+import TeclaAtajo from './ui/TeclaAtajo.jsx';
 
 function Cart({
   onCheckout,
@@ -53,6 +54,7 @@ function Cart({
             whileTap={{ scale: 0.95 }}
           >
             <Trash2 size={14} /> Vaciar
+            <TeclaAtajo className="border-red-400/40">F9</TeclaAtajo>
           </motion.button>
         )}
       </div>
@@ -162,6 +164,7 @@ function Cart({
             className="mb-1 block text-sm font-medium text-zinc-300"
           >
             Buscar Cliente (Nombre/CUIT):
+            <TeclaAtajo className="border-zinc-500">F4</TeclaAtajo>
           </label>
           <SearchBar
             items={clients}
@@ -193,6 +196,7 @@ function Cart({
             whileTap={{ scale: cartItems.length > 0 ? 0.97 : 1 }}
           >
             Cobrar
+            {cartItems.length > 0 && <TeclaAtajo>F2</TeclaAtajo>}
           </motion.button>
         </div>
       </div>

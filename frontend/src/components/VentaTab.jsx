@@ -16,6 +16,8 @@ import ShiftManager from './ShiftManager';
 import PanelAlertas from './PanelAlertas';
 import { formatCurrency } from '../utils/helpers.js';
 import { ShoppingCart } from 'lucide-react';
+import useAtajosTeclado from '../hooks/useAtajosTeclado.js';
+import TeclaAtajo from './ui/TeclaAtajo.jsx';
 
 function VentaTab() {
   // --- OBTENER DATOS Y FUNCIONES DESDE EL CONTEXTO ---
@@ -37,6 +39,7 @@ function VentaTab() {
     selectedClientId, // <--- Usamos el del contexto
     setSelectedClientId, // <--- Usamos el del contexto
     canAccessAI,
+    handleClearCart, // lo usa el atajo F9
   } = useAppContext();
 
   // --- ESTADOS LOCALES DEL COMPONENTE ---
@@ -88,6 +91,48 @@ function VentaTab() {
   useEffect(() => {
     safeFocus();
   }, [safeFocus]);
+
+  // --- ATAJOS DE TECLADO ---
+  //
+  // Con el mostrador lleno, ir al mouse por cada acción cuesta segundos que se
+  // acumulan. Las teclas de función andan aunque el cursor esté dentro de un
+  // campo, así que se termina de tipear el código y se cobra sin mover la mano.
+  //
+  // Quedan apagados mientras hay un modal abierto: si no, F2 abriría el cobro
+  // por encima del escáner, o Escape cerraría las dos cosas de una.
+  const hayModalAbierto =
+    isPaymentModalOpen || showBalanza || showEscaner || showVoz || showFoto;
+
+  const enfocarPorId = (id) => {
+    const campo = document.getElementById(id);
+    campo?.focus();
+    campo?.select?.();
+  };
+
+  useAtajosTeclado(
+    {
+      // Cobrar. Sin nada en el carrito no hace nada, igual que el botón.
+      F2: () => {
+        if (cartItems.length > 0) setIsPaymentModalOpen(true);
+      },
+      // Buscar producto por nombre.
+      F3: () => enfocarPorId('producto-buscar-manual-react'),
+      // Buscar cliente: el campo vive en el carrito, se busca por su id.
+      F4: () => enfocarPorId('cliente-buscar-react-cart'),
+      // Volver al campo del código de barras, que es donde se pasa la mayor
+      // parte del tiempo.
+      F6: () => barcodeInputRef.current?.focus(),
+      // Venta rápida por monto.
+      F7: () => descripcionManualRef.current?.focus(),
+      // Escanear con la cámara.
+      F8: () => setShowEscaner(true),
+      // Vaciar el carrito. handleClearCart ya pide confirmación.
+      F9: () => {
+        if (cartItems.length > 0) handleClearCart();
+      },
+    },
+    !hayModalAbierto,
+  );
 
   // --- LÓGICA PARA AGREGAR ITEMS AL CARRITO ---
   const handleAgregarPorCodigo = async (codigo) => {
@@ -496,6 +541,7 @@ function VentaTab() {
               className="mb-1 block text-sm font-medium text-zinc-300"
             >
               Escanear Código de Barras:
+              <TeclaAtajo className="border-zinc-500">F6</TeclaAtajo>
             </label>
             <div className="flex">
               <input
@@ -527,6 +573,7 @@ function VentaTab() {
                 className="mt-2 flex w-full items-center justify-center gap-2 rounded-md border border-sky-500 bg-sky-500/10 px-4 py-2 text-sm font-semibold text-sky-300 transition-colors hover:bg-sky-500 hover:text-white"
               >
                 <i className="fas fa-camera"></i> Escanear con cámara
+                <TeclaAtajo className="border-sky-400/50">F8</TeclaAtajo>
               </button>
             )}
             {/* Balanza en vivo: habilitada en Configuración + soporte del navegador */}
@@ -577,6 +624,7 @@ function VentaTab() {
                 className="mb-1 block text-sm font-medium text-zinc-300"
               >
                 Buscar Producto:
+                <TeclaAtajo className="border-zinc-500">F3</TeclaAtajo>
               </label>
               <SearchBar
                 ref={manualProductSearchRef}
@@ -645,6 +693,7 @@ function VentaTab() {
               <div>
                 <h4 className="text-md mb-2 font-medium text-white">
                   O Venta Rápida (sin stock):
+                  <TeclaAtajo className="border-zinc-500">F7</TeclaAtajo>
                 </h4>
                 <div className="space-y-3">
                   <div>
