@@ -126,9 +126,24 @@ function VentaTab() {
       F7: () => descripcionManualRef.current?.focus(),
       // Escanear con la cámara.
       F8: () => setShowEscaner(true),
-      // Vaciar el carrito. handleClearCart ya pide confirmación.
-      F9: () => {
-        if (cartItems.length > 0) handleClearCart();
+      // Vaciar el carrito. El botón vacía sin preguntar, y para un clic está
+      // bien porque hay que ir a buscarlo. Con una tecla no: un F9 de más
+      // borraría la venta a medio armar y hay que empezar de cero. Por eso acá
+      // se pregunta, y el botón queda como estaba.
+      F9: async () => {
+        if (cartItems.length === 0) return;
+        const { isConfirmed } = await Swal.fire({
+          title: '¿Vaciar el carrito?',
+          text: `Se van a quitar ${cartItems.length} ${cartItems.length === 1 ? 'producto' : 'productos'}.`,
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonText: 'Sí, vaciar',
+          cancelButtonText: 'Cancelar',
+          confirmButtonColor: '#dc2626',
+          background: '#27272a',
+          color: '#f4f4f5',
+        });
+        if (isConfirmed) handleClearCart();
       },
     },
     !hayModalAbierto,
