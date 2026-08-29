@@ -1,6 +1,6 @@
 // frontend/src/screens/LandingPage.jsx
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import {
   motion,
@@ -39,7 +39,11 @@ import AppLogo from '../components/AppLogo';
 import Footer from '../components/Footer';
 import ThreeBackground from '../components/ThreeBackground';
 import MockupSistema from '../components/landing/MockupSistema.jsx';
-import TicketImprimiendose from '../components/landing/TicketImprimiendose.jsx';
+// El ticket está muy por debajo del pliegue: baja después, para no pesar en el
+// primer pintado, que es lo que decide si alguien se queda o se va.
+const TicketImprimiendose = lazy(
+  () => import('../components/landing/TicketImprimiendose.jsx'),
+);
 // WebP y al tamaño en que realmente se muestran. La foto de perfil venía en
 // 747x1024 (264 KB) para dibujarse en un círculo de 96px: ahora son 192px y
 // 8 KB. Las tres juntas bajaron de 399 KB a 47 KB.
@@ -800,7 +804,9 @@ const LandingPage = () => {
             >
               {/* El papel sale hacia abajo unos 340px: hay que reservarle el
                   lugar o queda dibujado fuera de la parte visible. */}
-              <TicketImprimiendose />
+              <Suspense fallback={<div className="h-[240px]" />}>
+                <TicketImprimiendose />
+              </Suspense>
             </motion.div>
           </div>
         </section>

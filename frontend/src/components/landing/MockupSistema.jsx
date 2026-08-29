@@ -38,14 +38,27 @@ function MockupSistema() {
   // que es la imagen más informativa de las seis.
   const [paso, setPaso] = useState(sinMovimiento ? PASOS.length - 1 : 0);
 
+  // El ciclo no arranca hasta que el navegador termina de acomodar la página.
+  // El markup se pinta igual —son divs— pero los temporizadores y las
+  // transiciones competirían por el mismo hilo justo cuando más se necesita.
+  const [listoParaAnimar, setListoParaAnimar] = useState(false);
   useEffect(() => {
     if (sinMovimiento) return undefined;
+    const pedir =
+      window.requestIdleCallback || ((f) => setTimeout(f, 1200));
+    const cancelar = window.cancelIdleCallback || clearTimeout;
+    const id = pedir(() => setListoParaAnimar(true), { timeout: 2500 });
+    return () => cancelar(id);
+  }, [sinMovimiento]);
+
+  useEffect(() => {
+    if (sinMovimiento || !listoParaAnimar) return undefined;
     const t = setTimeout(
       () => setPaso((p) => (p + 1) % PASOS.length),
       PASOS[paso].ms,
     );
     return () => clearTimeout(t);
-  }, [paso, sinMovimiento]);
+  }, [paso, sinMovimiento, listoParaAnimar]);
 
   const actual = PASOS[paso].id;
   const cuantosItems =
