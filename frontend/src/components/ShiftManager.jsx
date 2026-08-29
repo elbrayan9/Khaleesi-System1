@@ -304,23 +304,27 @@ const ShiftManager = () => {
   return (
     <div className="rounded-md border border-zinc-700 bg-zinc-800 p-3">
       {turnoActivo ? (
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <p className="text-sm font-bold text-green-400">Turno Abierto</p>
             <p className="text-xs text-zinc-300">
               Iniciado a las {turnoActivo.horaApertura}
             </p>
           </div>
-          <Button variant="destructive" onClick={() => setCloseModal(true)}>
+          <Button
+            variant="destructive"
+            className="whitespace-nowrap"
+            onClick={() => setCloseModal(true)}
+          >
             <StopCircle className="mr-2 h-4 w-4" />
             Cerrar Turno
           </Button>
         </div>
       ) : (
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm text-zinc-400">No hay un turno activo.</p>
           <Button
-            className="bg-green-600 hover:bg-green-700"
+            className="whitespace-nowrap bg-green-600 hover:bg-green-700"
             onClick={() => setOpenModal(true)}
           >
             <PlayCircle className="mr-2 h-4 w-4" />

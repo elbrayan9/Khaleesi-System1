@@ -467,7 +467,7 @@ function VentaTab() {
           <PanelAlertas />
         </div>
       </div>
-      <div className="mb-4 max-w-md rounded-lg border border-zinc-700 bg-zinc-800 p-4">
+      <div className="mb-4 max-w-3xl rounded-lg border border-zinc-700 bg-zinc-800 p-4">
         <label className="text-md mb-2 block font-medium text-zinc-200">
           Gestión de Turno y Venta
         </label>
