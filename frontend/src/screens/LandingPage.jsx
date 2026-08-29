@@ -38,11 +38,12 @@ import {
 import AppLogo from '../components/AppLogo';
 import Footer from '../components/Footer';
 import ThreeBackground from '../components/ThreeBackground';
+import MockupSistema from '../components/landing/MockupSistema.jsx';
+import TicketImprimiendose from '../components/landing/TicketImprimiendose.jsx';
 // WebP y al tamaño en que realmente se muestran. La foto de perfil venía en
 // 747x1024 (264 KB) para dibujarse en un círculo de 96px: ahora son 192px y
 // 8 KB. Las tres juntas bajaron de 399 KB a 47 KB.
 import profileImage from '../assets/profile.webp';
-import dashboardDesktop from '../assets/dashboard-desktop.webp';
 import dashboardMobile from '../assets/dashboard-mobile.webp';
 import TypeAnimation from '../components/TypeAnimation';
 import { AnimatedButton } from '../components/AnimatedButton';
@@ -459,12 +460,7 @@ const LandingPage = () => {
                       app.khaleesisystem.com.ar
                     </div>
                   </div>
-                  <img
-                    src={dashboardDesktop}
-                    alt="Panel de control de Khaleesi System"
-                    className="block w-full"
-                    loading="lazy"
-                  />
+                  <MockupSistema />
                 </div>
               </Tilt3D>
             </motion.div>
@@ -731,15 +727,8 @@ const LandingPage = () => {
                       <div className="h-3 w-3 rounded-full bg-green-500" />
                     </div>
 
-                    {/* Static Dashboard Image */}
                     <div className="h-full w-full overflow-hidden pt-8">
-                      <div className="h-full w-full">
-                        <img
-                          src={dashboardDesktop}
-                          alt="Dashboard Desktop"
-                          className="h-full w-full object-fill"
-                        />
-                      </div>
+                      <MockupSistema />
                     </div>
                   </div>
                 </motion.div>
@@ -767,8 +756,9 @@ const LandingPage = () => {
                       <div className="h-full w-full">
                         <img
                           src={dashboardMobile}
-                          alt="Dashboard Mobile"
-                          className="h-full w-full object-cover object-top"
+                          alt="El sistema en el celular"
+                          className="h-full w-full object-contain object-top"
+                          loading="lazy"
                         />
                       </div>
                     </div>
@@ -780,6 +770,41 @@ const LandingPage = () => {
         </section>
 
         {/* Pricing Section */}
+        {/* El comprobante saliendo, justo antes de los precios: muestra qué
+            pasa después de pagar, que es la duda de quien está por decidir. */}
+        <section className="px-4 pb-4 pt-20 sm:pt-24">
+          <div className="mx-auto grid max-w-4xl items-center gap-10 lg:grid-cols-2">
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true, margin: '-80px' }}
+              transition={{ duration: 0.6 }}
+            >
+              <h3 className="text-3xl font-bold text-white sm:text-4xl">
+                Cada cobro,{' '}
+                <span className="text-blue-400">con su comprobante</span>
+              </h3>
+              <p className="mt-4 text-zinc-400">
+                Tickets, facturas y notas de crédito salen solos al cobrar. Por
+                la impresora térmica del mostrador o en PDF para mandar por
+                WhatsApp, con los datos de tu negocio y tu logo.
+              </p>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-80px' }}
+              transition={{ duration: 0.6, delay: 0.15 }}
+              className="pb-[340px]"
+            >
+              {/* El papel sale hacia abajo unos 340px: hay que reservarle el
+                  lugar o queda dibujado fuera de la parte visible. */}
+              <TicketImprimiendose />
+            </motion.div>
+          </div>
+        </section>
+
         <section id="pricing" className="px-4 py-20 sm:py-24">
           <div className="mx-auto max-w-md text-center">
             <motion.div
@@ -828,11 +853,11 @@ const LandingPage = () => {
 
           <p className="mx-auto mt-6 max-w-2xl text-center text-xs text-zinc-400">
             Precios en pesos argentinos (ARS), impuestos incluidos.{' '}
-            <strong className="text-zinc-300">7 días de prueba gratis</strong> en
-            cualquier plan. El plan anual equivale a 10 meses (2 meses sin
+            <strong className="text-zinc-300">7 días de prueba gratis</strong>{' '}
+            en cualquier plan. El plan anual equivale a 10 meses (2 meses sin
             cargo). Sin renovación automática: cada período se abona cuando vos
-            querés y podés dar de baja en cualquier momento. Pagos procesados por
-            Mercado Pago.
+            querés y podés dar de baja en cualquier momento. Pagos procesados
+            por Mercado Pago.
           </p>
 
           <HoverEffectWrapper className="mx-auto mt-8 grid max-w-5xl grid-cols-1 gap-8 md:grid-cols-2">
