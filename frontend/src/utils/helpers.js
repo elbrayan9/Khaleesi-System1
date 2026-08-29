@@ -1,4 +1,3 @@
-import Swal from 'sweetalert2';
 
 /**
  * Obtiene la fecha y hora actual formateada.
@@ -42,22 +41,6 @@ export const formatCurrency = (value) => {
  * @param {string} texto - El mensaje a mostrar.
  * @param {'info' | 'success' | 'error' | 'warning' | 'question'} [tipo='info'] - El tipo de icono a mostrar.
  */
-export const mostrarMensaje = (texto, tipo = 'info') => {
-  Swal.fire({
-    title:
-      tipo === 'error' ? 'Error' : tipo === 'success' ? 'Éxito' : 'Información',
-    text: texto,
-    icon: tipo,
-    confirmButtonText: 'Aceptar',
-    heightAuto: false, // Previene ajustes automáticos de altura
-    customClass: {
-      // Clases para consistencia con Tailwind
-      popup: 'text-sm rounded-lg',
-      confirmButton:
-        'px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700',
-    },
-  });
-};
 
 /**
  * Muestra un diálogo de confirmación usando SweetAlert2.
@@ -67,32 +50,6 @@ export const mostrarMensaje = (texto, tipo = 'info') => {
  * @param {string} [confirmButtonText='Sí, eliminar'] - Texto del botón de confirmación.
  * @returns {Promise<boolean>} Promesa que resuelve a true si se confirma, false si se cancela.
  */
-export const confirmarAccion = async (
-  titulo,
-  texto,
-  icono = 'warning',
-  confirmButtonText = 'Sí, eliminar',
-) => {
-  const resultado = await Swal.fire({
-    title: titulo,
-    text: texto,
-    icon: icono,
-    showCancelButton: true,
-    confirmButtonColor: '#3085d6', // Azul
-    cancelButtonColor: '#d33', // Rojo
-    confirmButtonText: confirmButtonText,
-    cancelButtonText: 'Cancelar',
-    heightAuto: false,
-    customClass: {
-      popup: 'text-sm rounded-lg',
-      confirmButton:
-        'px-4 py-2 rounded-md mr-2 bg-blue-600 text-white hover:bg-blue-700',
-      cancelButton:
-        'px-4 py-2 rounded-md bg-gray-300 text-gray-800 hover:bg-gray-400',
-    },
-  });
-  return resultado.isConfirmed; // Devuelve true si el usuario hizo clic en confirmar
-};
 
 /**
  * Obtiene el nombre del mes a partir de su número (0-11).

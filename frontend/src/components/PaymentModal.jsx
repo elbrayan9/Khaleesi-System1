@@ -59,9 +59,8 @@ function PaymentModal({
     let cancelado = false;
     (async () => {
       try {
-        const { getFunctions, httpsCallable } = await import(
-          'firebase/functions'
-        );
+        const { getFunctions, httpsCallable } =
+          await import('firebase/functions');
         const functions = getFunctions();
         const listar = httpsCallable(functions, 'listarDispositivosPoint');
         const res = await listar({ sucursalId: sucId });
@@ -154,9 +153,7 @@ function PaymentModal({
     const vueltoTender = esEfectivo && recibido > monto ? recibido - monto : 0;
 
     setPagos((prev) => [...prev, { metodo: metodoPagoActual, monto }]);
-    setVueltoAcumulado((prev) =>
-      parseFloat((prev + vueltoTender).toFixed(2)),
-    );
+    setVueltoAcumulado((prev) => parseFloat((prev + vueltoTender).toFixed(2)));
 
     // Limpiar campos
     setMontoActual('');
@@ -196,6 +193,16 @@ function PaymentModal({
     // Pasamos pagos, tipo de factura, vuelto y propina al AppContext.
     onConfirm(pagos, tipoFactura, vueltoAcumulado, Number(propina) || 0);
   };
+
+  // Al abrir, el foco arranca en el selector de método: es el primer campo que
+  // toca el cajero. El timeout deja que el modal termine de montarse.
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const t = setTimeout(() => {
+      document.querySelector('[aria-label^="Método de pago"]')?.focus();
+    }, 60);
+    return () => clearTimeout(t);
+  }, [isOpen]);
 
   // Cerrar con Escape y confirmar con F2, para terminar la venta sin soltar el
   // teclado. F2 es la misma tecla que abrió este modal: se aprieta dos veces y
@@ -259,94 +266,6 @@ function PaymentModal({
               Vuelto: ${formatCurrency(vueltoAcumulado)}
             </p>
           )}
-        </div>
-
-        {/* PROPINA / REDONDEO */}
-        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900/50 p-3">
-          <span className="text-sm font-medium text-zinc-300">Propina:</span>
-          <input
-            type="number"
-            value={propina || ''}
-            onChange={(e) => setPropina(parseFloat(e.target.value) || 0)}
-            placeholder="0"
-            className="w-24 rounded-md border border-zinc-600 bg-zinc-700 p-1.5 text-sm text-zinc-100"
-          />
-          <button
-            type="button"
-            onClick={() => setPropina(parseFloat((total * 0.1).toFixed(2)))}
-            className="rounded-md bg-zinc-600 px-2 py-1 text-xs font-semibold text-white hover:bg-zinc-500"
-          >
-            10%
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              setPropina(Math.max(0, Math.ceil(total / 100) * 100 - total))
-            }
-            className="rounded-md bg-zinc-600 px-2 py-1 text-xs font-semibold text-white hover:bg-zinc-500"
-            title="Redondear el total al próximo múltiplo de $100"
-          >
-            Redondear
-          </button>
-          {Number(propina) > 0 && (
-            <button
-              type="button"
-              onClick={() => setPropina(0)}
-              className="rounded-md bg-zinc-700 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-600"
-            >
-              Quitar
-            </button>
-          )}
-        </div>
-
-        {/* COBRO CON MERCADO PAGO (QR / link) */}
-        {montoRestante > 0 && (
-          <button
-            type="button"
-            onClick={() => setShowMP(true)}
-            className="mb-4 flex w-full items-center justify-center gap-2 rounded-lg border border-sky-600 bg-sky-600/10 px-4 py-2 font-semibold text-sky-400 transition-colors hover:bg-sky-600 hover:text-white"
-          >
-            Cobrar con Mercado Pago (QR / Link)
-          </button>
-        )}
-
-        {/* COBRO CON QR INTEROPERABLE (todas las billeteras / bancos) */}
-        {montoRestante > 0 && (
-          <button
-            type="button"
-            onClick={() => setShowQr(true)}
-            className="mb-4 flex w-full items-center justify-center gap-2 rounded-lg border border-teal-500 bg-teal-500/10 px-4 py-2 font-semibold text-teal-300 transition-colors hover:bg-teal-500 hover:text-white"
-          >
-            Cobrar con QR (todas las billeteras)
-          </button>
-        )}
-
-        {/* COBRO CON POSNET (Mercado Pago Point) — solo si hay uno vinculado */}
-        {montoRestante > 0 && posnetDevices.length > 0 && (
-          <button
-            type="button"
-            onClick={() => setShowPoint(true)}
-            className="mb-4 flex w-full items-center justify-center gap-2 rounded-lg border border-indigo-500 bg-indigo-500/10 px-4 py-2 font-semibold text-indigo-300 transition-colors hover:bg-indigo-500 hover:text-white"
-          >
-            Cobrar con posnet (Point)
-          </button>
-        )}
-
-        {/* LISTA DE PAGOS AGREGADOS */}
-        <div className="mb-4 max-h-24 space-y-2 overflow-y-auto pr-2">
-          {pagos.map((pago, index) => (
-            <div
-              key={index}
-              className="flex items-center justify-between rounded-md bg-zinc-700 p-2 text-sm"
-            >
-              <span className="capitalize text-zinc-300">
-                {pago.metodo.replace('_', ' ')}
-              </span>
-              <span className="font-semibold text-white">
-                ${formatCurrency(pago.monto)}
-              </span>
-            </div>
-          ))}
         </div>
 
         {/* FORMULARIO PARA AGREGAR NUEVO PAGO */}
@@ -444,6 +363,94 @@ function PaymentModal({
               Agregar Pago
             </button>
           </div>
+        )}
+
+        {/* LISTA DE PAGOS AGREGADOS */}
+        <div className="mb-4 max-h-24 space-y-2 overflow-y-auto pr-2">
+          {pagos.map((pago, index) => (
+            <div
+              key={index}
+              className="flex items-center justify-between rounded-md bg-zinc-700 p-2 text-sm"
+            >
+              <span className="capitalize text-zinc-300">
+                {pago.metodo.replace('_', ' ')}
+              </span>
+              <span className="font-semibold text-white">
+                ${formatCurrency(pago.monto)}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* PROPINA / REDONDEO */}
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900/50 p-3">
+          <span className="text-sm font-medium text-zinc-300">Propina:</span>
+          <input
+            type="number"
+            value={propina || ''}
+            onChange={(e) => setPropina(parseFloat(e.target.value) || 0)}
+            placeholder="0"
+            className="w-24 rounded-md border border-zinc-600 bg-zinc-700 p-1.5 text-sm text-zinc-100"
+          />
+          <button
+            type="button"
+            onClick={() => setPropina(parseFloat((total * 0.1).toFixed(2)))}
+            className="rounded-md bg-zinc-600 px-2 py-1 text-xs font-semibold text-white hover:bg-zinc-500"
+          >
+            10%
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              setPropina(Math.max(0, Math.ceil(total / 100) * 100 - total))
+            }
+            className="rounded-md bg-zinc-600 px-2 py-1 text-xs font-semibold text-white hover:bg-zinc-500"
+            title="Redondear el total al próximo múltiplo de $100"
+          >
+            Redondear
+          </button>
+          {Number(propina) > 0 && (
+            <button
+              type="button"
+              onClick={() => setPropina(0)}
+              className="rounded-md bg-zinc-700 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-600"
+            >
+              Quitar
+            </button>
+          )}
+        </div>
+
+        {/* COBRO CON MERCADO PAGO (QR / link) */}
+        {montoRestante > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowMP(true)}
+            className="mb-4 flex w-full items-center justify-center gap-2 rounded-lg border border-sky-600 bg-sky-600/10 px-4 py-2 font-semibold text-sky-400 transition-colors hover:bg-sky-600 hover:text-white"
+          >
+            Cobrar con Mercado Pago (QR / Link)
+          </button>
+        )}
+
+        {/* COBRO CON QR INTEROPERABLE (todas las billeteras / bancos) */}
+        {montoRestante > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowQr(true)}
+            className="mb-4 flex w-full items-center justify-center gap-2 rounded-lg border border-teal-500 bg-teal-500/10 px-4 py-2 font-semibold text-teal-300 transition-colors hover:bg-teal-500 hover:text-white"
+          >
+            Cobrar con QR (todas las billeteras)
+          </button>
+        )}
+
+        {/* COBRO CON POSNET (Mercado Pago Point) — solo si hay uno vinculado */}
+        {montoRestante > 0 && posnetDevices.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowPoint(true)}
+            className="mb-4 flex w-full items-center justify-center gap-2 rounded-lg border border-indigo-500 bg-indigo-500/10 px-4 py-2 font-semibold text-indigo-300 transition-colors hover:bg-indigo-500 hover:text-white"
+          >
+            Cobrar con posnet (Point)
+          </button>
         )}
 
         {/* BOTONES FINALES */}

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import useDesplegableTeclado from '../hooks/useDesplegableTeclado.js';
 import {
   Banknote,
   CreditCard,
@@ -50,10 +51,28 @@ const PAYMENT_METHODS = [
 
 function PaymentMethodSelect({ value, onChange }) {
   const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef(null);
 
-  const selectedMethod =
-    PAYMENT_METHODS.find((m) => m.value === value) || PAYMENT_METHODS[0];
+  const indiceActual = Math.max(
+    0,
+    PAYMENT_METHODS.findIndex((m) => m.value === value),
+  );
+  const selectedMethod = PAYMENT_METHODS[indiceActual];
+
+  const {
+    marcado,
+    setMarcado,
+    contenedorRef,
+    triggerRef,
+    alTeclear,
+    alPerderFoco,
+  } = useDesplegableTeclado({
+    abierto: isOpen,
+    setAbierto: setIsOpen,
+    cantidad: PAYMENT_METHODS.length,
+    indiceActual,
+    alElegir: (i) => onChange(PAYMENT_METHODS[i].value),
+  });
+  const containerRef = contenedorRef;
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -77,10 +96,15 @@ function PaymentMethodSelect({ value, onChange }) {
   };
 
   return (
-    <div className="relative" ref={containerRef}>
+    <div className="relative" ref={containerRef} onBlur={alPerderFoco}>
       <button
         type="button"
+        ref={triggerRef}
         onClick={() => setIsOpen(!isOpen)}
+        onKeyDown={alTeclear}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        aria-label={`Método de pago: ${selectedMethod.label}`}
         className="flex w-full items-center justify-between rounded-md border border-zinc-600 bg-zinc-700 p-2 text-left text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
       >
         <div className="flex items-center gap-2">
@@ -93,13 +117,24 @@ function PaymentMethodSelect({ value, onChange }) {
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 mt-1 w-full rounded-md border border-zinc-600 bg-zinc-800 shadow-lg">
-          {PAYMENT_METHODS.map((method) => (
+        <div
+          role="listbox"
+          aria-label="Métodos de pago"
+          className="absolute z-50 mt-1 w-full rounded-md border border-zinc-600 bg-zinc-800 shadow-lg"
+        >
+          {PAYMENT_METHODS.map((method, i) => (
             <button
               key={method.value}
               type="button"
+              role="option"
+              aria-selected={i === marcado}
+              tabIndex={-1}
               onClick={() => handleSelect(method.value)}
-              className="flex w-full items-center gap-2 px-4 py-2 text-left text-zinc-200 first:rounded-t-md last:rounded-b-md hover:bg-zinc-700"
+              onMouseEnter={() => setMarcado(i)}
+              className={
+                'flex w-full items-center gap-2 px-4 py-2 text-left text-zinc-200 first:rounded-t-md last:rounded-b-md hover:bg-zinc-700 ' +
+                (i === marcado ? 'bg-zinc-700' : '')
+              }
             >
               <method.icon className={`h-5 w-5 ${method.color}`} />
               <span>{method.label}</span>

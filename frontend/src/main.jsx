@@ -6,83 +6,9 @@ import { BrowserRouter } from 'react-router-dom';
 import { AppProvider } from './context/AppContext.jsx'; // Importa el AppProvider
 import { iniciarPixel } from './utils/metaPixel.js';
 
-// Las funciones de SweetAlert se definen aquí o en un helper y se pasan a AppProvider
-import Swal from 'sweetalert2';
-
-const mostrarMensajeDark = (texto, tipo = 'info') => {
-  return Swal.fire({
-    title:
-      tipo === 'error'
-        ? 'Error Grave'
-        : tipo === 'success'
-          ? 'Éxito'
-          : tipo === 'warning'
-            ? 'Advertencia'
-            : 'Información',
-    text: texto,
-    icon: tipo,
-    confirmButtonText: 'Aceptar',
-    // Si es éxito, cerramos automático y ocultamos botón
-    timer: tipo === 'success' ? 1500 : undefined,
-    showConfirmButton: tipo !== 'success',
-    heightAuto: false,
-    background: '#27272a',
-    color: '#e4e4e7',
-    confirmButtonColor: '#3b82f6',
-    customClass: {
-      popup: 'text-sm rounded-lg',
-      title: '!text-zinc-100 !text-xl',
-      htmlContainer: '!text-zinc-300',
-      confirmButton:
-        'px-4 py-2 rounded-md text-white hover:bg-blue-700 focus:ring-blue-500',
-      icon:
-        tipo === 'error'
-          ? '!text-red-400 border-red-400'
-          : tipo === 'success'
-            ? '!text-green-400 border-green-400'
-            : tipo === 'warning'
-              ? '!text-yellow-400 border-yellow-400'
-              : '!text-blue-400 border-blue-400',
-    },
-  });
-};
-const confirmarAccionDark = async (
-  titulo,
-  texto,
-  icono = 'warning',
-  confirmButtonText = 'Sí, continuar',
-) => {
-  const resultado = await Swal.fire({
-    title: titulo,
-    text: texto,
-    icon: icono,
-    showCancelButton: true,
-    confirmButtonColor: '#3b82f6',
-    cancelButtonColor: '#ef4444',
-    confirmButtonText: confirmButtonText,
-    cancelButtonText: 'Cancelar',
-    heightAuto: false,
-    background: '#27272a',
-    color: '#e4e4e7',
-    customClass: {
-      popup: 'text-sm rounded-lg',
-      title: '!text-zinc-100 !text-xl',
-      htmlContainer: '!text-zinc-300',
-      confirmButton: `px-4 py-2 rounded-md text-white ${confirmButtonText.toLowerCase().includes('eliminar') ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500' : 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'}`,
-      cancelButton:
-        'px-4 py-2 rounded-md bg-zinc-600 text-zinc-200 hover:bg-zinc-500 focus:ring-zinc-500',
-      icon:
-        icono === 'error'
-          ? '!text-red-400 border-red-400'
-          : icono === 'success'
-            ? '!text-green-400 border-green-400'
-            : icono === 'warning'
-              ? '!text-yellow-400 border-yellow-400'
-              : '!text-blue-400 border-blue-400',
-    },
-  });
-  return resultado.isConfirmed;
-};
+// El aspecto de las alertas vive en utils/swalTheme.js; acá solo se enchufan
+// al provider, que es de donde las toma todo el sistema.
+import { mostrarMensaje, confirmarAccion } from './utils/swalTheme.js';
 
 // Antes de montar React, para no perder la vista de la primera pantalla.
 iniciarPixel();
@@ -91,8 +17,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
       <AppProvider
-        mostrarMensaje={mostrarMensajeDark}
-        confirmarAccion={confirmarAccionDark}
+        mostrarMensaje={mostrarMensaje}
+        confirmarAccion={confirmarAccion}
       >
         <App />
       </AppProvider>

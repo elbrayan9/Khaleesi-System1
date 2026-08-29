@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import useDesplegableTeclado from '../hooks/useDesplegableTeclado.js';
 import { FileText, ChevronDown, ScrollText } from 'lucide-react';
 
 const RECEIPT_TYPES = [
@@ -28,9 +29,14 @@ const RECEIPT_TYPES = [
   },
 ];
 
-function ReceiptTypeSelect({ value, onChange, condicionEmisor, canAccessAfip }) {
+function ReceiptTypeSelect({
+  value,
+  onChange,
+  condicionEmisor,
+  canAccessAfip,
+}) {
   const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef(null);
+  const containerRef = contenedorRef;
 
   // Solo mostramos los comprobantes que el emisor PUEDE emitir según su
   // condición: Monotributo/Exento -> C; Responsable Inscripto -> A/B.
@@ -43,7 +49,26 @@ function ReceiptTypeSelect({ value, onChange, condicionEmisor, canAccessAfip }) 
   if (!canAccessAfip) permitidos = ['X'];
   const tipos = RECEIPT_TYPES.filter((t) => permitidos.includes(t.value));
 
-  const selectedType = tipos.find((t) => t.value === value) || tipos[0];
+  const indiceActual = Math.max(
+    0,
+    tipos.findIndex((t) => t.value === value),
+  );
+  const selectedType = tipos[indiceActual];
+
+  const {
+    marcado,
+    setMarcado,
+    contenedorRef,
+    triggerRef,
+    alTeclear,
+    alPerderFoco,
+  } = useDesplegableTeclado({
+    abierto: isOpen,
+    setAbierto: setIsOpen,
+    cantidad: tipos.length,
+    indiceActual,
+    alElegir: (i) => onChange(tipos[i].value),
+  });
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -67,10 +92,15 @@ function ReceiptTypeSelect({ value, onChange, condicionEmisor, canAccessAfip }) 
   };
 
   return (
-    <div className="relative" ref={containerRef}>
+    <div className="relative" ref={containerRef} onBlur={alPerderFoco}>
       <button
         type="button"
+        ref={triggerRef}
         onClick={() => setIsOpen(!isOpen)}
+        onKeyDown={alTeclear}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        aria-label={`Comprobante: ${selectedType.label}`}
         className="flex w-full items-center justify-between rounded-md border border-zinc-600 bg-zinc-700 p-2 text-left text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
       >
         <div className="flex items-center gap-2 overflow-hidden">
@@ -85,13 +115,24 @@ function ReceiptTypeSelect({ value, onChange, condicionEmisor, canAccessAfip }) 
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 mt-1 w-max min-w-full max-w-[300px] rounded-md border border-zinc-600 bg-zinc-800 shadow-lg">
-          {tipos.map((type) => (
+        <div
+          role="listbox"
+          aria-label="Tipos de comprobante"
+          className="absolute z-50 mt-1 w-max min-w-full max-w-[300px] rounded-md border border-zinc-600 bg-zinc-800 shadow-lg"
+        >
+          {tipos.map((type, i) => (
             <button
               key={type.value}
               type="button"
+              role="option"
+              aria-selected={i === marcado}
+              tabIndex={-1}
               onClick={() => handleSelect(type.value)}
-              className="flex w-full items-center gap-2 px-4 py-2 text-left text-zinc-200 first:rounded-t-md last:rounded-b-md hover:bg-zinc-700"
+              onMouseEnter={() => setMarcado(i)}
+              className={
+                'flex w-full items-center gap-2 px-4 py-2 text-left text-zinc-200 first:rounded-t-md last:rounded-b-md hover:bg-zinc-700 ' +
+                (i === marcado ? 'bg-zinc-700' : '')
+              }
             >
               <type.icon className={`h-5 w-5 shrink-0 ${type.color}`} />
               <span className="text-sm">{type.label}</span>

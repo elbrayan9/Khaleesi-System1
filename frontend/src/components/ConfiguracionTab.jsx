@@ -17,7 +17,7 @@ import { resizeImage } from '../utils/image.js';
 import { subirLogoNegocio } from '../services/storageService';
 import ImportDataTab from './ImportDataTab';
 import ImpresoraTermicaConfig from './ImpresoraTermicaConfig';
-import Swal from 'sweetalert2';
+import Swal from '../utils/swalTheme.js'; // Swal con el tema del sistema
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import {
   forceAssignAllDataToSucursal,
@@ -1116,7 +1116,6 @@ function ConfiguracionTab() {
                           </div>
                         `,
                           icon: 'success',
-                          confirmButtonColor: '#10b981',
                         });
                       } else {
                         Swal.fire('Error de Conexión', error, 'error');

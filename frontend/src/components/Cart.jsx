@@ -44,9 +44,7 @@ function Cart({
   return (
     <div className="flex h-full flex-col rounded-lg bg-zinc-800 p-4 shadow-md sm:p-5 lg:col-span-1">
       <div className="mb-3 flex items-center justify-between border-b border-zinc-700 pb-2">
-        <h3 className="text-lg font-medium text-white sm:text-xl">
-          Carrito
-        </h3>
+        <h3 className="text-lg font-medium text-white sm:text-xl">Carrito</h3>
         {cartItems.length > 0 && (
           <motion.button
             onClick={handleClearCart}
@@ -90,37 +88,41 @@ function Cart({
                   </p>
                   <div className="flex items-center gap-2">
                     {item.vendidoPor !== 'ticketBalanza' && (
-                    <div className="flex items-center rounded bg-zinc-700">
-                      <button
-                        onClick={() => handleUpdateQuantity(item.cartId, -1)}
-                        className="p-1 text-zinc-400 hover:text-white"
-                      >
-                        <MinusCircle size={16} />
-                      </button>
-                      <span className="min-w-[2rem] text-center text-xs font-bold text-white">
-                        {item.cantidad}
-                      </span>
-                      <button
-                        onClick={() => handleUpdateQuantity(item.cartId, 1)}
-                        className="p-1 text-zinc-400 hover:text-white"
-                      >
-                        <PlusCircle size={16} />
-                      </button>
-                    </div>
-                  )}
-                  <p className="text-xs text-zinc-300">
-                    {item.vendidoPor === 'peso'
-                      ? `${item.cantidad.toFixed(3)} Kg`
-                      : item.vendidoPor === 'ticketBalanza'
-                        ? `${item.cantidad} u.`
-                        : ''}
-                    {item.descuentoPorcentaje > 0 && (
-                      <span className="font-semibold text-green-400">
-                        {' '}
-                        (-{item.descuentoPorcentaje}%)
-                      </span>
+                      <div className="flex items-center rounded bg-zinc-700">
+                        <button
+                          onClick={() => handleUpdateQuantity(item.cartId, -1)}
+                          tabIndex={-1}
+                          aria-label={`Quitar una unidad de ${item.nombre}`}
+                          className="p-1 text-zinc-400 hover:text-white"
+                        >
+                          <MinusCircle size={16} />
+                        </button>
+                        <span className="min-w-[2rem] text-center text-xs font-bold text-white">
+                          {item.cantidad}
+                        </span>
+                        <button
+                          onClick={() => handleUpdateQuantity(item.cartId, 1)}
+                          tabIndex={-1}
+                          aria-label={`Agregar una unidad de ${item.nombre}`}
+                          className="p-1 text-zinc-400 hover:text-white"
+                        >
+                          <PlusCircle size={16} />
+                        </button>
+                      </div>
                     )}
-                  </p>
+                    <p className="text-xs text-zinc-300">
+                      {item.vendidoPor === 'peso'
+                        ? `${item.cantidad.toFixed(3)} Kg`
+                        : item.vendidoPor === 'ticketBalanza'
+                          ? `${item.cantidad} u.`
+                          : ''}
+                      {item.descuentoPorcentaje > 0 && (
+                        <span className="font-semibold text-green-400">
+                          {' '}
+                          (-{item.descuentoPorcentaje}%)
+                        </span>
+                      )}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -137,6 +139,8 @@ function Cart({
                 </div>
                 <motion.button
                   onClick={() => handleRemoveItem(item.cartId)}
+                  tabIndex={-1}
+                  aria-label={`Quitar ${item.nombre} del carrito`}
                   className="ml-2 p-1 text-red-500 hover:text-red-400"
                   title="Quitar"
                   whileTap={{ scale: 0.9 }}

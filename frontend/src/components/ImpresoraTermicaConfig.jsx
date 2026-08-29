@@ -7,7 +7,7 @@ import {
   AlertTriangle,
   Bluetooth,
 } from 'lucide-react';
-import Swal from 'sweetalert2';
+import Swal from '../utils/swalTheme.js'; // Swal con el tema del sistema
 import { useAppContext } from '../context/AppContext.jsx';
 import {
   isWebUsbSupported,

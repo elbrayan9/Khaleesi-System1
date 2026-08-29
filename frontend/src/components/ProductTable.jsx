@@ -91,7 +91,7 @@ function ProductTable({
               Nombre {getSortIcon('nombre')}
             </button>
           </TableHead>
-          <TableHead>Cód. Barras</TableHead>
+          <TableHead className="hidden xl:table-cell">Cód. Barras</TableHead>
           <TableHead className="text-right">
             <button
               onClick={() => requestSort('precio')}
@@ -108,7 +108,7 @@ function ProductTable({
               Stock {getSortIcon('stock')}
             </button>
           </TableHead>
-          <TableHead>Categoría</TableHead>
+          <TableHead className="hidden xl:table-cell">Categoría</TableHead>
           <TableHead className="text-center">Acciones</TableHead>
         </TableRow>
       </TableHeader>
@@ -192,7 +192,7 @@ function ProductTable({
                     );
                   })()}
               </TableCell>
-              <TableCell className="font-mono text-zinc-400">
+              <TableCell className="hidden font-mono text-zinc-400 xl:table-cell">
                 {p.codigoBarras || 'N/A'}
               </TableCell>
               <TableCell className="whitespace-nowrap text-right text-zinc-200">
@@ -201,7 +201,7 @@ function ProductTable({
               <TableCell className="whitespace-nowrap text-center text-zinc-200">
                 {p.stock}
               </TableCell>
-              <TableCell className="text-zinc-400">
+              <TableCell className="hidden text-zinc-400 xl:table-cell">
                 {p.categoria || 'N/A'}
               </TableCell>
 

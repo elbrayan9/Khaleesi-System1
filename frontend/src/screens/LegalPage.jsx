@@ -232,9 +232,7 @@ function LegalPage() {
               </LI>
               <LI>
                 <strong>De tus clientes:</strong> los datos que vos cargues
-                (nombre, CUIT/CUIL, teléfono, email, cuenta corriente). Si usás
-                la lectura de DNI, se procesan los datos del documento para
-                completar la ficha del cliente.
+                (nombre, CUIT/CUIL, teléfono, email, cuenta corriente).
               </LI>
               <LI>
                 <strong>Técnicos:</strong> datos de uso, dispositivo y registros

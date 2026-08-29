@@ -1,7 +1,7 @@
 // frontend/src/screens/AdminPanel.jsx
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import Swal from 'sweetalert2';
+import Swal from '../utils/swalTheme.js'; // Swal con el tema del sistema
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import {
   Table,

@@ -6,7 +6,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Swal from 'sweetalert2';
+import Swal from '../utils/swalTheme.js'; // Swal con el tema del sistema
 import { useAppContext } from '../context/AppContext.jsx';
 import { formatCurrency } from '../utils/helpers.js';
 import { sonarAlarma } from '../utils/sonido.js';

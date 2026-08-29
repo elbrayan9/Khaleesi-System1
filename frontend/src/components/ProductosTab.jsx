@@ -372,7 +372,7 @@ function ProductosTab() {
               Alertas de Stock Bajo
             </h3>
           </div>
-          <div className="max-h-[400px] overflow-x-auto overflow-y-auto rounded-md border border-yellow-500/20">
+          <div className="max-h-[min(400px,45vh)] overflow-x-auto overflow-y-auto rounded-md border border-yellow-500/20">
             <Table className="min-w-full">
               <TableHeader className="sticky top-0 z-10 bg-yellow-900/95 backdrop-blur-sm">
                 <TableRow className="border-b-yellow-500/30 hover:bg-transparent">
@@ -653,7 +653,7 @@ function ProductosTab() {
             </div>
           </div>
         </div>
-        <div className="tabla-scrollable overflow-x-auto">
+        <div className="w-full">
           <ProductTable
             products={paginatedProductos}
             onEdit={handleEdit}

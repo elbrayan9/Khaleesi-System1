@@ -147,7 +147,7 @@ function ClientesTab() {
             />
           </div>
         </div>
-        <div className="tabla-scrollable overflow-x-auto">
+        <div className="w-full">
           <ClientTable
             clients={paginatedClientes}
             onEdit={handleEdit}

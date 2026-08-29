@@ -6,7 +6,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import Swal from 'sweetalert2';
+import Swal from '../utils/swalTheme.js'; // Swal con el tema del sistema
 import {
   ShoppingBag,
   Clock,

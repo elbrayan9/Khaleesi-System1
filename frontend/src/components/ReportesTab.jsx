@@ -30,7 +30,7 @@ import {
   MessageCircle,
   Mail,
 } from 'lucide-react';
-import Swal from 'sweetalert2';
+import Swal from '../utils/swalTheme.js'; // Swal con el tema del sistema
 import PaginationControls from './PaginationControls.jsx';
 import SalesChart from './SalesChart.jsx';
 import ErrorBoundary from './ErrorBoundary.jsx';
@@ -635,9 +635,6 @@ function ReportesTab({
       icon: 'info',
       confirmButtonText: 'Entendido',
       heightAuto: false,
-      background: '#27272a',
-      color: '#d4d4d8',
-      confirmButtonColor: '#3b82f6',
       customClass: {
         popup: 'text-sm rounded-lg',
         title: 'text-zinc-100 !text-lg',
@@ -942,12 +939,12 @@ function ReportesTab({
       )}
 
       {/* --- MAIN CONTENT GRID (Zero-Gap) --- */}
-      <div className="grid h-[calc(100vh-220px)] min-h-[800px] grid-cols-1 gap-6 lg:grid-cols-12">
+      <div className="grid min-h-0 h-[calc(100dvh-13rem)] grid-cols-1 gap-6 lg:grid-cols-12">
         {/* --- LEFT COLUMN: Chart + Tables (65-70%) --- */}
         <div className="flex h-full flex-col gap-4 lg:col-span-8 xl:col-span-9">
           {/* 1. Chart Section (Fixed Height) - solo si desbloqueado */}
           {mostrarTodo && (
-          <div className="h-[300px] w-full shrink-0 relative">
+          <div className="h-[clamp(170px,26vh,300px)] w-full shrink-0 relative">
             <ErrorBoundary>
               <SalesChart data={salesDataForChart} />
             </ErrorBoundary>

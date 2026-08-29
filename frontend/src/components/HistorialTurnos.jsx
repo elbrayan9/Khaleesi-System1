@@ -18,7 +18,7 @@ import {
   CheckCircle,
   AlertTriangle,
 } from 'lucide-react';
-import Swal from 'sweetalert2';
+import Swal from '../utils/swalTheme.js'; // Swal con el tema del sistema
 
 const HistorialTurnos = () => {
   const { turnos } = useAppContext();
@@ -80,9 +80,10 @@ const HistorialTurnos = () => {
 
   const handleVerInfo = (turno) => {
     // Para cierres nuevos (o recientes de prueba) derivamos montoReal si es undefined
-    const montoCalculado = turno.montoReal !== undefined 
-      ? turno.montoReal 
-      : (turno.totalFinal + (turno.diferenciaEfectivo || 0));
+    const montoCalculado =
+      turno.montoReal !== undefined
+        ? turno.montoReal
+        : turno.totalFinal + (turno.diferenciaEfectivo || 0);
 
     const diferencia = montoCalculado - (turno.totalFinal || 0);
     const diferenciaClass =
@@ -146,10 +147,8 @@ const HistorialTurnos = () => {
           }
         </div>
       `,
-      background: '#18181b', // zinc-950
       showConfirmButton: true,
       confirmButtonText: 'Cerrar',
-      confirmButtonColor: '#3b82f6',
       customClass: {
         popup: 'border border-zinc-800 rounded-xl shadow-2xl',
       },
@@ -168,23 +167,23 @@ const HistorialTurnos = () => {
         </span>
       </div>
 
-      <div className="custom-scrollbar max-h-[250px] overflow-y-auto">
+      <div className="custom-scrollbar max-h-[min(320px,38vh)] overflow-x-auto overflow-y-auto">
         <Table>
           <TableHeader className="sticky top-0 z-10 bg-zinc-900 shadow-sm">
             <TableRow className="border-b border-zinc-800 hover:bg-transparent">
-              <TableHead className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+              <TableHead className="whitespace-nowrap text-xs font-medium uppercase text-zinc-500">
                 Fecha
               </TableHead>
-              <TableHead className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+              <TableHead className="whitespace-nowrap text-xs font-medium uppercase text-zinc-500">
                 Cajero
               </TableHead>
-              <TableHead className="text-right text-xs font-medium uppercase tracking-wider text-zinc-500">
+              <TableHead className="whitespace-nowrap text-right text-xs font-medium uppercase text-zinc-500">
                 Sistema
               </TableHead>
-              <TableHead className="text-right text-xs font-medium uppercase tracking-wider text-zinc-500">
+              <TableHead className="whitespace-nowrap text-right text-xs font-medium uppercase text-zinc-500">
                 Real
               </TableHead>
-              <TableHead className="text-right text-xs font-medium uppercase tracking-wider text-zinc-500">
+              <TableHead className="whitespace-nowrap text-right text-xs font-medium uppercase text-zinc-500">
                 Dif.
               </TableHead>
               <TableHead className="w-[30px]"></TableHead>
@@ -193,9 +192,10 @@ const HistorialTurnos = () => {
           <TableBody>
             {turnosCerrados.length > 0 ? (
               turnosCerrados.map((turno) => {
-                const montoCalculado = turno.montoReal !== undefined 
-                  ? turno.montoReal 
-                  : (turno.totalFinal + (turno.diferenciaEfectivo || 0));
+                const montoCalculado =
+                  turno.montoReal !== undefined
+                    ? turno.montoReal
+                    : turno.totalFinal + (turno.diferenciaEfectivo || 0);
 
                 const diferencia = montoCalculado - (turno.totalFinal || 0);
                 const diferenciaClass =
@@ -230,15 +230,15 @@ const HistorialTurnos = () => {
                       ${formatCurrency(turno.totalFinal)}
                     </TableCell>
                     <TableCell className="py-3 text-right font-mono text-sm tabular-nums text-zinc-300">
-                      {(turno.montoReal !== undefined || turno.diferenciaEfectivo !== undefined)
+                      {turno.montoReal !== undefined ||
+                      turno.diferenciaEfectivo !== undefined
                         ? formatCurrency(montoCalculado)
                         : '---'}
                     </TableCell>
                     <TableCell
                       className={`py-3 text-right font-mono text-sm font-bold tabular-nums ${diferenciaClass}`}
                     >
-                      {diferenciaSigno}
-                      ${formatCurrency(diferencia)}
+                      {diferenciaSigno}${formatCurrency(diferencia)}
                     </TableCell>
                     <TableCell className="py-3 text-right">
                       <button

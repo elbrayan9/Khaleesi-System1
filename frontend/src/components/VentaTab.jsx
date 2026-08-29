@@ -7,7 +7,7 @@ import EscanerCamaraModal from './EscanerCamaraModal.jsx';
 import VentaPorVozModal, { soportaVoz } from './VentaPorVozModal.jsx';
 import EscanerNombreModal from './EscanerNombreModal.jsx';
 import SearchBar from './SearchBar.jsx';
-import Swal from 'sweetalert2';
+import Swal from '../utils/swalTheme.js'; // Swal con el tema del sistema
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { useAppContext } from '../context/AppContext.jsx';
@@ -40,6 +40,7 @@ function VentaTab() {
     setSelectedClientId, // <--- Usamos el del contexto
     canAccessAI,
     handleClearCart, // lo usa el atajo F9
+    confirmarAccion,
   } = useAppContext();
 
   // --- ESTADOS LOCALES DEL COMPONENTE ---
@@ -132,18 +133,13 @@ function VentaTab() {
       // se pregunta, y el botón queda como estaba.
       F9: async () => {
         if (cartItems.length === 0) return;
-        const { isConfirmed } = await Swal.fire({
-          title: '¿Vaciar el carrito?',
-          text: `Se van a quitar ${cartItems.length} ${cartItems.length === 1 ? 'producto' : 'productos'}.`,
-          icon: 'warning',
-          showCancelButton: true,
-          confirmButtonText: 'Sí, vaciar',
-          cancelButtonText: 'Cancelar',
-          confirmButtonColor: '#dc2626',
-          background: '#27272a',
-          color: '#f4f4f5',
-        });
-        if (isConfirmed) handleClearCart();
+        const confirmado = await confirmarAccion(
+          '¿Vaciar el carrito?',
+          `Se van a quitar ${cartItems.length} ${cartItems.length === 1 ? 'producto' : 'productos'}.`,
+          'warning',
+          'Sí, vaciar',
+        );
+        if (confirmado) handleClearCart();
       },
     },
     !hayModalAbierto,
@@ -472,7 +468,7 @@ function VentaTab() {
           Gestión de Turno y Venta
         </label>
         {/* --- CONTENEDOR PARA SELECTOR Y TURNO --- */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-1">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {/* 1. CAJERO (Responsable del Turno) */}
           <div className="rounded-md border border-zinc-600 bg-zinc-900 p-3">
             <label className="mb-1 block text-xs font-bold text-zinc-400">
@@ -502,7 +498,7 @@ function VentaTab() {
           </div>
         </div>
       </div>
-      <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-3">
         <div className="space-y-4 rounded-lg bg-zinc-800 p-4 shadow-md sm:p-5 lg:col-span-2">
           <h3 className="border-b border-zinc-700 pb-2 text-lg font-medium text-white sm:text-xl">
             Agregar Productos

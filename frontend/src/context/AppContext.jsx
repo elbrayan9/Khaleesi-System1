@@ -22,7 +22,7 @@ import * as fsService from '../services/firestoreService';
 import * as thermalPrinter from '../services/thermalPrinterService';
 import { obtenerFechaHoraActual, formatCurrency } from '../utils/helpers';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import Swal from 'sweetalert2';
+import Swal from '../utils/swalTheme.js'; // Swal con el tema del sistema
 
 // --- Creación del Contexto ---
 export const AppContext = createContext();
@@ -1677,15 +1677,12 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
         title: datosCierre.cierreCiego ? 'Cierre Ciego Guardado' : 'Turno Cerrado',
         html: htmlContent,
         icon: dif === 0 ? 'success' : 'warning',
-        background: '#27272a',
-        color: '#d4d4d8',
         showCancelButton: true,
         showDenyButton: true,
         confirmButtonText: 'Aceptar',
         denyButtonText: 'WhatsApp',
         denyButtonColor: '#25D366',
         cancelButtonText: 'Imprimir',
-        cancelButtonColor: '#52525b',
         customClass: {
           title: 'text-zinc-100',
         }
@@ -1944,12 +1941,8 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       html: `¿Seguro de eliminar la nota de tipo <strong>${notaAEliminar.tipo}</strong> para "<strong>${notaAEliminar.clienteNombre}</strong>"?<br/>Esta acción no se puede deshacer.`,
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#52525b',
       confirmButtonText: 'Sí, eliminar',
       cancelButtonText: 'Cancelar',
-      background: '#27272a',
-      color: '#d4d4d8',
       customClass: {
         popup: 'text-sm rounded-lg',
         title: 'text-zinc-100 !text-lg',
@@ -2504,10 +2497,6 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       showCancelButton: true,
       confirmButtonText: 'Desbloquear',
       cancelButtonText: 'Cancelar',
-      confirmButtonColor: '#3b82f6',
-      cancelButtonColor: '#ef4444',
-      background: '#1f2937',
-      color: '#f9fafb',
       footer: '<p style="color: #9ca3af; font-size: 0.85rem;">¿Olviaste el PIN? Contactá al equipo de soporte para restablecerlo.</p>',
       inputAttributes: {
         autocapitalize: 'off',
@@ -2524,9 +2513,6 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
         icon: 'error',
         title: 'PIN Incorrecto',
         text: 'El código ingresado no coincide.',
-        background: '#1f2937',
-        color: '#f9fafb',
-        confirmButtonColor: '#3b82f6',
       });
       return false;
     }
