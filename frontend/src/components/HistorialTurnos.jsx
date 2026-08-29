@@ -168,102 +168,107 @@ const HistorialTurnos = () => {
       </div>
 
       <div className="custom-scrollbar max-h-[min(320px,38vh)] overflow-x-auto overflow-y-auto">
-        <Table>
-          <TableHeader className="sticky top-0 z-10 bg-zinc-900 shadow-sm">
-            <TableRow className="border-b border-zinc-800 hover:bg-transparent">
-              <TableHead className="whitespace-nowrap text-xs font-medium uppercase text-zinc-500">
-                Fecha
-              </TableHead>
-              <TableHead className="whitespace-nowrap text-xs font-medium uppercase text-zinc-500">
-                Cajero
-              </TableHead>
-              <TableHead className="whitespace-nowrap text-right text-xs font-medium uppercase text-zinc-500">
-                Sistema
-              </TableHead>
-              <TableHead className="whitespace-nowrap text-right text-xs font-medium uppercase text-zinc-500">
-                Real
-              </TableHead>
-              <TableHead className="whitespace-nowrap text-right text-xs font-medium uppercase text-zinc-500">
-                Dif.
-              </TableHead>
-              <TableHead className="w-[30px]"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {turnosCerrados.length > 0 ? (
-              turnosCerrados.map((turno) => {
-                const montoCalculado =
-                  turno.montoReal !== undefined
-                    ? turno.montoReal
-                    : turno.totalFinal + (turno.diferenciaEfectivo || 0);
-
-                const diferencia = montoCalculado - (turno.totalFinal || 0);
-                const diferenciaClass =
-                  diferencia === 0
-                    ? 'text-zinc-500'
-                    : diferencia > 0
-                      ? 'text-blue-400'
-                      : 'text-red-400';
-                const diferenciaSigno = diferencia > 0 ? '+' : '';
-
-                return (
-                  <motion.tr
-                    key={turno.id}
-                    className="border-b border-zinc-800/50 transition-colors hover:bg-zinc-800/30"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                  >
-                    <TableCell className="py-3">
-                      <div className="flex flex-col">
-                        <span className="text-sm font-medium text-zinc-300">
-                          {turno.fechaCierre}
-                        </span>
-                        <span className="text-xs text-zinc-500">
-                          {turno.horaCierre}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-3 text-sm font-medium text-zinc-300">
-                      {turno.vendedorNombre}
-                    </TableCell>
-                    <TableCell className="py-3 text-right font-mono text-sm tabular-nums text-zinc-400">
-                      ${formatCurrency(turno.totalFinal)}
-                    </TableCell>
-                    <TableCell className="py-3 text-right font-mono text-sm tabular-nums text-zinc-300">
-                      {turno.montoReal !== undefined ||
-                      turno.diferenciaEfectivo !== undefined
-                        ? formatCurrency(montoCalculado)
-                        : '---'}
-                    </TableCell>
-                    <TableCell
-                      className={`py-3 text-right font-mono text-sm font-bold tabular-nums ${diferenciaClass}`}
-                    >
-                      {diferenciaSigno}${formatCurrency(diferencia)}
-                    </TableCell>
-                    <TableCell className="py-3 text-right">
-                      <button
-                        onClick={() => handleVerInfo(turno)}
-                        className="rounded p-1 text-zinc-500 transition-colors hover:bg-zinc-700 hover:text-blue-400"
-                        title="Ver Auditoría"
-                      >
-                        <Info size={16} />
-                      </button>
-                    </TableCell>
-                  </motion.tr>
-                );
-              })
-            ) : (
-              <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
-                  <div className="flex flex-col items-center justify-center gap-2 text-zinc-500">
-                    <Receipt className="h-8 w-8 opacity-20" />
-                    <p className="text-xs">Sin registros</p>
-                  </div>
-                </TableCell>
+        {/* El ancho mínimo es lo que hace que la tabla scrollee en vez de
+            comprimirse: sin él se achicaba hasta 212px y los montos quedaban
+            ilegibles, uno debajo del otro. */}
+        <div className="min-w-[460px]">
+          <Table>
+            <TableHeader className="sticky top-0 z-10 bg-zinc-900 shadow-sm">
+              <TableRow className="border-b border-zinc-800 hover:bg-transparent">
+                <TableHead className="whitespace-nowrap text-xs font-medium uppercase text-zinc-500">
+                  Fecha
+                </TableHead>
+                <TableHead className="whitespace-nowrap text-xs font-medium uppercase text-zinc-500">
+                  Cajero
+                </TableHead>
+                <TableHead className="whitespace-nowrap text-right text-xs font-medium uppercase text-zinc-500">
+                  Sistema
+                </TableHead>
+                <TableHead className="whitespace-nowrap text-right text-xs font-medium uppercase text-zinc-500">
+                  Real
+                </TableHead>
+                <TableHead className="whitespace-nowrap text-right text-xs font-medium uppercase text-zinc-500">
+                  Dif.
+                </TableHead>
+                <TableHead className="w-[30px]"></TableHead>
               </TableRow>
-            )}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {turnosCerrados.length > 0 ? (
+                turnosCerrados.map((turno) => {
+                  const montoCalculado =
+                    turno.montoReal !== undefined
+                      ? turno.montoReal
+                      : turno.totalFinal + (turno.diferenciaEfectivo || 0);
+
+                  const diferencia = montoCalculado - (turno.totalFinal || 0);
+                  const diferenciaClass =
+                    diferencia === 0
+                      ? 'text-zinc-500'
+                      : diferencia > 0
+                        ? 'text-blue-400'
+                        : 'text-red-400';
+                  const diferenciaSigno = diferencia > 0 ? '+' : '';
+
+                  return (
+                    <motion.tr
+                      key={turno.id}
+                      className="border-b border-zinc-800/50 transition-colors hover:bg-zinc-800/30"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                    >
+                      <TableCell className="py-3">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-zinc-300">
+                            {turno.fechaCierre}
+                          </span>
+                          <span className="text-xs text-zinc-500">
+                            {turno.horaCierre}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-3 text-sm font-medium text-zinc-300">
+                        {turno.vendedorNombre}
+                      </TableCell>
+                      <TableCell className="py-3 text-right font-mono text-sm tabular-nums text-zinc-400">
+                        ${formatCurrency(turno.totalFinal)}
+                      </TableCell>
+                      <TableCell className="py-3 text-right font-mono text-sm tabular-nums text-zinc-300">
+                        {turno.montoReal !== undefined ||
+                        turno.diferenciaEfectivo !== undefined
+                          ? formatCurrency(montoCalculado)
+                          : '---'}
+                      </TableCell>
+                      <TableCell
+                        className={`py-3 text-right font-mono text-sm font-bold tabular-nums ${diferenciaClass}`}
+                      >
+                        {diferenciaSigno}${formatCurrency(diferencia)}
+                      </TableCell>
+                      <TableCell className="py-3 text-right">
+                        <button
+                          onClick={() => handleVerInfo(turno)}
+                          className="rounded p-1 text-zinc-500 transition-colors hover:bg-zinc-700 hover:text-blue-400"
+                          title="Ver Auditoría"
+                        >
+                          <Info size={16} />
+                        </button>
+                      </TableCell>
+                    </motion.tr>
+                  );
+                })
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-24 text-center">
+                    <div className="flex flex-col items-center justify-center gap-2 text-zinc-500">
+                      <Receipt className="h-8 w-8 opacity-20" />
+                      <p className="text-xs">Sin registros</p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </div>
   );

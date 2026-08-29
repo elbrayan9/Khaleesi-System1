@@ -36,7 +36,6 @@ function ReceiptTypeSelect({
   canAccessAfip,
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const containerRef = contenedorRef;
 
   // Solo mostramos los comprobantes que el emisor PUEDE emitir según su
   // condición: Monotributo/Exento -> C; Responsable Inscripto -> A/B.
@@ -69,6 +68,7 @@ function ReceiptTypeSelect({
     indiceActual,
     alElegir: (i) => onChange(tipos[i].value),
   });
+  const containerRef = contenedorRef;
 
   useEffect(() => {
     const handleClickOutside = (event) => {
