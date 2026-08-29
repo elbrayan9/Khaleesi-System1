@@ -645,7 +645,17 @@ function VentaTab() {
                 ref={manualProductSearchRef}
                 items={productos} // --- MODIFICADO: Mostrar todos los productos, incluso sin stock
                 placeholder="Escriba para buscar..."
-                onSelect={setSelectedProductManual}
+                onSelect={(producto) => {
+                  setSelectedProductManual(producto);
+                  // Al elegir el producto el cursor salta a Cantidad, con el
+                  // número marcado para pisarlo tipeando. Así el circuito se
+                  // hace entero con el teclado: F3, escribir, Enter, cantidad,
+                  // Enter. Si se quiere una sola unidad, son dos Enter seguidos.
+                  setTimeout(() => {
+                    cantidadInputRef.current?.focus();
+                    cantidadInputRef.current?.select();
+                  }, 0);
+                }}
                 displayKey="nombre"
                 filterKeys={['nombre', 'codigoBarras']}
                 inputId="producto-buscar-manual-react"
@@ -666,6 +676,14 @@ function VentaTab() {
                   ref={cantidadInputRef}
                   value={cantidadVenta}
                   onChange={(e) => setCantidadVenta(e.target.value)}
+                  onKeyDown={(e) => {
+                    // Enter agrega, para cerrar el circuito sin tocar el mouse:
+                    // F3, escribir, Enter (elige), cantidad, Enter (agrega).
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAgregarManual();
+                    }
+                  }}
                   min="1"
                   className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100"
                 />
@@ -682,6 +700,12 @@ function VentaTab() {
                   id="descuento-venta"
                   value={descuentoVenta}
                   onChange={(e) => setDescuentoVenta(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAgregarManual();
+                    }
+                  }}
                   min="0"
                   max="100"
                   placeholder="0"
