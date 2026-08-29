@@ -127,7 +127,9 @@ function ProductForm({ onSave, productToEdit, onCancelEdit, initialBarcode }) {
       setFavorito(productToEdit.favorito || false);
       setFechaVencimiento(productToEdit.fechaVencimiento || '');
       setDescuentoPromo(
-        productToEdit.descuentoPromo ? String(productToEdit.descuentoPromo) : '',
+        productToEdit.descuentoPromo
+          ? String(productToEdit.descuentoPromo)
+          : '',
       );
     } else {
       setNombre('');
@@ -255,253 +257,317 @@ function ProductForm({ onSave, productToEdit, onCancelEdit, initialBarcode }) {
           ? `Editando: ${productToEdit.nombre}`
           : 'Agregar Nuevo Producto'}
       </h3>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
-        <div className="lg:col-span-1">
-          <label
-            htmlFor="prod-barcode-form"
-            className="mb-1 block text-sm font-medium text-zinc-300"
-          >
-            Código Barras:
-          </label>
-          <input
-            type="text"
-            id="prod-barcode-form"
-            ref={barcodeInputRef}
-            value={codigoBarras}
-            onChange={(e) => setCodigoBarras(e.target.value)}
-            onKeyDown={handleKeyDown}
-            className={inputClasses}
-          />
-          <button
-            type="button"
-            onClick={() => buscarDatos()}
-            disabled={buscando}
-            className="mt-1 flex items-center gap-1 text-xs font-medium text-emerald-400 hover:text-emerald-300 disabled:opacity-50"
-          >
-            <Search className="h-3.5 w-3.5" />
-            {buscando ? 'Buscando…' : 'Buscar datos del código'}
-          </button>
-          {canAccessAI && (
-            <button
-              type="button"
-              onClick={() => setShowNombreOCR(true)}
-              className="mt-1 flex items-center gap-1 text-xs font-medium text-indigo-400 hover:text-indigo-300"
-            >
-              <Camera className="h-3.5 w-3.5" /> Escanear nombre con IA (si no lo
-              encuentra)
-            </button>
-          )}
-        </div>
-        <div className="lg:col-span-2">
-          <label
-            htmlFor="prod-nombre-form"
-            className="mb-1 block text-sm font-medium text-zinc-300"
-          >
-            Nombre:
-          </label>
-          <input
-            type="text"
-            id="prod-nombre-form"
-            value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-            className={inputClasses}
-            required
-          />
-        </div>
-        <div className="grid grid-cols-1 gap-4 sm:col-span-2 sm:grid-cols-3 lg:col-span-3">
-          {/* Precio */}
-          <div>
-            <label
-              htmlFor="prod-precio-form"
-              className="mb-1 block text-sm font-medium text-zinc-300"
-            >
-              Precio ($):
-            </label>
-            <input
-              type="number"
-              id="prod-precio-form"
-              value={precio}
-              onChange={(e) => setPrecio(e.target.value)}
-              step="0.01"
-              min="0"
-              className={inputClasses}
-              required
-            />
-          </div>
-          {/* Aumento */}
-          <div>
-            <label
-              htmlFor="prod-increase-form"
-              className="mb-1 block text-sm font-medium text-zinc-300"
-            >
-              Aumento (%):
-            </label>
-            <div className="flex items-center gap-2">
+      {/* El formulario va en bloques temáticos y no en una grilla plana de seis
+          columnas. Antes la primera fila llenaba las seis y la segunda usaba
+          solo tres, dejando media pantalla vacía; y el campo "Vendido Por"
+          arrastraba adentro el vencimiento, la promo y el acceso rápido, así que
+          esa celda crecía a lo alto y descuadraba la fila entera. */}
+      <div className="space-y-5">
+        {/* ── QUÉ ES ── */}
+        <fieldset>
+          <legend className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+            Identificación
+          </legend>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <label
+                htmlFor="prod-barcode-form"
+                className="mb-1 block text-sm font-medium text-zinc-300"
+              >
+                Código de barras:
+              </label>
               <input
-                type="number"
-                id="prod-increase-form"
-                value={increasePercentage}
-                onChange={(e) => setIncreasePercentage(e.target.value)}
-                placeholder="Ej: 15"
+                type="text"
+                id="prod-barcode-form"
+                ref={barcodeInputRef}
+                value={codigoBarras}
+                onChange={(e) => setCodigoBarras(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Escaneá o escribí"
                 className={inputClasses}
               />
-              <motion.button
-                type="button"
-                onClick={handleApplyPercentage}
-                className="h-9 flex-shrink-0 rounded-md bg-green-600 px-3 font-bold text-white hover:bg-green-700"
-                whileTap={{ scale: 0.95 }}
-                title="Aplicar Aumento"
-              >
-                Aplicar
-              </motion.button>
-            </div>
-          </div>
-          {/* Costo */}
-          <div>
-            <label
-              htmlFor="prod-costo-form"
-              className="mb-1 block text-sm font-medium text-zinc-300"
-            >
-              Costo ($):
-            </label>
-            <input
-              type="number"
-              id="prod-costo-form"
-              value={costo}
-              onChange={(e) => setCosto(e.target.value)}
-              step="0.01"
-              min="0"
-              placeholder="Opcional"
-              className={inputClasses}
-            />
-          </div>
-        </div>
-        {/* Campo de Categoría */}
-        <div>
-          <label
-            htmlFor="prod-categoria-form"
-            className="mb-1 block text-sm font-medium text-zinc-300"
-          >
-            Categoría:
-          </label>
-          <input
-            type="text"
-            id="prod-categoria-form"
-            value={categoria}
-            onChange={(e) => setCategoria(e.target.value)}
-            placeholder="Ej: Ropa, Bebidas, etc."
-            className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100"
-          />
-        </div>
-        {/* Vendido Por (NUEVO) */}
-        <div>
-          <label
-            htmlFor="prod-vendido-por-form"
-            className="mb-1 block text-sm font-medium text-zinc-300"
-          >
-            Vendido Por:
-          </label>
-          <select
-            id="prod-vendido-por-form"
-            value={vendidoPor}
-            onChange={(e) => setVendidoPor(e.target.value)}
-            className={inputClasses}
-          >
-            <option value="unidad">Unidad</option>
-            <option value="peso">Peso (Kg)</option>
-          </select>
-          <label className="mt-2 flex cursor-pointer items-center gap-2 text-sm text-zinc-300">
-            <input
-              type="checkbox"
-              checked={favorito}
-              onChange={(e) => setFavorito(e.target.checked)}
-              className="h-4 w-4 rounded border-zinc-600 bg-zinc-700 text-blue-500"
-            />
-            Acceso rápido (botón en la venta) ⭐
-          </label>
-          <label className="mt-2 block text-xs text-zinc-400">
-            Vencimiento (opcional):
-          </label>
-          <input
-            type="date"
-            value={fechaVencimiento}
-            onChange={(e) => setFechaVencimiento(e.target.value)}
-            className={inputClasses}
-          />
-          <label className="mt-2 block text-xs text-zinc-400">
-            Promo % (descuento automático, opcional):
-          </label>
-          <input
-            type="number"
-            min="0"
-            max="100"
-            value={descuentoPromo}
-            onChange={(e) => setDescuentoPromo(e.target.value)}
-            placeholder="0"
-            className={inputClasses}
-          />
-        </div>
-        <div>
-          <label
-            htmlFor="prod-stock-form"
-            className="mb-1 block text-sm font-medium text-zinc-300"
-          >
-            Stock:
-          </label>
-          <input
-            type="number"
-            id="prod-stock-form"
-            value={stock}
-            onChange={(e) => setStock(e.target.value)}
-            min="0"
-            step="any"
-            className={inputClasses}
-            required
-          />
-        </div>
-        {/* Foto del producto (opcional) */}
-        <div className="sm:col-span-2 lg:col-span-6">
-          <label className="mb-1 block text-sm font-medium text-zinc-300">
-            Foto del producto (opcional):
-          </label>
-          <div className="flex items-center gap-3">
-            {preview ? (
-              <div className="relative">
-                <img
-                  src={preview}
-                  alt="Vista previa"
-                  className="h-16 w-16 rounded-md object-cover ring-1 ring-zinc-600"
-                />
+              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
                 <button
                   type="button"
-                  onClick={handleQuitarImagen}
-                  className="absolute -right-2 -top-2 rounded-full bg-red-600 p-0.5 text-white hover:bg-red-700"
-                  title="Quitar foto"
+                  onClick={() => buscarDatos()}
+                  disabled={buscando}
+                  className="flex items-center gap-1 text-xs font-medium text-emerald-400 hover:text-emerald-300 disabled:opacity-50"
                 >
-                  <X className="h-3 w-3" />
+                  <Search className="h-3.5 w-3.5" />
+                  {buscando ? 'Buscando…' : 'Buscar datos del código'}
                 </button>
+                {canAccessAI && (
+                  <button
+                    type="button"
+                    onClick={() => setShowNombreOCR(true)}
+                    className="flex items-center gap-1 text-xs font-medium text-indigo-400 hover:text-indigo-300"
+                  >
+                    <Camera className="h-3.5 w-3.5" /> Escanear con IA
+                  </button>
+                )}
               </div>
-            ) : (
-              <div className="flex h-16 w-16 items-center justify-center rounded-md bg-zinc-700 text-zinc-500 ring-1 ring-zinc-600">
-                <ImagePlus className="h-6 w-6" />
-              </div>
-            )}
-            <label className="cursor-pointer rounded-md bg-zinc-600 px-3 py-2 text-sm font-medium text-zinc-100 hover:bg-zinc-500">
-              {preview ? 'Cambiar foto' : 'Subir foto'}
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleFileChange}
-              />
-            </label>
-            {subiendo && (
-              <span className="text-sm text-zinc-400">Subiendo…</span>
-            )}
-          </div>
-        </div>
+            </div>
 
-        <div className="mt-4 flex flex-col gap-2 border-t border-zinc-700 pt-4 sm:col-span-2 sm:flex-row sm:justify-end lg:col-span-6">
+            <div className="sm:col-span-1 lg:col-span-2">
+              <label
+                htmlFor="prod-nombre-form"
+                className="mb-1 block text-sm font-medium text-zinc-300"
+              >
+                Nombre: <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="text"
+                id="prod-nombre-form"
+                value={nombre}
+                onChange={(e) => setNombre(e.target.value)}
+                className={inputClasses}
+                required
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="prod-categoria-form"
+                className="mb-1 block text-sm font-medium text-zinc-300"
+              >
+                Categoría:
+              </label>
+              <input
+                type="text"
+                id="prod-categoria-form"
+                value={categoria}
+                onChange={(e) => setCategoria(e.target.value)}
+                placeholder="Ej: Bebidas, Limpieza"
+                className={inputClasses}
+              />
+            </div>
+          </div>
+        </fieldset>
+
+        {/* ── CUÁNTO CUESTA Y A CUÁNTO SE VENDE ──
+            El costo va primero porque es de donde sale el precio: se carga lo
+            que se pagó, se aplica el margen y el precio queda calculado. */}
+        <fieldset>
+          <legend className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+            Precios
+          </legend>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div>
+              <label
+                htmlFor="prod-costo-form"
+                className="mb-1 block text-sm font-medium text-zinc-300"
+              >
+                Costo ($):
+              </label>
+              <input
+                type="number"
+                id="prod-costo-form"
+                value={costo}
+                onChange={(e) => setCosto(e.target.value)}
+                step="0.01"
+                min="0"
+                placeholder="Opcional"
+                className={inputClasses}
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="prod-increase-form"
+                className="mb-1 block text-sm font-medium text-zinc-300"
+              >
+                Aumento (%):
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  id="prod-increase-form"
+                  value={increasePercentage}
+                  onChange={(e) => setIncreasePercentage(e.target.value)}
+                  placeholder="Ej: 15"
+                  className={inputClasses}
+                />
+                <motion.button
+                  type="button"
+                  onClick={handleApplyPercentage}
+                  className="h-9 flex-shrink-0 rounded-md bg-green-600 px-3 font-bold text-white hover:bg-green-700"
+                  whileTap={{ scale: 0.95 }}
+                  title="Aplicar el aumento sobre el costo"
+                >
+                  Aplicar
+                </motion.button>
+              </div>
+            </div>
+
+            <div>
+              <label
+                htmlFor="prod-precio-form"
+                className="mb-1 block text-sm font-medium text-zinc-300"
+              >
+                Precio de venta ($): <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="number"
+                id="prod-precio-form"
+                value={precio}
+                onChange={(e) => setPrecio(e.target.value)}
+                step="0.01"
+                min="0"
+                className={inputClasses}
+                required
+              />
+            </div>
+          </div>
+        </fieldset>
+
+        {/* ── CUÁNTO HAY Y CÓMO SE VENDE ── */}
+        <fieldset>
+          <legend className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+            Stock
+          </legend>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div>
+              <label
+                htmlFor="prod-vendido-por-form"
+                className="mb-1 block text-sm font-medium text-zinc-300"
+              >
+                Vendido por:
+              </label>
+              <select
+                id="prod-vendido-por-form"
+                value={vendidoPor}
+                onChange={(e) => setVendidoPor(e.target.value)}
+                className={inputClasses}
+              >
+                <option value="unidad">Unidad</option>
+                <option value="peso">Peso (Kg)</option>
+              </select>
+            </div>
+
+            <div>
+              <label
+                htmlFor="prod-stock-form"
+                className="mb-1 block text-sm font-medium text-zinc-300"
+              >
+                Stock: <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="number"
+                id="prod-stock-form"
+                value={stock}
+                onChange={(e) => setStock(e.target.value)}
+                min="0"
+                step="any"
+                className={inputClasses}
+                required
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="prod-vencimiento-form"
+                className="mb-1 block text-sm font-medium text-zinc-300"
+              >
+                Vencimiento:
+              </label>
+              <input
+                type="date"
+                id="prod-vencimiento-form"
+                value={fechaVencimiento}
+                onChange={(e) => setFechaVencimiento(e.target.value)}
+                className={inputClasses}
+              />
+            </div>
+          </div>
+        </fieldset>
+
+        {/* ── LO OPCIONAL ── */}
+        <fieldset>
+          <legend className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+            Extras
+          </legend>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div>
+              <label
+                htmlFor="prod-promo-form"
+                className="mb-1 block text-sm font-medium text-zinc-300"
+              >
+                Promo (%):
+              </label>
+              <input
+                type="number"
+                id="prod-promo-form"
+                min="0"
+                max="100"
+                value={descuentoPromo}
+                onChange={(e) => setDescuentoPromo(e.target.value)}
+                placeholder="0"
+                className={inputClasses}
+              />
+              <p className="mt-1 text-xs text-zinc-500">
+                Se descuenta solo al vender.
+              </p>
+            </div>
+
+            <div>
+              <span className="mb-1 block text-sm font-medium text-zinc-300">
+                Acceso rápido:
+              </span>
+              <label className="flex h-9 cursor-pointer items-center gap-2 text-sm text-zinc-300">
+                <input
+                  type="checkbox"
+                  checked={favorito}
+                  onChange={(e) => setFavorito(e.target.checked)}
+                  className="h-4 w-4 rounded border-zinc-600 bg-zinc-700 text-blue-500"
+                />
+                Botón en la venta ⭐
+              </label>
+            </div>
+
+            <div>
+              <span className="mb-1 block text-sm font-medium text-zinc-300">
+                Foto del producto:
+              </span>
+              <div className="flex items-center gap-3">
+                {preview ? (
+                  <div className="relative">
+                    <img
+                      src={preview}
+                      alt="Vista previa"
+                      className="h-16 w-16 rounded-md object-cover ring-1 ring-zinc-600"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleQuitarImagen}
+                      className="absolute -right-2 -top-2 rounded-full bg-red-600 p-0.5 text-white hover:bg-red-700"
+                      title="Quitar foto"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex h-16 w-16 items-center justify-center rounded-md bg-zinc-700 text-zinc-500 ring-1 ring-zinc-600">
+                    <ImagePlus className="h-6 w-6" />
+                  </div>
+                )}
+                <label className="cursor-pointer rounded-md bg-zinc-600 px-3 py-2 text-sm font-medium text-zinc-100 hover:bg-zinc-500">
+                  {preview ? 'Cambiar' : 'Subir foto'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
+                </label>
+                {subiendo && (
+                  <span className="text-sm text-zinc-400">Subiendo…</span>
+                )}
+              </div>
+            </div>
+          </div>
+        </fieldset>
+
+        <div className="flex flex-col gap-2 border-t border-zinc-700 pt-4 sm:flex-row sm:justify-end">
           <motion.button
             type="submit"
             disabled={subiendo}
