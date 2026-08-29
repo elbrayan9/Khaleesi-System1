@@ -38,7 +38,11 @@ import {
 import AppLogo from '../components/AppLogo';
 import Footer from '../components/Footer';
 import ThreeBackground from '../components/ThreeBackground';
-import MockupSistema from '../components/landing/MockupSistema.jsx';
+// El mockup vive en la sección de abajo, lejos del pliegue: baja después,
+// para no pesar en el primer pintado.
+const MockupSistema = lazy(
+  () => import('../components/landing/MockupSistema.jsx'),
+);
 // El ticket está muy por debajo del pliegue: baja después, para no pesar en el
 // primer pintado, que es lo que decide si alguien se queda o se va.
 const TicketImprimiendose = lazy(
@@ -48,6 +52,7 @@ const TicketImprimiendose = lazy(
 // 747x1024 (264 KB) para dibujarse en un círculo de 96px: ahora son 192px y
 // 8 KB. Las tres juntas bajaron de 399 KB a 47 KB.
 import profileImage from '../assets/profile.webp';
+import dashboardDesktop from '../assets/dashboard-desktop.webp';
 import dashboardMobile from '../assets/dashboard-mobile.webp';
 import TypeAnimation from '../components/TypeAnimation';
 import { AnimatedButton } from '../components/AnimatedButton';
@@ -464,7 +469,12 @@ const LandingPage = () => {
                       app.khaleesisystem.com.ar
                     </div>
                   </div>
-                  <MockupSistema />
+                  <img
+                    src={dashboardDesktop}
+                    alt="Panel de control de Khaleesi System"
+                    className="block w-full"
+                    fetchPriority="high"
+                  />
                 </div>
               </Tilt3D>
             </motion.div>
@@ -732,7 +742,9 @@ const LandingPage = () => {
                     </div>
 
                     <div className="h-full w-full overflow-hidden pt-8">
-                      <MockupSistema />
+                      <Suspense fallback={<div className="h-full w-full bg-zinc-950" />}>
+                        <MockupSistema />
+                      </Suspense>
                     </div>
                   </div>
                 </motion.div>
