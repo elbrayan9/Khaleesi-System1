@@ -48,6 +48,7 @@ import * as XLSX from 'xlsx';
 import SalesHeatmap from './SalesHeatmap.jsx';
 import HistorialTurnos from './HistorialTurnos.jsx';
 import CajaGeneral from './CajaGeneral.jsx';
+import CajaModal from './CajaModal.jsx';
 
 const ITEMS_PER_PAGE_REPORTE = 10;
 
@@ -81,7 +82,8 @@ function ReportesTab({
   } = useAppContext();
   const navigate = useNavigate();
 
-  const vendedorActual = vendedores?.find(v => v.id === vendedorActivoId) || {};
+  const vendedorActual =
+    vendedores?.find((v) => v.id === vendedorActivoId) || {};
   const puedeVerEstadisticasCaja = vendedorActual.verEstadisticasCaja !== false;
 
   // PIN lock: si el vendedor no puede ver estadísticas, la caja arranca bloqueada
@@ -112,6 +114,7 @@ function ReportesTab({
   };
 
   const [selectedDate, setSelectedDate] = useState(getCleanToday());
+  const [cajaAbierta, setCajaAbierta] = useState(false);
   const [formIngresoDesc, setFormIngresoDesc] = useState('');
   const [formIngresoMonto, setFormIngresoMonto] = useState('');
   const [formEgresoDesc, setFormEgresoDesc] = useState('');
@@ -610,40 +613,6 @@ function ReportesTab({
     navigate('/dashboard/notas', { state: { ventaParaAnular: ventaObj } });
   };
 
-  const handleCerrarCaja = () => {
-    let resumenVendedorHtml = '';
-    if (ventasPorVendedorDia && Object.keys(ventasPorVendedorDia).length > 0) {
-      resumenVendedorHtml += `<hr class="border-zinc-600 my-2"/><h4 class="font-semibold text-zinc-200 pt-1 text-left">Resumen por Vendedor:</h4><div class="pl-4 space-y-1">`;
-      Object.entries(ventasPorVendedorDia).forEach(([vendedor, data]) => {
-        resumenVendedorHtml += `<div class="flex justify-between items-center"><span class="text-zinc-400">${vendedor}:</span><span class="font-medium text-zinc-200">$${formatCurrency(data.total)} <span class="text-xs text-zinc-500">(${data.cantidadVentas} v.)</span></span></div>`;
-      });
-      resumenVendedorHtml += `</div>`;
-    }
-
-    Swal.fire({
-      title: 'Cierre de Caja (Simulado)',
-      html: `<div class="text-left text-sm space-y-1 text-zinc-300">
-                  <p>Total Ventas del Día: <strong class="text-zinc-100">$${formatCurrency(totalVentasDia)}</strong></p>
-                  <hr class="border-zinc-600 my-2"/>
-                  <p>+ Ventas en Efectivo: <span class="monto-positivo">$${formatCurrency(ventasPorMedioDia['efectivo'] || 0)}</span></p>
-                  <p>+ Ingresos Manuales: <span class="monto-positivo">$${formatCurrency(totalIngresosManualesDia)}</span></p>
-                  <p>- Egresos en Efectivo: <span class="monto-negativo">-${formatCurrency(totalEgresosDia)}</span></p>
-                  <hr class="border-zinc-600 my-2"/>
-                  <p>Saldo Efectivo Esperado: <strong class="text-blue-400 text-base">$${formatCurrency(saldoEfectivoEsperado)}</strong></p>
-                  ${resumenVendedorHtml}
-               </div>`,
-      icon: 'info',
-      confirmButtonText: 'Entendido',
-      heightAuto: false,
-      customClass: {
-        popup: 'text-sm rounded-lg',
-        title: 'text-zinc-100 !text-lg',
-        htmlContainer: 'text-zinc-300',
-        confirmButton: 'px-4 py-2 rounded-md text-white hover:bg-blue-600',
-      },
-    });
-  };
-
   const getSortIcon = (key, config) => {
     if (!config || config.key !== key)
       return (
@@ -837,7 +806,11 @@ function ReportesTab({
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.95 }}
             >
-              {mostrarTodo ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+              {mostrarTodo ? (
+                <Unlock className="h-4 w-4" />
+              ) : (
+                <Lock className="h-4 w-4" />
+              )}
               {mostrarTodo ? 'Bloquear' : 'Desbloquear'}
             </motion.button>
           )}
@@ -846,109 +819,111 @@ function ReportesTab({
 
       {/* --- TOP ROW: KPI Cards (solo si desbloqueado) --- */}
       {mostrarTodo && (
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {/* KPI 1: Caja General (Prominent) */}
-        <CajaGeneral />
+        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {/* KPI 1: Caja General (Prominent) */}
+          <CajaGeneral />
 
-        {/* KPI 2: Ventas del Día */}
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-zinc-400">Ventas del Día</p>
-            <DollarSign className="h-4 w-4 text-emerald-500" />
-          </div>
-          <p className="mt-2 text-2xl font-bold text-emerald-400">
-            ${formatCurrency(totalVentasDia)}
-          </p>
-          <p className="text-xs text-zinc-500">
-            {ventasDelDia.length} transacciones
-          </p>
-        </div>
-
-        {/* KPI 3: Ingresos & Egresos (Combined) */}
-        {/* KPI 3: Ingresos & Egresos (Combined with Forms) */}
-        <div className="flex flex-col gap-2 rounded-xl border border-zinc-800 bg-zinc-900/50 p-3">
-          {/* Ingresos Section */}
-          <div className="flex flex-col gap-1 border-b border-zinc-800 pb-2">
+          {/* KPI 2: Ventas del Día */}
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-medium text-zinc-400">
-                Ingresos Extra
+              <p className="text-sm font-medium text-zinc-400">
+                Ventas del Día
               </p>
-              <p className="text-sm font-bold text-blue-400">
-                ${formatCurrency(totalIngresosManualesDia)}
-              </p>
+              <DollarSign className="h-4 w-4 text-emerald-500" />
             </div>
-            {/* Ingreso Form */}
-            <div className="flex gap-1">
-              <input
-                type="text"
-                value={formIngresoDesc}
-                onChange={(e) => setFormIngresoDesc(e.target.value)}
-                placeholder="Desc"
-                className="h-7 w-full min-w-0 rounded border border-zinc-700 bg-zinc-800 px-2 text-[10px] text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              />
-              <input
-                type="number"
-                value={formIngresoMonto}
-                onChange={(e) => setFormIngresoMonto(e.target.value)}
-                placeholder="$"
-                className="h-7 w-16 rounded border border-zinc-700 bg-zinc-800 px-2 text-[10px] text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              />
-              <button
-                onClick={handleLocalRegistrarIngreso}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-blue-600 text-white hover:bg-blue-700"
-              >
-                <PlusCircle className="h-4 w-4" />
-              </button>
-            </div>
+            <p className="mt-2 text-2xl font-bold text-emerald-400">
+              ${formatCurrency(totalVentasDia)}
+            </p>
+            <p className="text-xs text-zinc-500">
+              {ventasDelDia.length} transacciones
+            </p>
           </div>
 
-          {/* Egresos Section */}
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-medium text-zinc-400">Egresos</p>
-              <p className="text-sm font-bold text-red-400">
-                ${formatCurrency(totalEgresosDia)}
-              </p>
+          {/* KPI 3: Ingresos & Egresos (Combined) */}
+          {/* KPI 3: Ingresos & Egresos (Combined with Forms) */}
+          <div className="flex flex-col gap-2 rounded-xl border border-zinc-800 bg-zinc-900/50 p-3">
+            {/* Ingresos Section */}
+            <div className="flex flex-col gap-1 border-b border-zinc-800 pb-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-zinc-400">
+                  Ingresos Extra
+                </p>
+                <p className="text-sm font-bold text-blue-400">
+                  ${formatCurrency(totalIngresosManualesDia)}
+                </p>
+              </div>
+              {/* Ingreso Form */}
+              <div className="flex gap-1">
+                <input
+                  type="text"
+                  value={formIngresoDesc}
+                  onChange={(e) => setFormIngresoDesc(e.target.value)}
+                  placeholder="Desc"
+                  className="h-7 w-full min-w-0 rounded border border-zinc-700 bg-zinc-800 px-2 text-[10px] text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+                <input
+                  type="number"
+                  value={formIngresoMonto}
+                  onChange={(e) => setFormIngresoMonto(e.target.value)}
+                  placeholder="$"
+                  className="h-7 w-16 rounded border border-zinc-700 bg-zinc-800 px-2 text-[10px] text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+                <button
+                  onClick={handleLocalRegistrarIngreso}
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-blue-600 text-white hover:bg-blue-700"
+                >
+                  <PlusCircle className="h-4 w-4" />
+                </button>
+              </div>
             </div>
-            {/* Egreso Form */}
-            <div className="flex gap-1">
-              <input
-                type="text"
-                value={formEgresoDesc}
-                onChange={(e) => setFormEgresoDesc(e.target.value)}
-                placeholder="Desc"
-                className="h-7 w-full min-w-0 rounded border border-zinc-700 bg-zinc-800 px-2 text-[10px] text-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
-              />
-              <input
-                type="number"
-                value={formEgresoMonto}
-                onChange={(e) => setFormEgresoMonto(e.target.value)}
-                placeholder="$"
-                className="h-7 w-16 rounded border border-zinc-700 bg-zinc-800 px-2 text-[10px] text-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
-              />
-              <button
-                onClick={handleLocalRegistrarEgreso}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-red-600 text-white hover:bg-red-700"
-              >
-                <MinusCircle className="h-4 w-4" />
-              </button>
+
+            {/* Egresos Section */}
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-zinc-400">Egresos</p>
+                <p className="text-sm font-bold text-red-400">
+                  ${formatCurrency(totalEgresosDia)}
+                </p>
+              </div>
+              {/* Egreso Form */}
+              <div className="flex gap-1">
+                <input
+                  type="text"
+                  value={formEgresoDesc}
+                  onChange={(e) => setFormEgresoDesc(e.target.value)}
+                  placeholder="Desc"
+                  className="h-7 w-full min-w-0 rounded border border-zinc-700 bg-zinc-800 px-2 text-[10px] text-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                />
+                <input
+                  type="number"
+                  value={formEgresoMonto}
+                  onChange={(e) => setFormEgresoMonto(e.target.value)}
+                  placeholder="$"
+                  className="h-7 w-16 rounded border border-zinc-700 bg-zinc-800 px-2 text-[10px] text-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                />
+                <button
+                  onClick={handleLocalRegistrarEgreso}
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-red-600 text-white hover:bg-red-700"
+                >
+                  <MinusCircle className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
       )}
 
       {/* --- MAIN CONTENT GRID (Zero-Gap) --- */}
-      <div className="grid min-h-0 h-[calc(100dvh-13rem)] grid-cols-1 gap-6 lg:grid-cols-12">
+      <div className="grid h-[calc(100dvh-13rem)] min-h-0 grid-cols-1 gap-6 lg:grid-cols-12">
         {/* --- LEFT COLUMN: Chart + Tables (65-70%) --- */}
         <div className="flex h-full flex-col gap-4 lg:col-span-8 xl:col-span-9">
           {/* 1. Chart Section (Fixed Height) - solo si desbloqueado */}
           {mostrarTodo && (
-          <div className="h-[clamp(170px,26vh,300px)] w-full shrink-0 relative">
-            <ErrorBoundary>
-              <SalesChart data={salesDataForChart} />
-            </ErrorBoundary>
-          </div>
+            <div className="relative h-[clamp(170px,26vh,300px)] w-full shrink-0">
+              <ErrorBoundary>
+                <SalesChart data={salesDataForChart} />
+              </ErrorBoundary>
+            </div>
           )}
 
           {/* 2. Tables Section (Flex Fill) */}
@@ -996,12 +971,12 @@ function ReportesTab({
                             Desc. {getSortIcon('desc', sortConfigDia)}
                           </TableHead>
                           {mostrarTodo && (
-                          <TableHead
-                            className="cursor-pointer text-right text-zinc-400 hover:text-white"
-                            onClick={() => requestSortDia('montoDisplay')}
-                          >
-                            Monto {getSortIcon('montoDisplay', sortConfigDia)}
-                          </TableHead>
+                            <TableHead
+                              className="cursor-pointer text-right text-zinc-400 hover:text-white"
+                              onClick={() => requestSortDia('montoDisplay')}
+                            >
+                              Monto {getSortIcon('montoDisplay', sortConfigDia)}
+                            </TableHead>
                           )}
                           <TableHead className="text-right text-zinc-400"></TableHead>
                         </TableRow>
@@ -1036,26 +1011,26 @@ function ReportesTab({
                                 {item.desc}
                               </TableCell>
                               {mostrarTodo && (
-                              <TableCell
-                                className={`py-3 text-right text-sm font-medium ${item.montoDisplay >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
-                              >
-                                ${formatCurrency(item.montoDisplay)}
-                              </TableCell>
+                                <TableCell
+                                  className={`py-3 text-right text-sm font-medium ${item.montoDisplay >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
+                                >
+                                  ${formatCurrency(item.montoDisplay)}
+                                </TableCell>
                               )}
                               <TableCell className="py-3 text-right">
                                 <div className="flex justify-end gap-1">
                                   {item.tipo === 'Venta' && (
                                     <>
                                       {mostrarTodo && (
-                                      <button
-                                        onClick={() =>
-                                          handleLocalViewDetailsClick(item.id)
-                                        }
-                                        className="rounded p-1 text-zinc-400 hover:bg-zinc-700 hover:text-blue-400"
-                                        title="Ver"
-                                      >
-                                        <Eye className="h-4 w-4" />
-                                      </button>
+                                        <button
+                                          onClick={() =>
+                                            handleLocalViewDetailsClick(item.id)
+                                          }
+                                          className="rounded p-1 text-zinc-400 hover:bg-zinc-700 hover:text-blue-400"
+                                          title="Ver"
+                                        >
+                                          <Eye className="h-4 w-4" />
+                                        </button>
                                       )}
                                       <button
                                         onClick={() =>
@@ -1101,18 +1076,17 @@ function ReportesTab({
                                           <Mail className="h-4 w-4" />
                                         </button>
                                       )}
-                                      {canAccessAfip &&
-                                        !item.afipData?.cae && (
-                                          <button
-                                            onClick={() =>
-                                              handleLocalFacturarClick(item.id)
-                                            }
-                                            className="rounded p-1 text-zinc-400 hover:bg-zinc-700 hover:text-amber-400"
-                                            title="Facturar (emitir Factura AFIP)"
-                                          >
-                                            <FileText className="h-4 w-4" />
-                                          </button>
-                                        )}
+                                      {canAccessAfip && !item.afipData?.cae && (
+                                        <button
+                                          onClick={() =>
+                                            handleLocalFacturarClick(item.id)
+                                          }
+                                          className="rounded p-1 text-zinc-400 hover:bg-zinc-700 hover:text-amber-400"
+                                          title="Facturar (emitir Factura AFIP)"
+                                        >
+                                          <FileText className="h-4 w-4" />
+                                        </button>
+                                      )}
                                       {canAccessAfip &&
                                         item.afipData?.cae &&
                                         !facturaTieneNota(item) && (
@@ -1127,34 +1101,35 @@ function ReportesTab({
                                           </button>
                                         )}
                                       {mostrarTodo && !item.afipData?.cae && (
+                                        <button
+                                          onClick={() =>
+                                            handleLocalEliminarVenta(item.id)
+                                          }
+                                          className="rounded p-1 text-zinc-400 hover:bg-zinc-700 hover:text-red-400"
+                                          title="Eliminar"
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </button>
+                                      )}
+                                    </>
+                                  )}
+                                  {mostrarTodo &&
+                                    (item.tipo === 'Ingreso Manual' ||
+                                      item.tipo === 'Egreso') && (
                                       <button
                                         onClick={() =>
-                                          handleLocalEliminarVenta(item.id)
+                                          handleLocalEliminarMovimiento(
+                                            item.id,
+                                            item.tipo,
+                                            item.desc,
+                                          )
                                         }
                                         className="rounded p-1 text-zinc-400 hover:bg-zinc-700 hover:text-red-400"
                                         title="Eliminar"
                                       >
                                         <Trash2 className="h-4 w-4" />
                                       </button>
-                                      )}
-                                    </>
-                                  )}
-                                  {mostrarTodo && (item.tipo === 'Ingreso Manual' ||
-                                    item.tipo === 'Egreso') && (
-                                    <button
-                                      onClick={() =>
-                                        handleLocalEliminarMovimiento(
-                                          item.id,
-                                          item.tipo,
-                                          item.desc,
-                                        )
-                                      }
-                                      className="rounded p-1 text-zinc-400 hover:bg-zinc-700 hover:text-red-400"
-                                      title="Eliminar"
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </button>
-                                  )}
+                                    )}
                                 </div>
                               </TableCell>
                             </TableRow>
@@ -1224,12 +1199,12 @@ function ReportesTab({
                             Desc. {getSortIcon('desc', sortConfigMes)}
                           </TableHead>
                           {mostrarTodo && (
-                          <TableHead
-                            className="cursor-pointer text-right text-zinc-400 hover:text-white"
-                            onClick={() => requestSortMes('montoDisplay')}
-                          >
-                            Monto {getSortIcon('montoDisplay', sortConfigMes)}
-                          </TableHead>
+                            <TableHead
+                              className="cursor-pointer text-right text-zinc-400 hover:text-white"
+                              onClick={() => requestSortMes('montoDisplay')}
+                            >
+                              Monto {getSortIcon('montoDisplay', sortConfigMes)}
+                            </TableHead>
                           )}
                           <TableHead className="text-right text-zinc-400"></TableHead>
                         </TableRow>
@@ -1264,26 +1239,26 @@ function ReportesTab({
                                 {item.desc}
                               </TableCell>
                               {mostrarTodo && (
-                              <TableCell
-                                className={`py-3 text-right text-sm font-medium ${item.montoDisplay >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
-                              >
-                                ${formatCurrency(item.montoDisplay)}
-                              </TableCell>
+                                <TableCell
+                                  className={`py-3 text-right text-sm font-medium ${item.montoDisplay >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
+                                >
+                                  ${formatCurrency(item.montoDisplay)}
+                                </TableCell>
                               )}
                               <TableCell className="py-3 text-right">
                                 <div className="flex justify-end gap-1">
                                   {item.tipo === 'Venta' && (
                                     <>
                                       {mostrarTodo && (
-                                      <button
-                                        onClick={() =>
-                                          handleLocalViewDetailsClick(item.id)
-                                        }
-                                        className="rounded p-1 text-zinc-400 hover:bg-zinc-700 hover:text-blue-400"
-                                        title="Ver"
-                                      >
-                                        <Eye className="h-4 w-4" />
-                                      </button>
+                                        <button
+                                          onClick={() =>
+                                            handleLocalViewDetailsClick(item.id)
+                                          }
+                                          className="rounded p-1 text-zinc-400 hover:bg-zinc-700 hover:text-blue-400"
+                                          title="Ver"
+                                        >
+                                          <Eye className="h-4 w-4" />
+                                        </button>
                                       )}
                                       <button
                                         onClick={() =>
@@ -1329,18 +1304,17 @@ function ReportesTab({
                                           <Mail className="h-4 w-4" />
                                         </button>
                                       )}
-                                      {canAccessAfip &&
-                                        !item.afipData?.cae && (
-                                          <button
-                                            onClick={() =>
-                                              handleLocalFacturarClick(item.id)
-                                            }
-                                            className="rounded p-1 text-zinc-400 hover:bg-zinc-700 hover:text-amber-400"
-                                            title="Facturar (emitir Factura AFIP)"
-                                          >
-                                            <FileText className="h-4 w-4" />
-                                          </button>
-                                        )}
+                                      {canAccessAfip && !item.afipData?.cae && (
+                                        <button
+                                          onClick={() =>
+                                            handleLocalFacturarClick(item.id)
+                                          }
+                                          className="rounded p-1 text-zinc-400 hover:bg-zinc-700 hover:text-amber-400"
+                                          title="Facturar (emitir Factura AFIP)"
+                                        >
+                                          <FileText className="h-4 w-4" />
+                                        </button>
+                                      )}
                                       {canAccessAfip &&
                                         item.afipData?.cae &&
                                         !facturaTieneNota(item) && (
@@ -1390,13 +1364,13 @@ function ReportesTab({
         <div className="custom-scrollbar flex h-full flex-col gap-6 overflow-y-auto pr-1 lg:col-span-4 xl:col-span-3">
           {mostrarTodo && (
             <motion.button
-              onClick={handleCerrarCaja}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 p-4 font-bold text-white shadow-lg shadow-purple-900/20 hover:from-purple-700 hover:to-indigo-700"
+              onClick={() => setCajaAbierta(true)}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 p-4 font-bold text-white shadow-lg shadow-blue-900/20 hover:from-blue-700 hover:to-indigo-700"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
-              <Archive className="h-5 w-5" />
-              Simular Cierre
+              <Wallet className="h-5 w-5" />
+              Caja
             </motion.button>
           )}
 
@@ -1439,38 +1413,38 @@ function ReportesTab({
 
             {/* Ranking Vendedores */}
             {mostrarTodo && (
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 shadow-lg">
-              <div className="border-b border-zinc-800 p-4">
-                <h3 className="text-sm font-semibold text-white">
-                  Ranking Vendedores
-                </h3>
+              <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 shadow-lg">
+                <div className="border-b border-zinc-800 p-4">
+                  <h3 className="text-sm font-semibold text-white">
+                    Ranking Vendedores
+                  </h3>
+                </div>
+                <div className="custom-scrollbar max-h-[250px] overflow-y-auto">
+                  {rankingVendedoresMes.length > 0 ? (
+                    <Table>
+                      <TableBody>
+                        {rankingVendedoresMes.map((vendedor, index) => (
+                          <TableRow
+                            key={index}
+                            className="border-b border-zinc-800/50 hover:bg-zinc-800/30"
+                          >
+                            <TableCell className="py-3 text-sm font-medium text-white">
+                              {vendedor.nombre}
+                            </TableCell>
+                            <TableCell className="py-3 text-right text-sm font-semibold text-green-400">
+                              ${formatCurrency(vendedor.totalVendido)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <div className="p-6 text-center text-sm text-zinc-500">
+                      Sin datos.
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="custom-scrollbar max-h-[250px] overflow-y-auto">
-                {rankingVendedoresMes.length > 0 ? (
-                  <Table>
-                    <TableBody>
-                      {rankingVendedoresMes.map((vendedor, index) => (
-                        <TableRow
-                          key={index}
-                          className="border-b border-zinc-800/50 hover:bg-zinc-800/30"
-                        >
-                          <TableCell className="py-3 text-sm font-medium text-white">
-                            {vendedor.nombre}
-                          </TableCell>
-                          <TableCell className="py-3 text-right text-sm font-semibold text-green-400">
-                            ${formatCurrency(vendedor.totalVendido)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <div className="p-6 text-center text-sm text-zinc-500">
-                    Sin datos.
-                  </div>
-                )}
-              </div>
-            </div>
             )}
 
             <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 shadow-lg">
@@ -1490,6 +1464,14 @@ function ReportesTab({
           </div>
         </div>
       </div>
+
+      <CajaModal
+        isOpen={cajaAbierta}
+        onClose={() => setCajaAbierta(false)}
+        selectedDate={selectedDate}
+        onCambiarFecha={setSelectedDate}
+        dateFormatter={dateFormatter}
+      />
     </div>
   );
 }
