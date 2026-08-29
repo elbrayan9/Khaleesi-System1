@@ -1,4 +1,9 @@
 // src/screens/ScannerPistola.jsx
+import {
+  sonarEscaneo,
+  sonarErrorEscaneo,
+  prepararSonido,
+} from '../utils/sonido.js';
 //
 // "Celu como pistola": escanea códigos con la cámara del celular y los envía en
 // tiempo real (Firestore) a la venta abierta en la PC. Reusa la cuenta actual.
@@ -47,8 +52,12 @@ function ScannerPistola() {
             });
             setUltimo(code);
             setCount((c) => c + 1);
+            // Suena y vibra recién acá, después de que el código viajó: es la
+            // señal de que llegó a la caja, no de que la cámara vio algo.
+            sonarEscaneo();
             if (navigator.vibrate) navigator.vibrate(80);
           } catch (e) {
+            sonarErrorEscaneo();
             setError(e?.message || 'No se pudo enviar el código.');
           }
         },
@@ -68,7 +77,7 @@ function ScannerPistola() {
   }, [sucursalActual, currentUser]);
 
   return (
-    <div className="mx-auto max-w-md text-white">
+    <div className="mx-auto max-w-md text-white" onPointerDown={prepararSonido}>
       <h2 className="mb-1 flex items-center gap-2 text-xl font-bold">
         <ScanLine className="h-6 w-6 text-sky-400" /> Modo pistola
       </h2>

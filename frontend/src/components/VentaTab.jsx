@@ -17,6 +17,7 @@ import PanelAlertas from './PanelAlertas';
 import { formatCurrency } from '../utils/helpers.js';
 import { ShoppingCart } from 'lucide-react';
 import useAtajosTeclado from '../hooks/useAtajosTeclado.js';
+import { sonarEscaneo, sonarErrorEscaneo } from '../utils/sonido.js';
 import TeclaAtajo from './ui/TeclaAtajo.jsx';
 
 function VentaTab() {
@@ -50,7 +51,8 @@ function VentaTab() {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [descuentoVenta, setDescuentoVenta] = useState(0);
 
-  const vendedorActual = vendedores.find((v) => v.id === vendedorActivoId) || {};
+  const vendedorActual =
+    vendedores.find((v) => v.id === vendedorActivoId) || {};
   const puedeModificarPrecios = vendedorActual.puedeModificarPrecios !== false;
 
   // Estado local para el vendedor DE LA VENTA (puede ser distinto al del turno)
@@ -159,6 +161,7 @@ function VentaTab() {
         if (barcodeInputRef.current) barcodeInputRef.current.value = '';
         safeFocus();
       } else {
+        sonarErrorEscaneo();
         await mostrarMensaje('El producto de ese QR no existe.', 'warning');
       }
       return;
@@ -226,6 +229,7 @@ function VentaTab() {
       if (barcodeInputRef.current) barcodeInputRef.current.value = '';
       safeFocus();
     } else {
+      sonarErrorEscaneo();
       await mostrarMensaje(`Código "${barcode}" no encontrado.`, 'warning');
       barcodeInputRef.current?.select();
     }
@@ -454,7 +458,7 @@ function VentaTab() {
 
   return (
     <div id="venta">
-      <div className="mb-4 flex flex-col justify-between sm:flex-row sm:items-center gap-4">
+      <div className="mb-4 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <h2 className="flex items-center gap-2 text-xl font-semibold text-white sm:text-2xl">
           <ShoppingCart className="h-8 w-8 text-blue-500" />
           Nueva Venta
@@ -578,27 +582,27 @@ function VentaTab() {
             {typeof navigator !== 'undefined' &&
               navigator.mediaDevices &&
               navigator.mediaDevices.getUserMedia && (
-              <button
-                type="button"
-                onClick={() => setShowEscaner(true)}
-                className="mt-2 flex w-full items-center justify-center gap-2 rounded-md border border-sky-500 bg-sky-500/10 px-4 py-2 text-sm font-semibold text-sky-300 transition-colors hover:bg-sky-500 hover:text-white"
-              >
-                <i className="fas fa-camera"></i> Escanear con cámara
-                <TeclaAtajo className="border-sky-400/50">F8</TeclaAtajo>
-              </button>
-            )}
+                <button
+                  type="button"
+                  onClick={() => setShowEscaner(true)}
+                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-md border border-sky-500 bg-sky-500/10 px-4 py-2 text-sm font-semibold text-sky-300 transition-colors hover:bg-sky-500 hover:text-white"
+                >
+                  <i className="fas fa-camera"></i> Escanear con cámara
+                  <TeclaAtajo className="border-sky-400/50">F8</TeclaAtajo>
+                </button>
+              )}
             {/* Balanza en vivo: habilitada en Configuración + soporte del navegador */}
             {datosNegocio?.habilitarBalanzaEnVivo &&
               typeof navigator !== 'undefined' &&
               'serial' in navigator && (
-              <button
-                type="button"
-                onClick={() => setShowBalanza(true)}
-                className="mt-2 flex w-full items-center justify-center gap-2 rounded-md border border-indigo-500 bg-indigo-500/10 px-4 py-2 text-sm font-semibold text-indigo-300 transition-colors hover:bg-indigo-500 hover:text-white"
-              >
-                <i className="fas fa-balance-scale"></i> Balanza en vivo
-              </button>
-            )}
+                <button
+                  type="button"
+                  onClick={() => setShowBalanza(true)}
+                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-md border border-indigo-500 bg-indigo-500/10 px-4 py-2 text-sm font-semibold text-indigo-300 transition-colors hover:bg-indigo-500 hover:text-white"
+                >
+                  <i className="fas fa-balance-scale"></i> Balanza en vivo
+                </button>
+              )}
             {canAccessAI && soportaVoz() && (
               <button
                 type="button"
@@ -707,7 +711,9 @@ function VentaTab() {
                   placeholder="0"
                   disabled={!puedeModificarPrecios}
                   className={`w-full rounded-md border border-zinc-600 p-2 text-zinc-100 ${
-                    !puedeModificarPrecios ? 'bg-zinc-800 cursor-not-allowed opacity-50' : 'bg-zinc-700'
+                    !puedeModificarPrecios
+                      ? 'cursor-not-allowed bg-zinc-800 opacity-50'
+                      : 'bg-zinc-700'
                   }`}
                 />
               </div>

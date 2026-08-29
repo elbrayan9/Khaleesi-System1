@@ -63,6 +63,28 @@ const aFecha = (str) => {
 
 const safe = (x) => (Array.isArray(x) ? x : []);
 
+/**
+ * Lo que de una venta entró al cajón, que es solo la parte pagada en efectivo.
+ *
+ * Es la definición que sostiene toda la pantalla: la caja cuadra contra el
+ * dinero físico. Una venta de $10.000 cobrada con tarjeta no pone un peso en el
+ * cajón, así que suma cero acá y se muestra aparte, en el panel de medios de
+ * pago.
+ *
+ * Las ventas viejas, anteriores al array `pagos`, guardaban un único
+ * `metodoPago`; se contemplan para que el histórico no quede en cero.
+ */
+const efectivoDeVenta = (v) => {
+  if (Array.isArray(v.pagos) && v.pagos.length) {
+    return v.pagos.reduce(
+      (s, p) => s + (p.metodo === 'efectivo' ? Number(p.monto) || 0 : 0),
+      0,
+    );
+  }
+  const metodoViejo = String(v.metodoPago || '').toLowerCase();
+  return metodoViejo === 'efectivo' ? Number(v.total) || 0 : 0;
+};
+
 function CajaModal({
   isOpen,
   onClose,
@@ -100,11 +122,6 @@ function CajaModal({
     if (!arrastraSaldo) return 0;
     const limite = aFecha(diaStr);
     const antes = (item) => aFecha(item.fecha) < limite;
-    const efectivoDeVenta = (v) =>
-      (v.pagos || []).reduce(
-        (s, p) => s + (p.metodo === 'efectivo' ? Number(p.monto) || 0 : 0),
-        0,
-      );
     const ing =
       safe(ventas)
         .filter(antes)
@@ -133,13 +150,17 @@ function CajaModal({
             v.clienteNombre,
             medios,
           ].filter(Boolean);
+          const enEfectivo = efectivoDeVenta(v);
           filas.push({
             id: v.id,
             hora: v.hora || '',
             tipo: 'VENTA',
             detalle: partes.join(' · '),
-            ingreso: Number(v.total) || 0,
+            // Solo el efectivo: es lo que entra al cajón y lo que tiene que
+            // cuadrar contra el conteo. El resto se ve en medios de pago.
+            ingreso: enEfectivo,
             egreso: 0,
+            totalVenta: Number(v.total) || 0,
           });
         });
     }

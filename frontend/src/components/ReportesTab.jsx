@@ -4,9 +4,6 @@ import { motion } from 'framer-motion';
 import {
   Printer,
   Trash2,
-  PlusCircle,
-  MinusCircle,
-  Archive,
   Search,
   ArrowUp,
   ArrowDown,
@@ -47,7 +44,6 @@ import { formatCurrency, obtenerNombreMes } from '../utils/helpers.js';
 import * as XLSX from 'xlsx';
 import SalesHeatmap from './SalesHeatmap.jsx';
 import HistorialTurnos from './HistorialTurnos.jsx';
-import CajaGeneral from './CajaGeneral.jsx';
 import CajaModal from './CajaModal.jsx';
 
 const ITEMS_PER_PAGE_REPORTE = 10;
@@ -115,10 +111,6 @@ function ReportesTab({
 
   const [selectedDate, setSelectedDate] = useState(getCleanToday());
   const [cajaAbierta, setCajaAbierta] = useState(false);
-  const [formIngresoDesc, setFormIngresoDesc] = useState('');
-  const [formIngresoMonto, setFormIngresoMonto] = useState('');
-  const [formEgresoDesc, setFormEgresoDesc] = useState('');
-  const [formEgresoMonto, setFormEgresoMonto] = useState('');
 
   const [searchTermDia, setSearchTermDia] = useState('');
   const [sortConfigDia, setSortConfigDia] = useState({
@@ -176,17 +168,6 @@ function ReportesTab({
     0,
   );
 
-  const ventasPorMedioDia = useMemo(() => {
-    return ventasDelDia.reduce((acc, venta) => {
-      if (venta.pagos && Array.isArray(venta.pagos)) {
-        venta.pagos.forEach((p) => {
-          acc[p.metodo] = (acc[p.metodo] || 0) + (Number(p.monto) || 0);
-        });
-      }
-      return acc;
-    }, {});
-  }, [ventasDelDia]);
-
   const totalEgresosDia = egresosDelDia.reduce(
     (s, e) => s + (Number(e.monto) || 0),
     0,
@@ -195,10 +176,6 @@ function ReportesTab({
     (s, i) => s + (Number(i.monto) || 0),
     0,
   );
-  const saldoEfectivoEsperado =
-    (ventasPorMedioDia['efectivo'] || 0) +
-    totalIngresosManualesDia -
-    totalEgresosDia;
   const totalVentasMes = ventasMes.reduce(
     (s, v) => s + (Number(v.total) || 0),
     0,
@@ -484,27 +461,6 @@ function ReportesTab({
         : 'ascending';
     setSortConfigMes({ key, direction: d });
     setCurrentPageMes(1);
-  };
-
-  const handleLocalRegistrarIngreso = () => {
-    const montoNum = parseFloat(formIngresoMonto);
-    if (!formIngresoDesc.trim() || isNaN(montoNum) || montoNum <= 0) {
-      mostrarMensaje('Ingrese descripción y monto válido.', 'warning');
-      return;
-    }
-    handleRegistrarIngresoManual(formIngresoDesc.trim(), montoNum);
-    setFormIngresoDesc('');
-    setFormIngresoMonto('');
-  };
-  const handleLocalRegistrarEgreso = () => {
-    const montoNum = parseFloat(formEgresoMonto);
-    if (!formEgresoDesc.trim() || isNaN(montoNum) || montoNum <= 0) {
-      mostrarMensaje('Ingrese descripción y monto válido.', 'warning');
-      return;
-    }
-    handleRegistrarEgreso(formEgresoDesc.trim(), montoNum);
-    setFormEgresoDesc('');
-    setFormEgresoMonto('');
   };
 
   const checkIdValidityForAction = (id, itemType) => {
@@ -817,13 +773,12 @@ function ReportesTab({
         </div>
       </div>
 
-      {/* --- TOP ROW: KPI Cards (solo si desbloqueado) --- */}
+      {/* Ventas del día. Los totales de ingresos y egresos, el saldo y el
+          desglose por medio de pago viven ahora en la pantalla de Caja: tenerlos
+          acá también obligaba a mantener dos veces el mismo cálculo, y cuando
+          uno de los dos cambiaba, el otro mentía. */}
       {mostrarTodo && (
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {/* KPI 1: Caja General (Prominent) */}
-          <CajaGeneral />
-
-          {/* KPI 2: Ventas del Día */}
           <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-zinc-400">
@@ -838,82 +793,9 @@ function ReportesTab({
               {ventasDelDia.length} transacciones
             </p>
           </div>
-
-          {/* KPI 3: Ingresos & Egresos (Combined) */}
-          {/* KPI 3: Ingresos & Egresos (Combined with Forms) */}
-          <div className="flex flex-col gap-2 rounded-xl border border-zinc-800 bg-zinc-900/50 p-3">
-            {/* Ingresos Section */}
-            <div className="flex flex-col gap-1 border-b border-zinc-800 pb-2">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-medium text-zinc-400">
-                  Ingresos Extra
-                </p>
-                <p className="text-sm font-bold text-blue-400">
-                  ${formatCurrency(totalIngresosManualesDia)}
-                </p>
-              </div>
-              {/* Ingreso Form */}
-              <div className="flex gap-1">
-                <input
-                  type="text"
-                  value={formIngresoDesc}
-                  onChange={(e) => setFormIngresoDesc(e.target.value)}
-                  placeholder="Desc"
-                  className="h-7 w-full min-w-0 rounded border border-zinc-700 bg-zinc-800 px-2 text-[10px] text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                />
-                <input
-                  type="number"
-                  value={formIngresoMonto}
-                  onChange={(e) => setFormIngresoMonto(e.target.value)}
-                  placeholder="$"
-                  className="h-7 w-16 rounded border border-zinc-700 bg-zinc-800 px-2 text-[10px] text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                />
-                <button
-                  onClick={handleLocalRegistrarIngreso}
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-blue-600 text-white hover:bg-blue-700"
-                >
-                  <PlusCircle className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Egresos Section */}
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-medium text-zinc-400">Egresos</p>
-                <p className="text-sm font-bold text-red-400">
-                  ${formatCurrency(totalEgresosDia)}
-                </p>
-              </div>
-              {/* Egreso Form */}
-              <div className="flex gap-1">
-                <input
-                  type="text"
-                  value={formEgresoDesc}
-                  onChange={(e) => setFormEgresoDesc(e.target.value)}
-                  placeholder="Desc"
-                  className="h-7 w-full min-w-0 rounded border border-zinc-700 bg-zinc-800 px-2 text-[10px] text-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
-                />
-                <input
-                  type="number"
-                  value={formEgresoMonto}
-                  onChange={(e) => setFormEgresoMonto(e.target.value)}
-                  placeholder="$"
-                  className="h-7 w-16 rounded border border-zinc-700 bg-zinc-800 px-2 text-[10px] text-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
-                />
-                <button
-                  onClick={handleLocalRegistrarEgreso}
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-red-600 text-white hover:bg-red-700"
-                >
-                  <MinusCircle className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
       )}
 
-      {/* --- MAIN CONTENT GRID (Zero-Gap) --- */}
       <div className="grid h-[calc(100dvh-13rem)] min-h-0 grid-cols-1 gap-6 lg:grid-cols-12">
         {/* --- LEFT COLUMN: Chart + Tables (65-70%) --- */}
         <div className="flex h-full flex-col gap-4 lg:col-span-8 xl:col-span-9">

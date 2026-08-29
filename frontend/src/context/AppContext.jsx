@@ -23,6 +23,7 @@ import * as thermalPrinter from '../services/thermalPrinterService';
 import { obtenerFechaHoraActual, formatCurrency } from '../utils/helpers';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import Swal from '../utils/swalTheme.js'; // Swal con el tema del sistema
+import { sonarEscaneo } from '../utils/sonido.js';
 
 // --- Creación del Contexto ---
 export const AppContext = createContext();
@@ -230,10 +231,18 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
         try {
           const parsed = JSON.parse(savedCart);
           // Validar que sea un array y que cada item tenga los campos mínimos
-          if (Array.isArray(parsed) && parsed.every(item => item.cartId && item.nombre != null && item.precioFinal != null)) {
+          if (
+            Array.isArray(parsed) &&
+            parsed.every(
+              (item) =>
+                item.cartId && item.nombre != null && item.precioFinal != null,
+            )
+          ) {
             setCartItems(parsed);
           } else {
-            console.warn('Carrito en localStorage con formato incompatible, descartando.');
+            console.warn(
+              'Carrito en localStorage con formato incompatible, descartando.',
+            );
             localStorage.removeItem(cartKey);
             setCartItems([]);
           }
@@ -260,13 +269,24 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
         try {
           const parsed = JSON.parse(savedShift);
           // Validar que el turno tenga los campos mínimos esperados
-          if (parsed && typeof parsed === 'object' && parsed.id && parsed.estado) {
+          if (
+            parsed &&
+            typeof parsed === 'object' &&
+            parsed.id &&
+            parsed.estado
+          ) {
             // Sanitizar: convertir cualquier objeto anidado (ej. Timestamps viejos) a string
             Object.keys(parsed).forEach((key) => {
-              if (parsed[key] && typeof parsed[key] === 'object' && !Array.isArray(parsed[key])) {
+              if (
+                parsed[key] &&
+                typeof parsed[key] === 'object' &&
+                !Array.isArray(parsed[key])
+              ) {
                 // Si parece un Timestamp serializado, convertir a ISO string
                 if (parsed[key].seconds != null) {
-                  parsed[key] = new Date(parsed[key].seconds * 1000).toISOString();
+                  parsed[key] = new Date(
+                    parsed[key].seconds * 1000,
+                  ).toISOString();
                 } else {
                   delete parsed[key]; // Eliminar otros objetos inesperados
                 }
@@ -274,7 +294,9 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
             });
             setTurnoActivo(parsed);
           } else {
-            console.warn('Turno en localStorage con formato incompatible, descartando.');
+            console.warn(
+              'Turno en localStorage con formato incompatible, descartando.',
+            );
             localStorage.removeItem(shiftKey);
             setTurnoActivo(null);
           }
@@ -291,7 +313,11 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       const clientKey = `client_${sucursalId}`;
       const savedClient = localStorage.getItem(clientKey);
       // Validar que sea un string válido (ID), no un objeto serializado por error
-      if (savedClient && typeof savedClient === 'string' && !savedClient.startsWith('{')) {
+      if (
+        savedClient &&
+        typeof savedClient === 'string' &&
+        !savedClient.startsWith('{')
+      ) {
         setSelectedClientId(savedClient);
       } else {
         if (savedClient) localStorage.removeItem(clientKey);
@@ -385,7 +411,8 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
               // Convertir Timestamps de Firestore a strings ISO (recursivo)
               const sanitize = (obj) => {
                 if (!obj || typeof obj !== 'object') return obj;
-                if (typeof obj.toDate === 'function') return obj.toDate().toISOString();
+                if (typeof obj.toDate === 'function')
+                  return obj.toDate().toISOString();
                 if (Array.isArray(obj)) return obj.map(sanitize);
                 const result = {};
                 Object.keys(obj).forEach((key) => {
@@ -453,10 +480,13 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
           if (data.configuracion) {
             const sanitize = (obj) => {
               if (!obj || typeof obj !== 'object') return obj;
-              if (typeof obj.toDate === 'function') return obj.toDate().toISOString();
+              if (typeof obj.toDate === 'function')
+                return obj.toDate().toISOString();
               if (Array.isArray(obj)) return obj.map(sanitize);
               const result = {};
-              Object.keys(obj).forEach((key) => { result[key] = sanitize(obj[key]); });
+              Object.keys(obj).forEach((key) => {
+                result[key] = sanitize(obj[key]);
+              });
               return result;
             };
             // Fusionamos SIN pisar la suscripción/plan: esos son autoridad de
@@ -615,7 +645,8 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
   const handleAddToCart = (producto, cantidad, descuento = 0) => {
     if (!producto || cantidad <= 0) return;
     // Si no hay descuento manual, aplica la promo del producto (si tiene).
-    const descuentoNum = Number(descuento) || Number(producto.descuentoPromo) || 0;
+    const descuentoNum =
+      Number(descuento) || Number(producto.descuentoPromo) || 0;
     if (descuentoNum < 0 || descuentoNum > 100) {
       mostrarMensaje?.('El descuento debe estar entre 0 y 100.', 'warning');
       return;
@@ -663,8 +694,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     } else {
       setCartItems((prev) => {
         const idx = prev.findIndex(
-          (i) =>
-            i.id === producto.id && i.descuentoPorcentaje === descuentoNum,
+          (i) => i.id === producto.id && i.descuentoPorcentaje === descuentoNum,
         );
         if (idx === -1) return [...prev, newItem];
         return prev.map((i, k) =>
@@ -678,6 +708,10 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
         );
       });
     }
+
+    // La confirmación sonora de que el producto entró. Es lo que deja al cajero
+    // sacar la vista de la pantalla y seguir pasando mercadería.
+    sonarEscaneo();
   };
 
   // Ítem manual a carrito
@@ -703,10 +737,17 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
   };
 
   // --- ALERTAS Y GESTIÓN ABANZADA DEL CARRITO ---
-  const handleLogAlertaBorrado = async (accion, descripcion, itemsBorrados, montoTotal) => {
+  const handleLogAlertaBorrado = async (
+    accion,
+    descripcion,
+    itemsBorrados,
+    montoTotal,
+  ) => {
     if (!currentUser?.uid || !sucursalActual?.id) return;
     try {
-      const vendedorActual = vendedores.find((v) => v.id === vendedorActivoId) || { nombre: 'Desconocido' };
+      const vendedorActual = vendedores.find(
+        (v) => v.id === vendedorActivoId,
+      ) || { nombre: 'Desconocido' };
       const alerta = {
         userId: currentUser.uid,
         sucursalId: sucursalActual.id,
@@ -719,7 +760,12 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
         timestamp: new Date().toISOString(),
       };
       // fsService.addDocument(userId, collectionName, data, sucursalId)
-      await fsService.addDocument(currentUser.uid, 'alertas_borrados', alerta, sucursalActual.id);
+      await fsService.addDocument(
+        currentUser.uid,
+        'alertas_borrados',
+        alerta,
+        sucursalActual.id,
+      );
     } catch (error) {
       console.error('Error registrando alerta de borrado', error);
     }
@@ -732,10 +778,12 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
         'Borrado de Artículo',
         `Se eliminó el artículo: ${itemToRemove.nombre}`,
         [itemToRemove],
-        itemToRemove.precioFinal
+        itemToRemove.precioFinal,
       );
     }
-    setCartItems((prevItems) => prevItems.filter((item) => item.cartId !== cartId));
+    setCartItems((prevItems) =>
+      prevItems.filter((item) => item.cartId !== cartId),
+    );
   };
 
   // Ajusta la cantidad de una línea del carrito (botones - / +).
@@ -797,12 +845,15 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
 
   const handleClearCart = () => {
     if (cartItems.length === 0) return;
-    const totalMonto = cartItems.reduce((acc, item) => acc + item.precioFinal, 0);
+    const totalMonto = cartItems.reduce(
+      (acc, item) => acc + item.precioFinal,
+      0,
+    );
     handleLogAlertaBorrado(
       'Vaciado de Carrito',
       'Se vació el carrito completo',
       [...cartItems],
-      totalMonto
+      totalMonto,
     );
     setCartItems([]);
   };
@@ -1374,10 +1425,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
         const ventaParaTicket = { id: ventaId, ...newSaleData };
         const onPrintError = (error) => {
           console.error('Error imprimiendo:', error);
-          mostrarMensaje?.(
-            `No se pudo imprimir: ${error.message}`,
-            'warning',
-          );
+          mostrarMensaje?.(`No se pudo imprimir: ${error.message}`, 'warning');
         };
 
         // 4a. Ticket térmico (58mm): USB o Bluetooth según preferencia.
@@ -1464,9 +1512,8 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
 
     try {
       setIsLoadingData(true);
-      const { getFunctions, httpsCallable } = await import(
-        'firebase/functions'
-      );
+      const { getFunctions, httpsCallable } =
+        await import('firebase/functions');
       const functions = getFunctions();
 
       // Chequeo previo: ¿ARCA está operativo?
@@ -1643,14 +1690,21 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       setTurnoActivo(null);
       const dif = datosCierre.diferenciaEfectivo || 0;
       let diffColor = dif === 0 ? '#4ade80' : dif > 0 ? '#60a5fa' : '#f87171';
-      let difText = dif === 0 ? 'Caja Cuadrada' : dif > 0 ? `Sobrante: $${formatCurrency(dif)}` : `Faltante: $${formatCurrency(Math.abs(dif))}`;
+      let difText =
+        dif === 0
+          ? 'Caja Cuadrada'
+          : dif > 0
+            ? `Sobrante: $${formatCurrency(dif)}`
+            : `Faltante: $${formatCurrency(Math.abs(dif))}`;
 
       // 1. Armar Resumen Visual para la Alerta
-      const htmlNormal = !datosCierre.cierreCiego ? `
+      const htmlNormal = !datosCierre.cierreCiego
+        ? `
         <div style="font-size: 1rem; color: #a1a1aa; margin-top: 15px;">
         <p><strong>Total Ventas:</strong> $${formatCurrency(datosCierre.totalVentas)}</p>
         <p><strong>Cierre Esperado:</strong> $${formatCurrency(datosCierre.totalFinal)}</p>
-        </div>` : '';
+        </div>`
+        : '';
 
       const htmlContent = `
         <p>Se ha guardado tu cierre de caja.</p>
@@ -1660,21 +1714,26 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
 
       // 2. Preparar el Mensaje de WhatsApp
       const vendedorStr = turnoActivo.vendedorNombre || 'Admin';
-      const watsappText = `*🎫 CIERRE DE CAJA ${datosCierre.cierreCiego ? 'CIEGO ' : ''}*\n\n` +
+      const watsappText =
+        `*🎫 CIERRE DE CAJA ${datosCierre.cierreCiego ? 'CIEGO ' : ''}*\n\n` +
         `👤 *Vendedor:* ${vendedorStr}\n` +
         `⏰ *Apertura:* ${turnoActivo.fechaApertura} ${turnoActivo.horaApertura}\n` +
         `⏰ *Cierre:* ${fecha} ${hora}\n\n` +
         `📊 *Total Ventas:* $${formatCurrency(datosCierre.totalVentas)}\n` +
         `💵 *Esperado en Caja:* $${formatCurrency(datosCierre.totalFinal)}\n` +
         `💰 *Efectivo Declarado:* $${formatCurrency(datosCierre.montoDeclaradoEfectivo)}\n\n` +
-        `${dif === 0 ? '✅ *CAJA CUADRADA*' : dif > 0 ? '🟢 *SOBRANTE:* $'+formatCurrency(dif) : '🔴 *FALTANTE:* $'+formatCurrency(Math.abs(dif))}`;
-      
+        `${dif === 0 ? '✅ *CAJA CUADRADA*' : dif > 0 ? '🟢 *SOBRANTE:* $' + formatCurrency(dif) : '🔴 *FALTANTE:* $' + formatCurrency(Math.abs(dif))}`;
+
       const wsMsg = encodeURIComponent(watsappText);
-      const telefonoJefe = datosNegocio?.whatsappDueño ? datosNegocio.whatsappDueño.replace(/[^0-9]/g, '') : '';
+      const telefonoJefe = datosNegocio?.whatsappDueño
+        ? datosNegocio.whatsappDueño.replace(/[^0-9]/g, '')
+        : '';
 
       // 3. Mostrar la alerta interactiva
       const swalResult = await Swal.fire({
-        title: datosCierre.cierreCiego ? 'Cierre Ciego Guardado' : 'Turno Cerrado',
+        title: datosCierre.cierreCiego
+          ? 'Cierre Ciego Guardado'
+          : 'Turno Cerrado',
         html: htmlContent,
         icon: dif === 0 ? 'success' : 'warning',
         showCancelButton: true,
@@ -1685,7 +1744,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
         cancelButtonText: 'Imprimir',
         customClass: {
           title: 'text-zinc-100',
-        }
+        },
       });
 
       // Manejar envío de WhatsApp
@@ -1719,7 +1778,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
               <p>Esperado en Caja: $${formatCurrency(datosCierre.totalFinal)}</p>
               <hr />
               <p>Efectivo Declarado: $${formatCurrency(datosCierre.montoDeclaradoEfectivo)}</p>
-              <h3 class="center">${dif === 0 ? 'CAJA CUADRADA' : dif > 0 ? 'SOBRANTE: $'+formatCurrency(dif) : 'FALTANTE: $'+formatCurrency(Math.abs(dif))}</h3>
+              <h3 class="center">${dif === 0 ? 'CAJA CUADRADA' : dif > 0 ? 'SOBRANTE: $' + formatCurrency(dif) : 'FALTANTE: $' + formatCurrency(Math.abs(dif))}</h3>
               <br/><br/>
             </body>
           </html>
@@ -2283,10 +2342,7 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     // Un pedido ya registrado no se vuelve a cobrar: evita duplicar la venta y
     // descontar el stock dos veces por un doble clic o dos cajas abiertas.
     if (pedido.ventaId) {
-      mostrarMensaje?.(
-        'Este pedido ya fue registrado como venta.',
-        'info',
-      );
+      mostrarMensaje?.('Este pedido ya fue registrado como venta.', 'info');
       return false;
     }
     const { fecha, hora } = obtenerFechaHoraActual();
@@ -2320,7 +2376,8 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       propina: 0,
       pagos: [
         {
-          metodo: pedido.metodoPago === 'qr_local' ? 'mercado_pago' : 'efectivo',
+          metodo:
+            pedido.metodoPago === 'qr_local' ? 'mercado_pago' : 'efectivo',
           monto: total,
         },
       ],
@@ -2352,9 +2409,8 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
           .catch((e) => console.error('Error sumando venta al turno:', e));
       }
 
-      const { getFunctions, httpsCallable } = await import(
-        'firebase/functions'
-      );
+      const { getFunctions, httpsCallable } =
+        await import('firebase/functions');
       const fn = httpsCallable(getFunctions(), 'actualizarEstadoPedido');
       await fn({ pedidoId: pedido.id, estado: 'entregado', ventaId });
 
@@ -2497,7 +2553,8 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       showCancelButton: true,
       confirmButtonText: 'Desbloquear',
       cancelButtonText: 'Cancelar',
-      footer: '<p style="color: #9ca3af; font-size: 0.85rem;">¿Olviaste el PIN? Contactá al equipo de soporte para restablecerlo.</p>',
+      footer:
+        '<p style="color: #9ca3af; font-size: 0.85rem;">¿Olviaste el PIN? Contactá al equipo de soporte para restablecerlo.</p>',
       inputAttributes: {
         autocapitalize: 'off',
         autocorrect: 'off',

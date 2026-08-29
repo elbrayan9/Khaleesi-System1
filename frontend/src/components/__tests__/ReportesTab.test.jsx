@@ -18,7 +18,6 @@ vi.mock('../SalesHeatmap', () => ({ default: () => <div>SalesHeatmap</div> }));
 vi.mock('../HistorialTurnos', () => ({
   default: () => <div>HistorialTurnos</div>,
 }));
-vi.mock('../CajaGeneral', () => ({ default: () => <div>CajaGeneral</div> }));
 
 // Mock del contexto
 const mockHandleRegistrarIngresoManual = vi.fn();
@@ -57,7 +56,6 @@ describe('ReportesTab', () => {
   it('debería renderizar los componentes principales', () => {
     render(<ReportesTab />);
     expect(screen.getByText('Caja y Reportes')).toBeInTheDocument();
-    expect(screen.getByText('CajaGeneral')).toBeInTheDocument();
     expect(screen.getByText('SalesChart')).toBeInTheDocument();
   });
 
