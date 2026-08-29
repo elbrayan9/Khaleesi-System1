@@ -693,34 +693,96 @@ exports.leerFacturaProveedor = onCall(
     try {
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({ model: MODEL_NAME });
-      const prompt =
-        'Esta es una foto de una factura o remito de proveedor. Extraé los ' +
-        'renglones de productos. Respondé SOLO un JSON array (sin markdown): ' +
-        '[{"nombre":"descripcion del producto","cantidad":numero,"costo":numero}]. ' +
-        'cantidad = unidades compradas; costo = precio unitario (sin IVA si se ' +
-        'distingue), o 0 si no se ve. Ignorá totales, impuestos, descuentos y los ' +
-        'datos del proveedor/cliente.';
+      // El prompt pide todo lo que sirve para completar una ficha de producto,
+      // no solo qué y cuánto. Antes decía literalmente "ignorá totales,
+      // impuestos y los datos del proveedor", que es justo lo que hace falta
+      // para dejar registrada la compra y no solo sumar stock a ciegas.
+      const prompt = [
+        'Esta es la foto de una factura o remito de un proveedor argentino.',
+        'Extraé TODO lo que puedas leer. Respondé SOLO un JSON (sin markdown):',
+        '{',
+        '  "proveedor": {"nombre":"", "cuit":"", "comprobante":"", "fecha":"", "total":0},',
+        '  "items": [{',
+        '    "nombre":"", "codigo":"", "cantidad":0, "unidad":"", "bultos":0,',
+        '    "unidadesPorBulto":0, "costo":0, "iva":0, "categoria":""',
+        '  }]',
+        '}',
+        '',
+        'Reglas:',
+        '- nombre: la descripción del producto. Expandí las abreviaturas del proveedor si podés.',
+        '- codigo: el código de barras EAN (13 dígitos) si figura. Si solo hay un código interno del proveedor, dejalo vacío.',
+        '- cantidad: el total de unidades que entran al stock. Si la factura habla de bultos, multiplicá bultos por unidadesPorBulto.',
+        '- unidad: "kg" si el renglón se mide por peso, "un" si es por unidad. Miralo en la columna de unidad de medida.',
+        '- costo: el precio por UNIDAD sin IVA. Si el renglón solo trae el importe total, dividilo por la cantidad.',
+        '- iva: el porcentaje (21, 10.5 o 0). Si no se distingue, 0.',
+        '- categoria: una categoría breve y en singular deducida del producto (bebidas, limpieza, almacén, lácteos).',
+        '- fecha: en formato DD/MM/AAAA.',
+        '- total: el importe final de la factura, con IVA incluido.',
+        '',
+        'Si un dato no está en la foto, devolvelo vacío o en 0. No lo inventes.',
+      ].join('\n');
       const result = await model.generateContent([
         { inlineData: { data: imageBase64, mimeType } },
         prompt,
       ]);
       const raw = (result.response.text() || '').trim();
-      let items = [];
+
+      let datos = {};
       try {
-        items = JSON.parse(raw.replace(/```json|```/g, '').trim());
+        datos = JSON.parse(raw.replace(/```json|```/g, '').trim());
       } catch (_) {
-        items = [];
+        datos = {};
       }
-      if (!Array.isArray(items)) items = [];
+      // Tolerante con la forma: si el modelo devuelve el array pelado, como
+      // hacía la versión anterior, se sigue entendiendo.
+      if (Array.isArray(datos)) datos = { items: datos };
+
+      const cab = datos.proveedor || {};
+      const proveedor = {
+        nombre: String(cab.nombre || '').trim(),
+        // El CUIT se guarda en dígitos para poder compararlo con los que ya
+        // están cargados, que vienen escritos de cualquier forma.
+        cuit: String(cab.cuit || '').replace(/\D/g, ''),
+        comprobante: String(cab.comprobante || '').trim(),
+        fecha: String(cab.fecha || '').trim(),
+        total: Number(cab.total) || 0,
+      };
+
+      const soloEan = (valor) => {
+        // Solo se acepta un EAN de 8 o 13 dígitos: los códigos internos del
+        // proveedor no sirven para escanear en la caja y ensuciarían el
+        // catálogo.
+        const limpio = String(valor || '').replace(/\D/g, '');
+        return limpio.length === 13 || limpio.length === 8 ? limpio : '';
+      };
+
+      let items = Array.isArray(datos.items) ? datos.items : [];
       items = items
         .slice(0, 100)
-        .map((it) => ({
-          nombre: String(it.nombre || '').trim(),
-          cantidad: Number(it.cantidad) || 0,
-          costo: Number(it.costo) || 0,
-        }))
+        .map((it) => {
+          const bultos = Number(it.bultos) || 0;
+          const porBulto = Number(it.unidadesPorBulto) || 0;
+          // Si vino la cantidad, manda; si no, se deduce de los bultos.
+          const cantidad =
+            Number(it.cantidad) || (bultos && porBulto ? bultos * porBulto : 0);
+          const unidad = String(it.unidad || '').toLowerCase();
+          return {
+            nombre: String(it.nombre || '').trim(),
+            codigo: soloEan(it.codigo),
+            cantidad,
+            bultos,
+            unidadesPorBulto: porBulto,
+            costo: Number(it.costo) || 0,
+            iva: Number(it.iva) || 0,
+            categoria: String(it.categoria || '')
+              .trim()
+              .toLowerCase(),
+            vendidoPor: unidad.startsWith('k') ? 'peso' : 'unidad',
+          };
+        })
         .filter((it) => it.nombre);
-      return { items };
+
+      return { proveedor, items };
     } catch (error) {
       console.error('[leerFacturaProveedor] error:', error);
       throw new HttpsError('internal', 'No se pudo leer la factura.');
