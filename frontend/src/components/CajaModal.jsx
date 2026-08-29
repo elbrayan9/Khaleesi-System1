@@ -16,6 +16,7 @@ import {
   ArrowUpCircle,
   ChevronLeft,
   ChevronRight,
+  Download,
   Printer,
   X,
   Wallet,
@@ -99,6 +100,7 @@ function CajaModal({
     handleRegistrarIngresoManual,
     handleRegistrarEgreso,
     mostrarMensaje,
+    datosNegocio,
   } = useAppContext();
 
   const [formulario, setFormulario] = useState(null); // 'ingreso' | 'egreso' | null
@@ -237,6 +239,29 @@ function CajaModal({
     onCambiarFecha(d);
   };
 
+  // El reporte se arma con lo que ya está calculado en pantalla, así lo
+  // impreso y lo que se ve no pueden discrepar.
+  const imprimirReporte = async (accion) => {
+    try {
+      const { generarPdfCaja } = await import('../services/pdfService');
+      await generarPdfCaja(
+        {
+          fecha: diaStr,
+          saldoAnterior: arrastraSaldo ? saldoAnterior : 0,
+          movimientos,
+          totalIngresos,
+          totalEgresos,
+          saldo,
+          porMedio,
+        },
+        datosNegocio,
+        accion,
+      );
+    } catch (e) {
+      mostrarMensaje('No se pudo generar el reporte.', 'error');
+    }
+  };
+
   const guardarMovimiento = async () => {
     const valor = parseFloat(monto);
     if (!motivo.trim()) {
@@ -320,11 +345,21 @@ function CajaModal({
             </button>
             <button
               type="button"
-              onClick={() => window.print()}
-              aria-label="Imprimir"
+              onClick={() => imprimirReporte('print')}
+              aria-label="Imprimir el movimiento del día"
+              title="Imprimir"
               className="rounded-md bg-zinc-800 p-2 text-zinc-300 hover:bg-zinc-700"
             >
               <Printer size={16} />
+            </button>
+            <button
+              type="button"
+              onClick={() => imprimirReporte('download')}
+              aria-label="Descargar el movimiento del día en PDF"
+              title="Descargar PDF"
+              className="rounded-md bg-zinc-800 p-2 text-zinc-300 hover:bg-zinc-700"
+            >
+              <Download size={16} />
             </button>
             <button
               type="button"

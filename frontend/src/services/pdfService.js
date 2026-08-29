@@ -3,10 +3,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import QRCode from 'qrcode';
-import {
-  formatCurrency,
-  construirMensajeComprobante,
-} from '../utils/helpers';
+import { formatCurrency, construirMensajeComprobante } from '../utils/helpers';
 import { subirComprobantePdf } from './storageService';
 
 // Carga una imagen (logo) desde una URL y la devuelve lista para jsPDF.
@@ -21,7 +18,8 @@ const cargarLogoParaPdf = async (url) => {
   });
   const dims = await new Promise((res) => {
     const im = new Image();
-    im.onload = () => res({ w: im.naturalWidth || 1, h: im.naturalHeight || 1 });
+    im.onload = () =>
+      res({ w: im.naturalWidth || 1, h: im.naturalHeight || 1 });
     im.onerror = () => res({ w: 1, h: 1 });
     im.src = dataUrl;
   });
@@ -347,15 +345,15 @@ export const generarPdfVenta = async (
   doc.setFont(font, 'bold');
   doc.text('Período Facturado Desde:', margin + 2, periodoY + 5);
   doc.setFont(font, 'normal');
-  doc.text(fechaEmision, margin +42, periodoY + 5);
+  doc.text(fechaEmision, margin + 42, periodoY + 5);
   doc.setFont(font, 'bold');
   doc.text('Hasta:', margin + 70, periodoY + 5);
   doc.setFont(font, 'normal');
-  doc.text(fechaEmision, margin +82, periodoY + 5);
+  doc.text(fechaEmision, margin + 82, periodoY + 5);
   doc.setFont(font, 'bold');
   doc.text('Vto. para el pago:', margin + 120, periodoY + 5);
   doc.setFont(font, 'normal');
-  doc.text(fechaEmision, margin +150, periodoY + 5);
+  doc.text(fechaEmision, margin + 150, periodoY + 5);
 
   // --- CAJA DE DATOS DEL CLIENTE ---
   const clienteY = periodoY + 10;
@@ -764,7 +762,11 @@ export const enviarComprobantePdfWhatsapp = async (
  * Envía el comprobante por EMAIL: sube el PDF a Storage y abre el cliente de
  * correo (mailto) con el asunto y el link al PDF ya escritos.
  */
-export const enviarComprobantePorEmail = async (venta, datosNegocio, cliente) => {
+export const enviarComprobantePorEmail = async (
+  venta,
+  datosNegocio,
+  cliente,
+) => {
   if (!venta) return;
   const tipoDoc = derivarTipoDoc(venta);
   const blob = await generarPdfVenta(
@@ -804,4 +806,204 @@ export const enviarComprobantePorEmail = async (venta, datosNegocio, cliente) =>
 
   const dest = cliente?.email || '';
   window.location.href = `mailto:${dest}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`;
+};
+
+// ----------------------------------------------------------------------------
+// Reporte de caja del día
+// ----------------------------------------------------------------------------
+
+/**
+ * Arma el movimiento de caja de un día en PDF.
+ *
+ * Reemplaza al `window.print()` que tenía la pantalla de Caja, que imprimía la
+ * aplicación entera —menú, fondo oscuro y el modal encima— porque el proyecto no
+ * tiene ningún `@media print`. Acá se genera el documento y se imprime desde un
+ * iframe, así sale solo el reporte.
+ *
+ * @param {object} datos
+ *   @param {string} datos.fecha            'DD/MM/YYYY'
+ *   @param {number} datos.saldoAnterior
+ *   @param {Array}  datos.movimientos      [{hora, tipo, detalle, ingreso, egreso}]
+ *   @param {number} datos.totalIngresos
+ *   @param {number} datos.totalEgresos
+ *   @param {number} datos.saldo
+ *   @param {Array}  datos.porMedio         [[metodo, monto], ...]
+ * @param {object} datosNegocio
+ * @param {'download'|'print'} accion
+ */
+export const generarPdfCaja = async (datos, datosNegocio, accion = 'print') => {
+  const {
+    fecha,
+    saldoAnterior = 0,
+    movimientos = [],
+    totalIngresos = 0,
+    totalEgresos = 0,
+    saldo = 0,
+    porMedio = [],
+  } = datos || {};
+
+  const doc = new jsPDF('p', 'mm', 'a4');
+  const anchoPagina = doc.internal.pageSize.getWidth();
+  const margen = 14;
+  let y = margen;
+
+  // --- Encabezado: logo y datos del negocio ---
+  if (datosNegocio?.logoUrl) {
+    try {
+      const logo = await cargarLogoParaPdf(datosNegocio.logoUrl);
+      const alto = 16;
+      const ancho = Math.min(38, (logo.w / logo.h) * alto);
+      doc.addImage(logo.dataUrl, logo.format, margen, y, ancho, alto);
+    } catch (_) {
+      /* si el logo no carga, el reporte sale igual */
+    }
+  }
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(15);
+  doc.text('Movimiento de caja', anchoPagina - margen, y + 6, {
+    align: 'right',
+  });
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(90);
+  doc.text(fecha || '', anchoPagina - margen, y + 12, { align: 'right' });
+
+  const nombreNegocio = datosNegocio?.nombreNegocio || datosNegocio?.nombre;
+  if (nombreNegocio) {
+    doc.text(String(nombreNegocio), anchoPagina - margen, y + 17, {
+      align: 'right',
+    });
+  }
+  doc.setTextColor(0);
+  y += 26;
+
+  // --- Tabla de movimientos ---
+  const filas = [];
+  if (saldoAnterior) {
+    filas.push([
+      '',
+      'SALDO ANTERIOR',
+      'Arrastrado de días anteriores',
+      saldoAnterior > 0 ? `$${formatCurrency(saldoAnterior)}` : '',
+      saldoAnterior < 0 ? `$${formatCurrency(-saldoAnterior)}` : '',
+    ]);
+  }
+  movimientos.forEach((m) => {
+    filas.push([
+      m.hora || '',
+      m.tipo || '',
+      m.detalle || '',
+      m.ingreso ? `$${formatCurrency(m.ingreso)}` : '',
+      m.egreso ? `$${formatCurrency(m.egreso)}` : '',
+    ]);
+  });
+
+  if (!filas.length) {
+    filas.push(['', '', 'No hubo movimientos este día.', '', '']);
+  }
+
+  autoTable(doc, {
+    startY: y,
+    head: [['Hora', 'Movimiento', 'Detalle', 'Ingresos', 'Egresos']],
+    body: filas,
+    theme: 'plain',
+    styles: {
+      font: 'helvetica',
+      fontSize: 8.5,
+      cellPadding: 2,
+      lineColor: [210, 210, 210],
+      lineWidth: 0.1,
+    },
+    headStyles: {
+      fillColor: [235, 235, 235],
+      textColor: 40,
+      fontStyle: 'bold',
+      halign: 'left',
+    },
+    columnStyles: {
+      0: { cellWidth: 16 },
+      1: { cellWidth: 32 },
+      3: { halign: 'right', cellWidth: 27 },
+      4: { halign: 'right', cellWidth: 27 },
+    },
+    margin: { left: margen, right: margen },
+  });
+
+  y = doc.lastAutoTable.finalY + 6;
+
+  // --- Totales ---
+  const derecha = anchoPagina - margen;
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Total ingresos', derecha - 42, y, { align: 'right' });
+  doc.text(`$${formatCurrency(totalIngresos)}`, derecha, y, { align: 'right' });
+  y += 5;
+  doc.text('Total egresos', derecha - 42, y, { align: 'right' });
+  doc.text(`$${formatCurrency(totalEgresos)}`, derecha, y, { align: 'right' });
+  y += 6;
+
+  doc.setDrawColor(150);
+  doc.line(derecha - 70, y - 3, derecha, y - 3);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.text('Saldo en caja', derecha - 42, y + 2, { align: 'right' });
+  doc.text(`$${formatCurrency(saldo)}`, derecha, y + 2, { align: 'right' });
+  y += 12;
+
+  // --- Cobrado por medio de pago ---
+  // Va en su propio bloque y no sumado al saldo: ese dinero entra a la cuenta,
+  // no al cajón. Es la distinción que hace que la caja cuadre.
+  if (porMedio.length) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('Cobrado por medio de pago', margen, y);
+    y += 2;
+
+    autoTable(doc, {
+      startY: y,
+      body: porMedio.map(([metodo, monto]) => [
+        String(metodo).replace(/_/g, ' '),
+        `$${formatCurrency(monto)}`,
+      ]),
+      theme: 'plain',
+      styles: { font: 'helvetica', fontSize: 9, cellPadding: 1.6 },
+      columnStyles: { 1: { halign: 'right' } },
+      margin: { left: margen, right: anchoPagina - margen - 70 },
+    });
+    y = doc.lastAutoTable.finalY + 6;
+
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(8);
+    doc.setTextColor(120);
+    doc.text(
+      'El saldo en caja cuenta solo el efectivo. Lo cobrado por tarjeta, QR o transferencia entra a la cuenta.',
+      margen,
+      y,
+    );
+    doc.setTextColor(0);
+  }
+
+  const nombreArchivo = `Caja_${String(fecha || '').replace(/\//g, '-')}.pdf`;
+
+  if (accion === 'print') {
+    doc.autoPrint();
+    const blobUrl = doc.output('bloburl');
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'absolute';
+    iframe.style.width = '0px';
+    iframe.style.height = '0px';
+    iframe.style.border = 'none';
+    iframe.src = blobUrl;
+    document.body.appendChild(iframe);
+    iframe.onload = function () {
+      setTimeout(() => {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+      }, 500);
+    };
+    return;
+  }
+  doc.save(nombreArchivo);
 };
