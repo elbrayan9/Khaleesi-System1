@@ -2,9 +2,9 @@
 //
 // Nace de un error caro: se arregló un bug del QR dentro de un ayudante
 // compartido y se desplegó una función que NO EXISTE con ese nombre. Firebase
-// acepta el filtro sin coincidencias y responde "Deploy complete!" sin avisar
-// que no desplegó nada, así que el arreglo nunca llegó a producción y el error
-// siguió apareciendo en la caja durante días.
+// acepta el filtro sin coincidencias, responde "Deploy complete!" y no
+// despliega nada, así que el arreglo nunca llegó a producción y el error siguió
+// apareciendo en la caja durante días.
 //
 // Cada Cloud Function lleva su propia copia del código: tocar un ayudante no
 // actualiza a nadie hasta que se despliega cada función que lo usa.
@@ -28,29 +28,69 @@ function leerExports(codigo) {
   return salida;
 }
 
+/** Las funciones sueltas —los ayudantes— declaradas arriba de todo. */
+function leerAyudantes(codigo) {
+  const salida = [];
+  const re = /^(?:async\s+)?function\s+(\w+)\s*\(/gm;
+  let m;
+  while ((m = re.exec(codigo)) !== null) {
+    salida.push({ nombre: m[1], desde: m.index });
+  }
+  return salida;
+}
+
 /**
- * Qué funciones exportadas usan un ayudante.
+ * Qué funciones exportadas usan un ayudante, siguiendo la cadena.
  *
- * Se resuelve por posición en el archivo: cada uso pertenece al último
- * `exports.` que quedó por encima. Es simple y alcanza porque este proyecto
- * declara una función tras otra; si algún día se reordena en módulos, esto hay
- * que rehacerlo.
+ * Lo de "siguiendo la cadena" no es un lujo: un ayudante casi nunca lo llama
+ * una función exportada de forma directa, sino otro ayudante. Sin resolver eso,
+ * la herramienta contesta el nombre de la función exportada que quedó justo
+ * arriba en el archivo —que no tiene nada que ver— y uno termina desplegando la
+ * equivocada. Sería el mismo error que esto vino a evitar, con otro disfraz.
+ *
+ * A quién pertenece cada línea se resuelve por posición: la declaración de
+ * arriba de todo más cercana hacia atrás. Alcanza porque este archivo declara
+ * una función tras otra; si algún día se parte en módulos, hay que rehacerlo.
  */
-function funcionesQueUsan(codigo, ayudante) {
+function funcionesQueUsan(codigo, ayudante, vistos = new Set()) {
+  if (vistos.has(ayudante)) return []; // un ayudante que se llama a sí mismo
+  vistos.add(ayudante);
+
   const exportados = leerExports(codigo);
+  const ayudantes = leerAyudantes(codigo);
+  const declaraciones = [...exportados, ...ayudantes].sort(
+    (a, b) => a.desde - b.desde,
+  );
+  const nombresExportados = new Set(exportados.map((e) => e.nombre));
+
   const usadas = new Set();
-  const re = new RegExp(ayudante.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*\\(', 'g');
+  const intermedios = new Set();
+  const escapado = ayudante.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(escapado + '\\s*\\(', 'g');
+
   let m;
   while ((m = re.exec(codigo)) !== null) {
     // La definición del propio ayudante no cuenta como uso.
     const inicioLinea = codigo.lastIndexOf('\n', m.index) + 1;
     const linea = codigo.slice(inicioLinea, m.index);
-    if (/function\s*$/.test(linea) || /^\s*(async\s+)?function\s*$/.test(linea)) {
-      continue;
+    if (/(async\s+)?function\s*$/.test(linea)) continue;
+
+    const previas = declaraciones.filter((d) => d.desde < m.index);
+    if (!previas.length) continue;
+    const duenio = previas[previas.length - 1].nombre;
+
+    if (nombresExportados.has(duenio)) {
+      usadas.add(duenio);
+    } else if (duenio !== ayudante) {
+      // Lo usa otro ayudante: hay que seguir para arriba.
+      intermedios.add(duenio);
     }
-    const previas = exportados.filter((e) => e.desde < m.index);
-    if (previas.length) usadas.add(previas[previas.length - 1].nombre);
   }
+
+  intermedios.forEach((intermedio) => {
+    funcionesQueUsan(codigo, intermedio, vistos).forEach((f) => usadas.add(f));
+  });
+
   return [...usadas].sort();
 }
 
@@ -73,7 +113,9 @@ function principal() {
   const usan = funcionesQueUsan(codigo, ayudante);
   if (usan.length === 0) {
     console.log(`Ninguna función usa "${ayudante}".`);
-    console.log('¿Está bien escrito? Fijate la lista con: node que-desplegar.js');
+    console.log(
+      '¿Está bien escrito? Fijate la lista con: node que-desplegar.js',
+    );
     return;
   }
   console.log(`Funciones que usan "${ayudante}" (${usan.length}):\n`);
@@ -86,4 +128,4 @@ function principal() {
 
 if (require.main === module) principal();
 
-module.exports = { leerExports, funcionesQueUsan };
+module.exports = { leerExports, leerAyudantes, funcionesQueUsan };

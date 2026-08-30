@@ -52,6 +52,9 @@ await env.withSecurityRulesDisabled(async (ctx) => {
     uid: DUENO,
     ultimos4: 'dad',
   });
+  // El puente del escáner, con contenido.
+  await setDoc(doc(db, 'scannerRelay', 'suc1'), { userId: DUENO, codigo: '779' });
+
   // El caché de direcciones: guarda dónde vive gente que hizo pedidos.
   await setDoc(doc(db, 'geocache', 'abc123'), {
     q: 'av cordoba 1234',
@@ -122,6 +125,35 @@ test('los contadores anti-abuso quedan fuera de la vista', async () => {
   await assertFails(getDoc(doc(comoDueno, 'contadores', 'con_dueno')));
   await assertFails(
     setDoc(doc(comoDueno, 'contadores', 'con_dueno'), { usadas: 0 }),
+  );
+});
+
+// --- El puente del escáner por celular ---
+//
+// Escuchar un documento que todavía no existe daba "Missing or insufficient
+// permissions" y el celular como pistola no se enganchaba hasta recargar.
+
+test('se puede escuchar el relay de una sucursal recién abierta, sin documento', async () => {
+  await assertSucceeds(getDoc(doc(comoDueno, 'scannerRelay', 'suc-sin-doc')));
+});
+
+test('con documento, lo lee su dueño', async () => {
+  const snap = await assertSucceeds(
+    getDoc(doc(comoDueno, 'scannerRelay', 'suc1')),
+  );
+  assert.strictEqual(snap.data().codigo, '779');
+});
+
+test('pero el relay de otro comercio sigue cerrado', async () => {
+  await assertFails(getDoc(doc(comoOtro, 'scannerRelay', 'suc1')));
+});
+
+test('y nadie escribe en el relay ajeno', async () => {
+  await assertFails(
+    setDoc(doc(comoOtro, 'scannerRelay', 'suc1'), {
+      userId: OTRO,
+      codigo: '000',
+    }),
   );
 });
 

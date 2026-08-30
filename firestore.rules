@@ -38,6 +38,24 @@ service cloud.firestore {
       allow update, delete: if (isOwner(resource.data.userId) && isUserActive()) || isAdmin();
     }
 
+    // El puente entre el celular que escanea y la caja.
+    //
+    // Escuchar un documento que TODAVÍA NO EXISTE daba "Missing or insufficient
+    // permissions": la regla general mira `resource.data.userId`, y en un
+    // documento inexistente eso no está. El listener moría en el arranque y el
+    // celular como pistola no se enganchaba hasta recargar la página.
+    //
+    // Leer un documento que no existe no filtra nada —viene vacío— así que se
+    // permite, y en cuanto tiene contenido vuelve a mandar el dueño. Escribir
+    // sigue siendo solo del dueño.
+    match /scannerRelay/{sucursalId} {
+      allow get: if resource == null ||
+                    isOwner(resource.data.userId) || isAdmin();
+      allow list: if false;
+      allow create: if isOwner(request.resource.data.userId) || isAdmin();
+      allow update, delete: if isOwner(resource.data.userId) || isAdmin();
+    }
+
     // Los Access Token de Mercado Pago de los comercios.
     //
     // Cerrado para TODO el mundo, admin incluido: nadie los necesita desde el
@@ -75,9 +93,9 @@ service cloud.firestore {
     // día que un documento de secretos tuviera un campo `userId` quedaría
     // legible por su dueño.
     match /{collection}/{docId} {
-      allow read, update, delete: if (collection != 'datosNegocio' && collection != 'productos' && collection != 'sucursales' && collection != 'secretosMp' && collection != 'geocache' && collection != 'contadores') &&
+      allow read, update, delete: if (collection != 'datosNegocio' && collection != 'productos' && collection != 'sucursales' && collection != 'secretosMp' && collection != 'geocache' && collection != 'contadores' && collection != 'scannerRelay') &&
                      ((isOwner(resource.data.userId) && isUserActive()) || isAdmin());
-      allow create: if (collection != 'datosNegocio' && collection != 'productos' && collection != 'sucursales' && collection != 'secretosMp' && collection != 'geocache' && collection != 'contadores') &&
+      allow create: if (collection != 'datosNegocio' && collection != 'productos' && collection != 'sucursales' && collection != 'secretosMp' && collection != 'geocache' && collection != 'contadores' && collection != 'scannerRelay') &&
                      ((isOwner(request.resource.data.userId) && isUserActive()) || isAdmin());
     }
   }

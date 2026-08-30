@@ -254,6 +254,58 @@ function validarGeoCliente(geo, geoLocal, maxKm = 100) {
   };
 }
 
+/**
+ * Al revés: de un punto del mapa a los datos de la dirección.
+ *
+ * Devuelve `{ calle, numero, ciudad, provincia }` o `null`.
+ *
+ * Hace falta para dar de alta la tienda en Mercado Pago, que pide la ubicación
+ * por separado —calle, número, ciudad, provincia— y **valida que la ciudad
+ * exista y le corresponda a esa provincia**. Mandarle datos inventados es lo
+ * que venía rompiendo el alta: con "CABA" en la provincia de Buenos Aires
+ * respondía `location.city_name was invalid` y sin tienda no hay caja QR.
+ *
+ * Se consulta una sola vez en la vida del comercio, cuando se crea su tienda.
+ */
+async function buscarPorCoordenadas(lat, lng) {
+  if (!coordenadaValida(lat, lng)) return null;
+
+  const params = new URLSearchParams({
+    lat: String(lat),
+    lon: String(lng),
+    format: 'json',
+    addressdetails: '1',
+    zoom: '18',
+  });
+
+  const r = await fetch(
+    `https://nominatim.openstreetmap.org/reverse?${params.toString()}`,
+    {
+      headers: {
+        'User-Agent': 'KhaleesiSystem/1.0 (+https://khaleesisystem.com.ar)',
+        'Accept-Language': 'es',
+      },
+    },
+  );
+  if (!r.ok) throw new Error(`Nominatim respondió ${r.status}`);
+
+  const d = await r.json();
+  const a = d?.address;
+  if (!a) return null;
+
+  // Los nombres cambian según el lugar: una localidad puede venir como city,
+  // town, village o suburb. Se toma el primero que exista.
+  const ciudad =
+    a.city || a.town || a.village || a.municipality || a.suburb || a.county;
+
+  return {
+    calle: a.road || null,
+    numero: a.house_number || null,
+    ciudad: ciudad || null,
+    provincia: a.state || null,
+  };
+}
+
 module.exports = {
   normalizarDireccion,
   claveCache,
@@ -264,4 +316,5 @@ module.exports = {
   buscarDireccion,
   kmAproximados,
   validarGeoCliente,
+  buscarPorCoordenadas,
 };

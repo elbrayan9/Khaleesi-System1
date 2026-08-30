@@ -73,3 +73,51 @@ test('sobre el index.js real encuentra el caso que motivó todo esto', () => {
     false,
   );
 });
+
+// --- La cadena de ayudantes ---
+//
+// Un ayudante casi nunca lo llama una función exportada de forma directa, sino
+// otro ayudante. Sin seguir la cadena, la herramienta contesta la función
+// exportada que quedó justo arriba en el archivo —que no tiene nada que ver— y
+// uno despliega la equivocada: el mismo error que esto vino a evitar.
+
+const EN_CADENA = `
+exports.vieja = onCall(() => 'no tiene nada que ver');
+
+async function deAbajo(x) { return x; }
+
+async function delMedio(x) { return deAbajo(x); }
+
+exports.laQueImporta = onCall(async () => {
+  return delMedio(1);
+});
+`;
+
+test('sigue la cadena hasta la función exportada de verdad', () => {
+  // Sin cadena contestaría "vieja", que es la que quedó arriba en el archivo.
+  assert.deepStrictEqual(funcionesQueUsan(EN_CADENA, 'deAbajo'), [
+    'laQueImporta',
+  ]);
+});
+
+test('no atribuye el uso a la función exportada que quedó justo arriba', () => {
+  assert.ok(!funcionesQueUsan(EN_CADENA, 'deAbajo').includes('vieja'));
+});
+
+test('un ayudante que se llama a sí mismo no cuelga la búsqueda', () => {
+  const recursivo = `
+exports.una = onCall(() => caminar(1));
+function caminar(n) { return n <= 0 ? 0 : caminar(n - 1); }
+`;
+  assert.deepStrictEqual(funcionesQueUsan(recursivo, 'caminar'), ['una']);
+});
+
+test('sobre el index.js real resuelve el ayudante de la ubicación del QR', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const real = fs.readFileSync(path.join(__dirname, 'index.js'), 'utf8');
+  // ubicacionDeLaTienda <- asegurarPosQr <- crearQrInteroperable
+  assert.deepStrictEqual(funcionesQueUsan(real, 'ubicacionDeLaTienda'), [
+    'crearQrInteroperable',
+  ]);
+});

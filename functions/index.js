@@ -2697,6 +2697,66 @@ exports.cancelarPagoPoint = onCall(
 const MP_API = 'https://api.mercadopago.com';
 
 // Asegura que exista Tienda + Caja (POS) para el comercio y devuelve sus datos.
+/**
+ * La ubicación del local, como la pide Mercado Pago para dar de alta la tienda.
+ *
+ * **Acá estaba el problema que dejaba el QR sin funcionar.** Se mandaban datos
+ * fijos e inventados —calle "Local", ciudad "CABA", provincia "Buenos Aires",
+ * coordenadas del Obelisco— y Mercado Pago **valida que la ciudad exista y le
+ * corresponda a esa provincia**: CABA no es una ciudad de la provincia de
+ * Buenos Aires, así que respondía `location.city_name was invalid`. Sin tienda
+ * no hay caja QR, y el comercio veía un error que no hablaba de ninguna tienda.
+ *
+ * Ahora sale del punto que el dueño marcó en el mapa, traducido a calle,
+ * número, ciudad y provincia reales. Se consulta una sola vez: la tienda se
+ * crea una vez en la vida del comercio.
+ *
+ * Si no marcó su local todavía, se usa un domicilio genérico pero coherente
+ * —una ciudad que sí pertenece a su provincia— porque es preferible una tienda
+ * con la dirección aproximada a un comercio que no puede cobrar.
+ */
+async function ubicacionDeLaTienda(cfg) {
+  const geo = cfg?.geo;
+  if (geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lng)) {
+    try {
+      const d = await geocoding.buscarPorCoordenadas(geo.lat, geo.lng);
+      if (d?.ciudad && d?.provincia) {
+        return {
+          street_name: String(d.calle || cfg.direccion || 'Local').slice(0, 60),
+          street_number: String(d.numero || '0').slice(0, 10),
+          city_name: String(d.ciudad).slice(0, 60),
+          state_name: String(d.provincia).slice(0, 60),
+          latitude: geo.lat,
+          longitude: geo.lng,
+        };
+      }
+    } catch (e) {
+      console.warn('[QR] No se pudo leer la ubicación del local:', e?.message);
+    }
+    // Se sabe dónde está pero no cómo se llama el lugar: al menos las
+    // coordenadas van bien.
+    return {
+      street_name: String(cfg.direccion || 'Local').slice(0, 60),
+      street_number: '0',
+      city_name: 'Córdoba',
+      state_name: 'Córdoba',
+      latitude: geo.lat,
+      longitude: geo.lng,
+    };
+  }
+
+  // Sin ubicación cargada. Ciudad y provincia que sí se corresponden, que es lo
+  // que el alta valida.
+  return {
+    street_name: String(cfg?.direccion || 'Local').slice(0, 60),
+    street_number: '0',
+    city_name: 'Córdoba',
+    state_name: 'Córdoba',
+    latitude: -31.4201,
+    longitude: -64.1888,
+  };
+}
+
 async function asegurarPosQr(token, uid, sucursalId) {
   const sucRef = sucursalId
     ? db.collection('sucursales').doc(sucursalId)
@@ -2744,16 +2804,9 @@ async function asegurarPosQr(token, uid, sucursalId) {
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
-        name: 'Khaleesi',
+        name: String(cfg.nombre || 'Khaleesi').slice(0, 60),
         external_id: storeExternalId,
-        location: {
-          street_number: '0',
-          street_name: 'Local',
-          city_name: 'CABA',
-          state_name: 'Buenos Aires',
-          latitude: -34.6,
-          longitude: -58.4,
-        },
+        location: await ubicacionDeLaTienda(cfg),
       }),
     });
     storeOk = stR.ok;
