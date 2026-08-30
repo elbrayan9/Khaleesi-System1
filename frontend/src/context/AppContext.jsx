@@ -6,7 +6,7 @@ import React, {
   useContext,
   useRef,
 } from 'react';
-import { db, auth, asegurarAppCheck } from '../firebaseConfig';
+import { db, auth, asegurarAppCheck, MARCA_SESION } from '../firebaseConfig';
 import {
   collection,
   onSnapshot,
@@ -109,6 +109,10 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
         // suyo cortaba el callback y la sesión no llegaba a establecerse.
         try {
           asegurarAppCheck?.();
+          // Queda anotado que este navegador tuvo sesión: la próxima vez, si
+          // el dueño entra por la landing, App Check arranca de entrada y su
+          // token se renueva sin que Auth lo rechace.
+          localStorage.setItem(MARCA_SESION, '1');
         } catch (e) {
           console.warn('No se pudo iniciar App Check:', e);
         }
@@ -650,6 +654,13 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
   };
   const handleLogout = async () => {
     await signOut(auth);
+    // Se borra la marca de sesión: si este equipo vuelve a ser el mostrador
+    // que solo muestra la landing, que no cargue reCAPTCHA al pedo.
+    try {
+      localStorage.removeItem(MARCA_SESION);
+    } catch (e) {
+      /* sin acceso al almacenamiento no hay nada que borrar */
+    }
   };
 
   // Carrito (agregar desde producto con descuento por línea)

@@ -44,6 +44,9 @@ export const app = initializeApp(firebaseConfig);
 // cuando el navegador queda libre, y cualquier otra pantalla lo arranca ya.
 let promesaAppCheck = null;
 
+// La marca que dice que en este navegador ya se inició sesión alguna vez.
+export const MARCA_SESION = 'khaleesi:tuvo-sesion';
+
 /** Arranca App Check una sola vez. Devuelve la misma promesa siempre. */
 export function asegurarAppCheck() {
   if (promesaAppCheck) return promesaAppCheck;
@@ -76,7 +79,25 @@ if (typeof window !== 'undefined') {
     window.location.pathname,
   );
 
-  if (puedeEsperar) {
+  // Salvo que este navegador ya haya tenido sesión.
+  //
+  // Un dueño con la sesión abierta que entra por la landing es el caso
+  // peligroso: al restaurar la sesión, Firebase renueva su token contra Auth,
+  // y Auth tiene enforcement. Si App Check todavía no arrancó, esa renovación
+  // se rechaza y la persona aparece deslogueada. Por eso, si hay rastro de una
+  // sesión anterior, se arranca de entrada aunque sea la landing.
+  //
+  // La marca la deja el propio sistema al iniciar sesión: no se consulta el
+  // almacenamiento interno de Firebase, que no es contrato público.
+  const tuvoSesion = (() => {
+    try {
+      return localStorage.getItem(MARCA_SESION) === '1';
+    } catch (e) {
+      return true; // sin acceso al almacenamiento, se asume lo más seguro
+    }
+  })();
+
+  if (puedeEsperar && !tuvoSesion) {
     // Espera a que la persona haga algo. Quien entra desde un anuncio, lee y
     // se va, no llega a bajar los 345 KB de reCAPTCHA nunca; quien va a entrar
     // al sistema toca algo mucho antes de llegar al login, y para entonces ya
