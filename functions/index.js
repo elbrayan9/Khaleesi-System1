@@ -1,5 +1,10 @@
 const admin = require('firebase-admin');
-const { onCall, HttpsError, onRequest } = require('firebase-functions/v2/https');
+const {
+  onCall,
+  HttpsError,
+  onRequest,
+} = require('firebase-functions/v2/https');
+const { idsDeCajaQr } = require('./mpIds');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const functions = require('firebase-functions');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -158,167 +163,173 @@ exports.getUserDetails = onCall({ enforceAppCheck: true }, async (request) => {
   }
 });
 
-exports.updateUserSubscription = onCall({ enforceAppCheck: true }, async (request) => {
-  if (!request.auth || request.auth.token.admin !== true) {
-    throw new HttpsError(
-      'permission-denied',
-      'Solo un administrador puede modificar suscripciones.',
-    );
-  }
-  const { userId, newStatus, plan } = request.data;
+exports.updateUserSubscription = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
+    if (!request.auth || request.auth.token.admin !== true) {
+      throw new HttpsError(
+        'permission-denied',
+        'Solo un administrador puede modificar suscripciones.',
+      );
+    }
+    const { userId, newStatus, plan } = request.data;
 
-  // Validamos que al menos uno de los dos (status o plan) esté presente
-  if (!userId || (!newStatus && !plan)) {
-    throw new HttpsError(
-      'invalid-argument',
-      'Faltan datos (userId y al menos newStatus o plan).',
-    );
-  }
+    // Validamos que al menos uno de los dos (status o plan) esté presente
+    if (!userId || (!newStatus && !plan)) {
+      throw new HttpsError(
+        'invalid-argument',
+        'Faltan datos (userId y al menos newStatus o plan).',
+      );
+    }
 
-  if (newStatus && !['active', 'trial', 'expired'].includes(newStatus)) {
-    throw new HttpsError('invalid-argument', 'El nuevo estado es inválido.');
-  }
+    if (newStatus && !['active', 'trial', 'expired'].includes(newStatus)) {
+      throw new HttpsError('invalid-argument', 'El nuevo estado es inválido.');
+    }
 
-  if (plan && !['basic', 'premium'].includes(plan)) {
-    throw new HttpsError('invalid-argument', 'El plan es inválido.');
-  }
+    if (plan && !['basic', 'premium'].includes(plan)) {
+      throw new HttpsError('invalid-argument', 'El plan es inválido.');
+    }
 
-  try {
-    const userDocRef = db.collection('datosNegocio').doc(userId);
-    const updates = {};
+    try {
+      const userDocRef = db.collection('datosNegocio').doc(userId);
+      const updates = {};
 
-    if (newStatus) {
-      updates.subscriptionStatus = newStatus;
-      if (newStatus === 'active') {
-        const newEndDate = new Date();
-        newEndDate.setDate(newEndDate.getDate() + 30);
-        updates.subscriptionEndDate = newEndDate;
-      } else if (newStatus === 'trial') {
-        const newEndDate = new Date();
-        newEndDate.setDate(newEndDate.getDate() + 7);
-        updates.subscriptionEndDate = newEndDate;
+      if (newStatus) {
+        updates.subscriptionStatus = newStatus;
+        if (newStatus === 'active') {
+          const newEndDate = new Date();
+          newEndDate.setDate(newEndDate.getDate() + 30);
+          updates.subscriptionEndDate = newEndDate;
+        } else if (newStatus === 'trial') {
+          const newEndDate = new Date();
+          newEndDate.setDate(newEndDate.getDate() + 7);
+          updates.subscriptionEndDate = newEndDate;
+        }
       }
-    }
 
-    if (plan) {
-      updates.plan = plan;
-    }
+      if (plan) {
+        updates.plan = plan;
+      }
 
-    await userDocRef.set(updates, { merge: true });
-    return {
-      success: true,
-      message: `Usuario actualizado a estado '${newStatus}'.`,
-    };
-  } catch (error) {
-    console.error('Error al actualizar la suscripción:', error);
-    throw new HttpsError(
-      'internal',
-      'No se pudo actualizar la suscripción del usuario.',
-    );
-  }
-});
+      await userDocRef.set(updates, { merge: true });
+      return {
+        success: true,
+        message: `Usuario actualizado a estado '${newStatus}'.`,
+      };
+    } catch (error) {
+      console.error('Error al actualizar la suscripción:', error);
+      throw new HttpsError(
+        'internal',
+        'No se pudo actualizar la suscripción del usuario.',
+      );
+    }
+  },
+);
 
 // =======================
 // Actualización masiva de productos
 // =======================
-exports.bulkUpdateProducts = onCall({ enforceAppCheck: true }, async (request) => {
-  if (!request.auth) {
-    throw new HttpsError(
-      'unauthenticated',
-      'Debes estar autenticado para realizar esta acción.',
-    );
-  }
-
-  const productsToUpdate = request.data.products;
-  if (
-    !productsToUpdate ||
-    !Array.isArray(productsToUpdate) ||
-    productsToUpdate.length === 0
-  ) {
-    throw new HttpsError(
-      'invalid-argument',
-      'No se proporcionaron productos para actualizar.',
-    );
-  }
-
-  const isAdmin = request.auth.token.admin === true;
-  const uid = request.auth.uid;
-  const batch = db.batch();
-  let productsProcessed = 0;
-
-  // Mapa para acceso rápido a los datos de actualización
-  const updatesMap = new Map();
-  productsToUpdate.forEach((p) => {
-    if (p.id) updatesMap.set(p.id, p);
-  });
-
-  try {
-    if (isAdmin) {
-      // Admin: Actualización directa sin verificación de propiedad
-      updatesMap.forEach((updateReq, id) => {
-        const productRef = db.collection('productos').doc(id);
-        const updateData = {};
-        if (updateReq.precio !== undefined && updateReq.precio !== null)
-          updateData.precio = Number(updateReq.precio);
-        if (updateReq.stock !== undefined && updateReq.stock !== null)
-          updateData.stock = Number(updateReq.stock);
-
-        if (Object.keys(updateData).length > 0) {
-          batch.update(productRef, updateData);
-          productsProcessed++;
-        }
-      });
-    } else {
-      // Usuario Normal: Verificación estricta de propiedad
-      const refs = Array.from(updatesMap.keys()).map((id) =>
-        db.collection('productos').doc(id),
+exports.bulkUpdateProducts = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError(
+        'unauthenticated',
+        'Debes estar autenticado para realizar esta acción.',
       );
+    }
 
-      // Firestore getAll soporta varargs, pero cuidado con límites muy altos.
-      // Asumimos que el frontend envía lotes razonables.
-      if (refs.length > 0) {
-        const snapshots = await db.getAll(...refs);
+    const productsToUpdate = request.data.products;
+    if (
+      !productsToUpdate ||
+      !Array.isArray(productsToUpdate) ||
+      productsToUpdate.length === 0
+    ) {
+      throw new HttpsError(
+        'invalid-argument',
+        'No se proporcionaron productos para actualizar.',
+      );
+    }
 
-        snapshots.forEach((doc) => {
-          if (doc.exists && doc.data().userId === uid) {
-            const updateReq = updatesMap.get(doc.id);
-            const productRef = db.collection('productos').doc(doc.id);
-            const updateData = {};
+    const isAdmin = request.auth.token.admin === true;
+    const uid = request.auth.uid;
+    const batch = db.batch();
+    let productsProcessed = 0;
 
-            if (updateReq.precio !== undefined && updateReq.precio !== null)
-              updateData.precio = Number(updateReq.precio);
-            if (updateReq.stock !== undefined && updateReq.stock !== null)
-              updateData.stock = Number(updateReq.stock);
+    // Mapa para acceso rápido a los datos de actualización
+    const updatesMap = new Map();
+    productsToUpdate.forEach((p) => {
+      if (p.id) updatesMap.set(p.id, p);
+    });
 
-            if (Object.keys(updateData).length > 0) {
-              batch.update(productRef, updateData);
-              productsProcessed++;
-            }
-          } else {
-            console.warn(
-              `Intento de modificación no autorizado: Usuario ${uid} intentó modificar producto ${doc.id}`,
-            );
+    try {
+      if (isAdmin) {
+        // Admin: Actualización directa sin verificación de propiedad
+        updatesMap.forEach((updateReq, id) => {
+          const productRef = db.collection('productos').doc(id);
+          const updateData = {};
+          if (updateReq.precio !== undefined && updateReq.precio !== null)
+            updateData.precio = Number(updateReq.precio);
+          if (updateReq.stock !== undefined && updateReq.stock !== null)
+            updateData.stock = Number(updateReq.stock);
+
+          if (Object.keys(updateData).length > 0) {
+            batch.update(productRef, updateData);
+            productsProcessed++;
           }
         });
+      } else {
+        // Usuario Normal: Verificación estricta de propiedad
+        const refs = Array.from(updatesMap.keys()).map((id) =>
+          db.collection('productos').doc(id),
+        );
+
+        // Firestore getAll soporta varargs, pero cuidado con límites muy altos.
+        // Asumimos que el frontend envía lotes razonables.
+        if (refs.length > 0) {
+          const snapshots = await db.getAll(...refs);
+
+          snapshots.forEach((doc) => {
+            if (doc.exists && doc.data().userId === uid) {
+              const updateReq = updatesMap.get(doc.id);
+              const productRef = db.collection('productos').doc(doc.id);
+              const updateData = {};
+
+              if (updateReq.precio !== undefined && updateReq.precio !== null)
+                updateData.precio = Number(updateReq.precio);
+              if (updateReq.stock !== undefined && updateReq.stock !== null)
+                updateData.stock = Number(updateReq.stock);
+
+              if (Object.keys(updateData).length > 0) {
+                batch.update(productRef, updateData);
+                productsProcessed++;
+              }
+            } else {
+              console.warn(
+                `Intento de modificación no autorizado: Usuario ${uid} intentó modificar producto ${doc.id}`,
+              );
+            }
+          });
+        }
       }
-    }
 
-    if (productsProcessed > 0) {
-      await batch.commit();
-    }
+      if (productsProcessed > 0) {
+        await batch.commit();
+      }
 
-    return {
-      success: true,
-      message: `Se procesaron ${productsProcessed} productos correctamente.`,
-    };
-  } catch (error) {
-    console.error('Error en la actualización masiva:', error);
-    throw new HttpsError(
-      'internal',
-      'Ocurrió un error al actualizar los productos.',
-    );
-  }
-});
+      return {
+        success: true,
+        message: `Se procesaron ${productsProcessed} productos correctamente.`,
+      };
+    } catch (error) {
+      console.error('Error en la actualización masiva:', error);
+      throw new HttpsError(
+        'internal',
+        'Ocurrió un error al actualizar los productos.',
+      );
+    }
+  },
+);
 // ===== Límite diario por usuario: 10 llamadas por día, hora local de Argentina =====
 const TZ = 'America/Argentina/Cordoba';
 
@@ -450,115 +461,115 @@ const OOS_MESSAGE =
 exports.askGemini = onCall(
   { secrets: [GEMINI_KEY], enforceAppCheck: true },
   async (request) => {
-  if (!request.auth) {
-    throw new HttpsError(
-      'unauthenticated',
-      'Debes estar autenticado para usar el chat.',
-    );
-  }
-
-  const userPrompt = request.data?.prompt;
-  const userId = request.auth.uid;
-
-  if (!userPrompt || typeof userPrompt !== 'string') {
-    throw new HttpsError(
-      'invalid-argument',
-      'Se requiere una pregunta válida.',
-    );
-  }
-
-  await enforcePremium(request);
-  await enforceDailyLimit(userId, 10);
-
-  try {
-    const apiKey = GEMINI_KEY.value();
-    if (!apiKey) {
+    if (!request.auth) {
       throw new HttpsError(
-        'internal',
-        'La clave de API de Gemini no está configurada en el servidor.',
+        'unauthenticated',
+        'Debes estar autenticado para usar el chat.',
       );
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey);
+    const userPrompt = request.data?.prompt;
+    const userId = request.auth.uid;
 
-    let finalPrompt = userPrompt;
-    let context = '';
+    if (!userPrompt || typeof userPrompt !== 'string') {
+      throw new HttpsError(
+        'invalid-argument',
+        'Se requiere una pregunta válida.',
+      );
+    }
 
-    const stockKeywords = [
-      'stock',
-      'inventario',
-      'cuánto hay',
-      'cuantos quedan',
-      'disponible',
-    ];
-    const isStockQuery = stockKeywords.some((k) =>
-      userPrompt.toLowerCase().includes(k),
-    );
+    await enforcePremium(request);
+    await enforceDailyLimit(userId, 10);
 
-    if (isStockQuery) {
-      console.log(
-        `[Usuario: ${userId}] Intención detectada: Consulta de Stock.`,
+    try {
+      const apiKey = GEMINI_KEY.value();
+      if (!apiKey) {
+        throw new HttpsError(
+          'internal',
+          'La clave de API de Gemini no está configurada en el servidor.',
+        );
+      }
+
+      const genAI = new GoogleGenerativeAI(apiKey);
+
+      let finalPrompt = userPrompt;
+      let context = '';
+
+      const stockKeywords = [
+        'stock',
+        'inventario',
+        'cuánto hay',
+        'cuantos quedan',
+        'disponible',
+      ];
+      const isStockQuery = stockKeywords.some((k) =>
+        userPrompt.toLowerCase().includes(k),
       );
 
-      const words = userPrompt.split(/\s+/);
-      const productNameIndex = words.findIndex((w) =>
-        ['producto', 'de'].includes(w.toLowerCase().replace(/[?¿!¡.,]/g, '')),
-      );
-      const productName = (
-        productNameIndex >= 0 ? words.slice(productNameIndex + 1) : []
-      )
-        .join(' ')
-        .replace(/[?¿!¡.,]/g, '')
-        .trim();
+      if (isStockQuery) {
+        console.log(
+          `[Usuario: ${userId}] Intención detectada: Consulta de Stock.`,
+        );
 
-      const norm = (s) =>
-        String(s || '')
-          .toLowerCase()
+        const words = userPrompt.split(/\s+/);
+        const productNameIndex = words.findIndex((w) =>
+          ['producto', 'de'].includes(w.toLowerCase().replace(/[?¿!¡.,]/g, '')),
+        );
+        const productName = (
+          productNameIndex >= 0 ? words.slice(productNameIndex + 1) : []
+        )
+          .join(' ')
+          .replace(/[?¿!¡.,]/g, '')
           .trim();
-      const target = norm(productName);
 
-      // Traemos los productos del usuario y matcheamos EN CÓDIGO, sin distinguir
-      // mayúsculas ni espacios (el match exacto de Firestore era muy frágil y
-      // confundía nombres parecidos como "pucho" y "puchio").
-      const snap = await db
-        .collection('productos')
-        .where('userId', '==', userId)
-        .get();
-      const productos = snap.docs.map((d) => d.data());
+        const norm = (s) =>
+          String(s || '')
+            .toLowerCase()
+            .trim();
+        const target = norm(productName);
 
-      let candidatos = [];
-      if (target) {
-        // 1) Coincidencia exacta normalizada.
-        candidatos = productos.filter((p) => norm(p.nombre) === target);
-        // 2) Si no hay exacta, coincidencias parciales en ambos sentidos.
-        if (candidatos.length === 0) {
-          candidatos = productos.filter(
-            (p) =>
-              norm(p.nombre).includes(target) ||
-              target.includes(norm(p.nombre)),
-          );
+        // Traemos los productos del usuario y matcheamos EN CÓDIGO, sin distinguir
+        // mayúsculas ni espacios (el match exacto de Firestore era muy frágil y
+        // confundía nombres parecidos como "pucho" y "puchio").
+        const snap = await db
+          .collection('productos')
+          .where('userId', '==', userId)
+          .get();
+        const productos = snap.docs.map((d) => d.data());
+
+        let candidatos = [];
+        if (target) {
+          // 1) Coincidencia exacta normalizada.
+          candidatos = productos.filter((p) => norm(p.nombre) === target);
+          // 2) Si no hay exacta, coincidencias parciales en ambos sentidos.
+          if (candidatos.length === 0) {
+            candidatos = productos.filter(
+              (p) =>
+                norm(p.nombre).includes(target) ||
+                target.includes(norm(p.nombre)),
+            );
+          }
         }
+
+        if (candidatos.length > 0) {
+          const lista = candidatos
+            .map((p) => `- "${p.nombre}": ${Number(p.stock) || 0} unidades`)
+            .join('\n');
+          context = `Contexto de la base de datos (stock actual):\n${lista}`;
+        } else {
+          context = `Contexto de la base de datos: No se encontró ningún producto que coincida con "${productName}".`;
+        }
+        console.log(`[Usuario: ${userId}] Contexto generado: ${context}`);
+      } else if (!isInScope(userPrompt)) {
+        // Si NO es una consulta de stock, revisamos si está en el alcance general.
+        return { reply: OOS_MESSAGE };
       }
 
-      if (candidatos.length > 0) {
-        const lista = candidatos
-          .map((p) => `- "${p.nombre}": ${Number(p.stock) || 0} unidades`)
-          .join('\n');
-        context = `Contexto de la base de datos (stock actual):\n${lista}`;
-      } else {
-        context = `Contexto de la base de datos: No se encontró ningún producto que coincida con "${productName}".`;
+      if (context) {
+        finalPrompt = `${context}\n\nPregunta del usuario: "${userPrompt}"\n\nResponde a la pregunta basándote únicamente en el contexto proporcionado.`;
       }
-      console.log(`[Usuario: ${userId}] Contexto generado: ${context}`);
-    } else if (!isInScope(userPrompt)) {
-      // Si NO es una consulta de stock, revisamos si está en el alcance general.
-      return { reply: OOS_MESSAGE };
-    }
 
-    if (context) {
-      finalPrompt = `${context}\n\nPregunta del usuario: "${userPrompt}"\n\nResponde a la pregunta basándote únicamente en el contexto proporcionado.`;
-    }
-
-    const systemInstruction = `
+      const systemInstruction = `
       Eres 'Asistente Khaleesi', un experto en el sistema de punto de venta.
       - Si se te proporciona un "Contexto de la base de datos", tu respuesta DEBE basarse estrictamente en esa información.
       - Respetá EXACTAMENTE los nombres y el stock que figuran en el contexto; no confundas productos con nombres parecidos.
@@ -567,54 +578,58 @@ exports.askGemini = onCall(
       - Sé breve, amable y directo.
     `.trim();
 
-    const model = genAI.getGenerativeModel({
-      model: MODEL_NAME,
-    });
+      const model = genAI.getGenerativeModel({
+        model: MODEL_NAME,
+      });
 
-    // Prepend system instruction to the prompt since some models/API versions
-    // might not support the systemInstruction parameter directly yet.
-    finalPrompt = `${systemInstruction}\n\n${finalPrompt}`;
+      // Prepend system instruction to the prompt since some models/API versions
+      // might not support the systemInstruction parameter directly yet.
+      finalPrompt = `${systemInstruction}\n\n${finalPrompt}`;
 
-    const result = await model.generateContent(finalPrompt);
-    const text = result?.response?.text?.();
+      const result = await model.generateContent(finalPrompt);
+      const text = result?.response?.text?.();
 
-    if (!text) {
-      throw new HttpsError('internal', 'La API respondió sin contenido.');
-    }
-
-    return { reply: text };
-  } catch (error) {
-    console.error('Error al contactar la API de Gemini o Firestore:', error);
-
-    // Si el error es 404 (Modelo no encontrado), intentamos listar los modelos disponibles
-    if (error.message.includes('404') || error.message.includes('not found')) {
-      try {
-        const apiKey = GEMINI_KEY.value();
-        console.log('Intentando listar modelos disponibles...');
-        const listResp = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
-        );
-        if (listResp.ok) {
-          const listData = await listResp.json();
-          const availableModels = listData.models
-            .map((m) => m.name.replace('models/', ''))
-            .join(', ');
-          console.log('Modelos disponibles:', availableModels);
-          throw new HttpsError(
-            'internal',
-            `Error de modelo. Disponibles: ${availableModels}`,
-          );
-        } else {
-          console.error('Error al listar modelos, status:', listResp.status);
-        }
-      } catch (listError) {
-        console.error('Error al listar modelos (catch):', listError);
+      if (!text) {
+        throw new HttpsError('internal', 'La API respondió sin contenido.');
       }
-    }
 
-    throw new HttpsError('internal', `Error interno: ${error.message}`);
-  }
-});
+      return { reply: text };
+    } catch (error) {
+      console.error('Error al contactar la API de Gemini o Firestore:', error);
+
+      // Si el error es 404 (Modelo no encontrado), intentamos listar los modelos disponibles
+      if (
+        error.message.includes('404') ||
+        error.message.includes('not found')
+      ) {
+        try {
+          const apiKey = GEMINI_KEY.value();
+          console.log('Intentando listar modelos disponibles...');
+          const listResp = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
+          );
+          if (listResp.ok) {
+            const listData = await listResp.json();
+            const availableModels = listData.models
+              .map((m) => m.name.replace('models/', ''))
+              .join(', ');
+            console.log('Modelos disponibles:', availableModels);
+            throw new HttpsError(
+              'internal',
+              `Error de modelo. Disponibles: ${availableModels}`,
+            );
+          } else {
+            console.error('Error al listar modelos, status:', listResp.status);
+          }
+        } catch (listError) {
+          console.error('Error al listar modelos (catch):', listError);
+        }
+      }
+
+      throw new HttpsError('internal', `Error interno: ${error.message}`);
+    }
+  },
+);
 
 // ===============================================
 // Identificar producto desde una foto (visión de Gemini)
@@ -962,7 +977,8 @@ exports.getProductosTienda = onCall(
     }
     try {
       const estado = await estadoTiendaSucursal(sucursalId);
-      if (!estado.ok) return { activa: false, motivo: estado.motivo, productos: [] };
+      if (!estado.ok)
+        return { activa: false, motivo: estado.motivo, productos: [] };
 
       const snap = await db
         .collection('productos')
@@ -1042,7 +1058,10 @@ exports.consultarPagosMp = onCall(
         tipo: p.payment_type_id || '',
         descripcion: p.description || '',
         pagador:
-          p.payer?.first_name || p.payer?.email || p.payer?.identification?.number || '',
+          p.payer?.first_name ||
+          p.payer?.email ||
+          p.payer?.identification?.number ||
+          '',
       }));
 
       // Además de los cobros, intentamos traer los movimientos de la cuenta
@@ -1083,14 +1102,9 @@ exports.consultarPagosMp = onCall(
               pagador: m.counterpart?.name || m.payer?.first_name || '',
             });
           });
-          pagos.sort(
-            (a, b) => new Date(b.fecha || 0) - new Date(a.fecha || 0),
-          );
+          pagos.sort((a, b) => new Date(b.fecha || 0) - new Date(a.fecha || 0));
         } else {
-          console.log(
-            '[consultarPagosMp] movements no disponible:',
-            mr.status,
-          );
+          console.log('[consultarPagosMp] movements no disponible:', mr.status);
         }
       } catch (e) {
         console.log('[consultarPagosMp] movements falló:', e?.message);
@@ -1193,15 +1207,21 @@ exports.crearPedidoTienda = onCall(
     if (items.length === 0 || items.length > 50) {
       throw new HttpsError('invalid-argument', 'El pedido está vacío.');
     }
-    const nombreCliente = String(cliente.nombre || '').trim().slice(0, 80);
-    const telefono = String(cliente.telefono || '').replace(/\D/g, '').slice(0, 20);
+    const nombreCliente = String(cliente.nombre || '')
+      .trim()
+      .slice(0, 80);
+    const telefono = String(cliente.telefono || '')
+      .replace(/\D/g, '')
+      .slice(0, 20);
     if (!nombreCliente || telefono.length < 6) {
       throw new HttpsError(
         'invalid-argument',
         'Necesitamos tu nombre y un teléfono válido.',
       );
     }
-    const direccion = String(cliente.direccion || '').trim().slice(0, 160);
+    const direccion = String(cliente.direccion || '')
+      .trim()
+      .slice(0, 160);
     if (tipo === 'delivery' && !direccion) {
       throw new HttpsError('invalid-argument', 'Falta la dirección de envío.');
     }
@@ -1494,65 +1514,62 @@ exports.estadoEntrega = onCall({ enforceAppCheck: true }, async (request) => {
 });
 
 // Seguimiento para el cliente (sin login): solo con el token del pedido.
-exports.getEstadoPedido = onCall(
-  { enforceAppCheck: true },
-  async (request) => {
-    const pedidoId = String(request.data?.pedidoId || '').trim();
-    const token = String(request.data?.trackingToken || '').trim();
-    if (!pedidoId || !token) {
-      throw new HttpsError('invalid-argument', 'Datos incompletos.');
+exports.getEstadoPedido = onCall({ enforceAppCheck: true }, async (request) => {
+  const pedidoId = String(request.data?.pedidoId || '').trim();
+  const token = String(request.data?.trackingToken || '').trim();
+  if (!pedidoId || !token) {
+    throw new HttpsError('invalid-argument', 'Datos incompletos.');
+  }
+  try {
+    const doc = await db.collection('pedidos_online').doc(pedidoId).get();
+    if (!doc.exists) throw new HttpsError('not-found', 'Pedido no encontrado.');
+    const d = doc.data() || {};
+    if (d.trackingToken !== token) {
+      throw new HttpsError('permission-denied', 'Pedido no encontrado.');
     }
-    try {
-      const doc = await db.collection('pedidos_online').doc(pedidoId).get();
-      if (!doc.exists) throw new HttpsError('not-found', 'Pedido no encontrado.');
-      const d = doc.data() || {};
-      if (d.trackingToken !== token) {
-        throw new HttpsError('permission-denied', 'Pedido no encontrado.');
-      }
-      // Si ya salió con un repartidor, mandamos su posición para el mapa.
-      let repartidor = null;
-      if (d.repartidorId) {
-        try {
-          const rDoc = await db
-            .collection('repartidores')
-            .doc(d.repartidorId)
-            .get();
-          const r = rDoc.exists ? rDoc.data() : null;
-          if (r) {
-            repartidor = {
-              nombre: r.nombre || '',
-              vehiculo: r.vehiculo || null,
-              // Solo si la posición es reciente (menos de 5 minutos).
-              lat:
-                r.ubicacion?.ts && Date.now() - r.ubicacion.ts < 300000
-                  ? r.ubicacion.lat
-                  : null,
-              lng:
-                r.ubicacion?.ts && Date.now() - r.ubicacion.ts < 300000
-                  ? r.ubicacion.lng
-                  : null,
-            };
-          }
-        } catch (e) {
-          console.warn('[getEstadoPedido] repartidor:', e?.message);
+    // Si ya salió con un repartidor, mandamos su posición para el mapa.
+    let repartidor = null;
+    if (d.repartidorId) {
+      try {
+        const rDoc = await db
+          .collection('repartidores')
+          .doc(d.repartidorId)
+          .get();
+        const r = rDoc.exists ? rDoc.data() : null;
+        if (r) {
+          repartidor = {
+            nombre: r.nombre || '',
+            vehiculo: r.vehiculo || null,
+            // Solo si la posición es reciente (menos de 5 minutos).
+            lat:
+              r.ubicacion?.ts && Date.now() - r.ubicacion.ts < 300000
+                ? r.ubicacion.lat
+                : null,
+            lng:
+              r.ubicacion?.ts && Date.now() - r.ubicacion.ts < 300000
+                ? r.ubicacion.lng
+                : null,
+          };
         }
+      } catch (e) {
+        console.warn('[getEstadoPedido] repartidor:', e?.message);
       }
-
-      return {
-        codigo: d.codigo,
-        estado: d.estado,
-        tiempoEstimado: d.tiempoEstimado ?? null,
-        total: d.total,
-        tipo: d.tipo,
-        repartidor,
-      };
-    } catch (error) {
-      if (error.code) throw error;
-      console.error('[getEstadoPedido] error:', error);
-      throw new HttpsError('internal', 'No se pudo consultar el pedido.');
     }
-  },
-);
+
+    return {
+      codigo: d.codigo,
+      estado: d.estado,
+      tiempoEstimado: d.tiempoEstimado ?? null,
+      total: d.total,
+      tipo: d.tipo,
+      repartidor,
+    };
+  } catch (error) {
+    if (error.code) throw error;
+    console.error('[getEstadoPedido] error:', error);
+    throw new HttpsError('internal', 'No se pudo consultar el pedido.');
+  }
+});
 
 // Cambio de estado desde el POS (solo el dueño del pedido).
 exports.actualizarEstadoPedido = onCall(
@@ -1570,7 +1587,8 @@ exports.actualizarEstadoPedido = onCall(
     try {
       const ref = db.collection('pedidos_online').doc(pedidoId);
       const doc = await ref.get();
-      if (!doc.exists) throw new HttpsError('not-found', 'Pedido no encontrado.');
+      if (!doc.exists)
+        throw new HttpsError('not-found', 'Pedido no encontrado.');
       if (doc.data()?.userId !== request.auth.uid) {
         throw new HttpsError('permission-denied', 'No es tu pedido.');
       }
@@ -1769,26 +1787,29 @@ exports.checkExpiredSubscriptions = onSchedule(
 );
 // functions/index.js
 
-exports.notifyAdminOfPayment = onCall({ enforceAppCheck: true }, async (request) => {
-  if (!request.auth) {
-    throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
-  }
-  const { uid, email } = request.auth.token;
+exports.notifyAdminOfPayment = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
+    }
+    const { uid, email } = request.auth.token;
 
-  try {
-    await db.collection('paymentNotifications').add({
-      userId: uid,
-      userEmail: email,
-      notifiedAt: new Date(),
-      status: 'pending_review',
-    });
-    console.log(`Notificación de pago recibida para el usuario: ${uid}`);
-    return { success: true };
-  } catch (error) {
-    console.error('Error al guardar la notificación de pago:', error);
-    throw new HttpsError('internal', 'No se pudo enviar la notificación.');
-  }
-});
+    try {
+      await db.collection('paymentNotifications').add({
+        userId: uid,
+        userEmail: email,
+        notifiedAt: new Date(),
+        status: 'pending_review',
+      });
+      console.log(`Notificación de pago recibida para el usuario: ${uid}`);
+      return { success: true };
+    } catch (error) {
+      console.error('Error al guardar la notificación de pago:', error);
+      throw new HttpsError('internal', 'No se pudo enviar la notificación.');
+    }
+  },
+);
 
 // =======================
 // Facturación Electrónica (AFIP)
@@ -1801,10 +1822,13 @@ exports.createInvoice = onCall({ enforceAppCheck: true }, async (request) => {
   return await afipController.createInvoice(request);
 });
 
-exports.getContribuyente = onCall({ enforceAppCheck: true }, async (request) => {
-  await enforcePremium(request);
-  return await afipController.getContribuyente(request);
-});
+exports.getContribuyente = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
+    await enforcePremium(request);
+    return await afipController.getContribuyente(request);
+  },
+);
 
 exports.checkAfipStatus = onCall({ enforceAppCheck: true }, async (request) => {
   return await afipController.getServerStatus(request);
@@ -1878,14 +1902,17 @@ exports.crearPagoMP = onCall({ enforceAppCheck: true }, async (request) => {
   // Registramos el cobro como "pendiente" para confirmarlo luego por webhook
   // y que el frontend lo escuche en tiempo real.
   try {
-    await db.collection('cobros_mp').doc(externalReference).set({
-      userId: uid,
-      sucursalId: sucursalId || null,
-      monto: parseFloat(montoNum.toFixed(2)),
-      descripcion: String(descripcion),
-      estado: 'pendiente',
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    await db
+      .collection('cobros_mp')
+      .doc(externalReference)
+      .set({
+        userId: uid,
+        sucursalId: sucursalId || null,
+        monto: parseFloat(montoNum.toFixed(2)),
+        descripcion: String(descripcion),
+        estado: 'pendiente',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
   } catch (e) {
     console.error('[MP] Error creando cobro pendiente:', e);
   }
@@ -1958,9 +1985,7 @@ exports.mpWebhook = onRequest(async (req, res) => {
       console.warn(`[MP webhook] sin token (uid=${uid}, suc=${sucId})`);
       return res.status(200).send('sin token');
     }
-    console.log(
-      `[MP webhook] uid=${uid} suc=${sucId} paymentId=${paymentId}`,
-    );
+    console.log(`[MP webhook] uid=${uid} suc=${sucId} paymentId=${paymentId}`);
 
     const r = await fetch(
       `https://api.mercadopago.com/v1/payments/${paymentId}`,
@@ -1976,16 +2001,19 @@ exports.mpWebhook = onRequest(async (req, res) => {
     console.log(`[MP webhook] extRef=${extRef} status=${pago.status}`);
     if (extRef) {
       const estado = pago.status === 'approved' ? 'pagado' : pago.status;
-      await db.collection('cobros_mp').doc(extRef).set(
-        {
-          estado,
-          paymentId: String(paymentId),
-          montoPagado: pago.transaction_amount || null,
-          metodoMP: pago.payment_type_id || null,
-          actualizadoEn: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        { merge: true },
-      );
+      await db
+        .collection('cobros_mp')
+        .doc(extRef)
+        .set(
+          {
+            estado,
+            paymentId: String(paymentId),
+            montoPagado: pago.transaction_amount || null,
+            metodoMP: pago.payment_type_id || null,
+            actualizadoEn: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true },
+        );
     }
 
     return res.status(200).send('ok');
@@ -2025,33 +2053,36 @@ const POINT_API = 'https://api.mercadopago.com/point/integration-api';
 
 // Lista los posnet Point vinculados a la cuenta del comercio. Si no hay token o
 // no hay aparatos, devuelve lista vacía (así el frontend no muestra el botón).
-exports.listarDispositivosPoint = onCall({ enforceAppCheck: true }, async (request) => {
-  if (!request.auth) {
-    throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
-  }
-  const uid = request.auth.uid;
-  const { sucursalId = null } = request.data || {};
-  const token = await leerAccessTokenComercio(uid, sucursalId);
-  if (!token) return { success: true, devices: [] };
-  try {
-    const r = await fetch(`${POINT_API}/devices`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const data = await r.json();
-    if (!r.ok) {
-      console.error('[Point] Error listando devices:', data);
+exports.listarDispositivosPoint = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
+    }
+    const uid = request.auth.uid;
+    const { sucursalId = null } = request.data || {};
+    const token = await leerAccessTokenComercio(uid, sucursalId);
+    if (!token) return { success: true, devices: [] };
+    try {
+      const r = await fetch(`${POINT_API}/devices`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        console.error('[Point] Error listando devices:', data);
+        return { success: true, devices: [] };
+      }
+      const devices = (data.devices || []).map((d) => ({
+        id: d.id,
+        operatingMode: d.operating_mode || null,
+      }));
+      return { success: true, devices };
+    } catch (e) {
+      console.error('[Point] Error de red listando devices:', e);
       return { success: true, devices: [] };
     }
-    const devices = (data.devices || []).map((d) => ({
-      id: d.id,
-      operatingMode: d.operating_mode || null,
-    }));
-    return { success: true, devices };
-  } catch (e) {
-    console.error('[Point] Error de red listando devices:', e);
-    return { success: true, devices: [] };
-  }
-});
+  },
+);
 
 // Envía una intención de pago al posnet: el aparato muestra el monto y el
 // cliente paga con tarjeta. Registra el cobro pendiente en cobros_mp (misma
@@ -2104,16 +2135,19 @@ exports.crearPagoPoint = onCall({ enforceAppCheck: true }, async (request) => {
 
   // Registramos el cobro pendiente (para el listener en tiempo real).
   try {
-    await db.collection('cobros_mp').doc(externalReference).set({
-      userId: uid,
-      sucursalId: sucursalId || null,
-      monto: parseFloat(montoNum.toFixed(2)),
-      descripcion: String(descripcion),
-      estado: 'pendiente',
-      via: 'point',
-      deviceId,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    await db
+      .collection('cobros_mp')
+      .doc(externalReference)
+      .set({
+        userId: uid,
+        sucursalId: sucursalId || null,
+        monto: parseFloat(montoNum.toFixed(2)),
+        descripcion: String(descripcion),
+        estado: 'pendiente',
+        via: 'point',
+        deviceId,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
   } catch (e) {
     console.error('[Point] Error creando cobro pendiente:', e);
   }
@@ -2172,107 +2206,110 @@ exports.crearPagoPoint = onCall({ enforceAppCheck: true }, async (request) => {
 
 // Consulta el estado de la intención del posnet (polling desde el frontend).
 // Cuando termina aprobada, marca el cobro como pagado en cobros_mp.
-exports.consultarPagoPoint = onCall({ enforceAppCheck: true }, async (request) => {
-  if (!request.auth) {
-    throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
-  }
-  const uid = request.auth.uid;
-  const {
-    paymentIntentId,
-    externalReference = null,
-    sucursalId = null,
-  } = request.data || {};
-  if (!paymentIntentId) {
-    throw new HttpsError('invalid-argument', 'Falta paymentIntentId.');
-  }
-  const token = await leerAccessTokenComercio(uid, sucursalId);
-  if (!token) {
-    throw new HttpsError(
-      'failed-precondition',
-      'Falta el Access Token de Mercado Pago.',
-    );
-  }
-  try {
-    const r = await fetch(`${POINT_API}/payment-intents/${paymentIntentId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const data = await r.json();
-    if (!r.ok) {
-      console.error('[Point] Error consultando payment-intent:', data);
+exports.consultarPagoPoint = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
+    }
+    const uid = request.auth.uid;
+    const {
+      paymentIntentId,
+      externalReference = null,
+      sucursalId = null,
+    } = request.data || {};
+    if (!paymentIntentId) {
+      throw new HttpsError('invalid-argument', 'Falta paymentIntentId.');
+    }
+    const token = await leerAccessTokenComercio(uid, sucursalId);
+    if (!token) {
+      throw new HttpsError(
+        'failed-precondition',
+        'Falta el Access Token de Mercado Pago.',
+      );
+    }
+    try {
+      const r = await fetch(`${POINT_API}/payment-intents/${paymentIntentId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        console.error('[Point] Error consultando payment-intent:', data);
+        return { success: false, state: 'ERROR' };
+      }
+      const state = data.state || data.status || 'OPEN';
+      const aprobado =
+        state === 'FINISHED' &&
+        (!data.payment || data.payment.status === 'approved');
+
+      if (aprobado && externalReference) {
+        await db
+          .collection('cobros_mp')
+          .doc(externalReference)
+          .set(
+            {
+              estado: 'pagado',
+              paymentId: String(data.payment?.id || paymentIntentId),
+              montoPagado: data.amount ? data.amount / 100 : null,
+              metodoMP: 'point',
+              actualizadoEn: admin.firestore.FieldValue.serverTimestamp(),
+            },
+            { merge: true },
+          );
+      }
+      return { success: true, state, aprobado };
+    } catch (e) {
+      console.error('[Point] Error de red consultando payment-intent:', e);
       return { success: false, state: 'ERROR' };
     }
-    const state = data.state || data.status || 'OPEN';
-    const aprobado =
-      state === 'FINISHED' &&
-      (!data.payment || data.payment.status === 'approved');
-
-    if (aprobado && externalReference) {
-      await db
-        .collection('cobros_mp')
-        .doc(externalReference)
-        .set(
-          {
-            estado: 'pagado',
-            paymentId: String(data.payment?.id || paymentIntentId),
-            montoPagado: data.amount ? data.amount / 100 : null,
-            metodoMP: 'point',
-            actualizadoEn: admin.firestore.FieldValue.serverTimestamp(),
-          },
-          { merge: true },
-        );
-    }
-    return { success: true, state, aprobado };
-  } catch (e) {
-    console.error('[Point] Error de red consultando payment-intent:', e);
-    return { success: false, state: 'ERROR' };
-  }
-});
+  },
+);
 
 // Cancela la intención de pago en el posnet (si el cajero aborta el cobro).
-exports.cancelarPagoPoint = onCall({ enforceAppCheck: true }, async (request) => {
-  if (!request.auth) {
-    throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
-  }
-  const uid = request.auth.uid;
-  const {
-    deviceId,
-    paymentIntentId,
-    externalReference = null,
-    sucursalId = null,
-  } = request.data || {};
-  if (!deviceId || !paymentIntentId) {
-    throw new HttpsError('invalid-argument', 'Faltan datos para cancelar.');
-  }
-  const token = await leerAccessTokenComercio(uid, sucursalId);
-  if (!token) {
-    throw new HttpsError(
-      'failed-precondition',
-      'Falta el Access Token de Mercado Pago.',
-    );
-  }
-  try {
-    await fetch(
-      `${POINT_API}/devices/${deviceId}/payment-intents/${paymentIntentId}`,
-      { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } },
-    );
-    if (externalReference) {
-      await db
-        .collection('cobros_mp')
-        .doc(externalReference)
-        .set(
+exports.cancelarPagoPoint = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
+    }
+    const uid = request.auth.uid;
+    const {
+      deviceId,
+      paymentIntentId,
+      externalReference = null,
+      sucursalId = null,
+    } = request.data || {};
+    if (!deviceId || !paymentIntentId) {
+      throw new HttpsError('invalid-argument', 'Faltan datos para cancelar.');
+    }
+    const token = await leerAccessTokenComercio(uid, sucursalId);
+    if (!token) {
+      throw new HttpsError(
+        'failed-precondition',
+        'Falta el Access Token de Mercado Pago.',
+      );
+    }
+    try {
+      await fetch(
+        `${POINT_API}/devices/${deviceId}/payment-intents/${paymentIntentId}`,
+        { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (externalReference) {
+        await db.collection('cobros_mp').doc(externalReference).set(
           {
             estado: 'cancelado',
             actualizadoEn: admin.firestore.FieldValue.serverTimestamp(),
           },
           { merge: true },
         );
+      }
+      return { success: true };
+    } catch (e) {
+      console.error('[Point] Error cancelando payment-intent:', e);
+      return { success: false };
     }
-    return { success: true };
-  } catch (e) {
-    console.error('[Point] Error cancelando payment-intent:', e);
-    return { success: false };
-  }
-});
+  },
+);
 
 // ===============================================
 // MERCADO PAGO: QR interoperable (Transferencias 3.0 / In-Store)
@@ -2311,16 +2348,18 @@ async function asegurarPosQr(token, uid, sucursalId) {
     );
   }
   const userId = me.id;
-  const baseExt =
-    String(sucursalId || uid)
-      .replace(/[^\w-]/g, '')
-      .slice(0, 28) || String(uid).slice(0, 28);
-  const storeExternalId = `khaleesi_store_${baseExt}`;
-  const posExternalId = `khaleesi_pos_${baseExt}`;
+  // La regla del external_id vive en mpIds.js, con sus pruebas: es un requisito
+  // de Mercado Pago que no se deduce leyendo el código, y equivocarse deja al
+  // comercio sin cobrar por QR.
+  const { storeExternalId, posExternalId } = idsDeCajaQr(sucursalId, uid);
 
-  // 2) Tienda (si ya existe, MP devuelve error y seguimos)
+  // 2) Tienda. Si ya existe, MP rechaza el alta y se sigue igual; lo que no se
+  // puede es seguir a ciegas cuando el rechazo es por otra cosa, porque
+  // entonces la caja de abajo se cuelga de una tienda que no existe y el error
+  // que ve el comercio no dice nada de la tienda.
+  let storeOk = false;
   try {
-    await fetch(`${MP_API}/users/${userId}/stores`, {
+    const stR = await fetch(`${MP_API}/users/${userId}/stores`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -2339,8 +2378,34 @@ async function asegurarPosQr(token, uid, sucursalId) {
         },
       }),
     });
+    storeOk = stR.ok;
+    if (!stR.ok) {
+      const err = await stR.json().catch(() => ({}));
+      // Ya existía: es el caso normal a partir de la segunda vez.
+      const yaExiste =
+        stR.status === 400 &&
+        String(err?.message || '')
+          .toLowerCase()
+          .includes('exist');
+      storeOk = yaExiste;
+      console.warn('[QR] Store rechazada:', stR.status, err?.message || err);
+    }
   } catch (e) {
-    console.warn('[QR] Store (posible ya existente):', e?.message || e);
+    console.warn('[QR] Store, error de red:', e?.message || e);
+  }
+
+  if (!storeOk) {
+    // Se confirma contra la lista antes de dar por perdida la tienda.
+    try {
+      const lsR = await fetch(
+        `${MP_API}/users/${userId}/stores/search?external_id=${storeExternalId}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      const ls = await lsR.json();
+      storeOk = Boolean(ls?.results?.length);
+    } catch (e) {
+      console.warn('[QR] No se pudo confirmar la tienda:', e?.message || e);
+    }
   }
 
   // 3) Caja (POS). Si ya existe, la buscamos.
@@ -2363,10 +2428,9 @@ async function asegurarPosQr(token, uid, sucursalId) {
   if (posR.ok && pos.external_id) {
     qrImage = pos.qr?.image || null;
   } else {
-    const listR = await fetch(
-      `${MP_API}/pos?external_id=${posExternalId}`,
-      { headers: { Authorization: `Bearer ${token}` } },
-    );
+    const listR = await fetch(`${MP_API}/pos?external_id=${posExternalId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
     const list = await listR.json();
     const found = list?.results?.[0];
     if (!found) {
@@ -2432,15 +2496,18 @@ exports.crearQrInteroperable = onCall(
       'https://us-central1-khaleesy-system.cloudfunctions.net/mpWebhookQr';
 
     try {
-      await db.collection('cobros_mp').doc(externalReference).set({
-        userId: uid,
-        sucursalId: sucursalId || null,
-        monto: parseFloat(montoNum.toFixed(2)),
-        descripcion: String(descripcion),
-        estado: 'pendiente',
-        via: 'qr_interoperable',
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+      await db
+        .collection('cobros_mp')
+        .doc(externalReference)
+        .set({
+          userId: uid,
+          sucursalId: sucursalId || null,
+          monto: parseFloat(montoNum.toFixed(2)),
+          descripcion: String(descripcion),
+          estado: 'pendiente',
+          via: 'qr_interoperable',
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
     } catch (e) {
       console.error('[QR] Error creando cobro pendiente:', e);
     }
@@ -2689,7 +2756,10 @@ exports.crearPagoSuscripcion = onCall(
     } catch (error) {
       if (error.code) throw error;
       console.error('[MP sub] error de red:', error);
-      throw new HttpsError('internal', 'No se pudo contactar con Mercado Pago.');
+      throw new HttpsError(
+        'internal',
+        'No se pudo contactar con Mercado Pago.',
+      );
     }
   },
 );
@@ -2741,7 +2811,10 @@ exports.mpWebhookSuscripcion = onRequest(
           subscriptionEndDate: nuevaFecha,
         };
         if (plan) updates.plan = plan;
-        await db.collection('datosNegocio').doc(uid).set(updates, { merge: true });
+        await db
+          .collection('datosNegocio')
+          .doc(uid)
+          .set(updates, { merge: true });
         console.log(
           `[MP sub webhook] Suscripción reactivada: ${uid} (+${dias} días)`,
         );
@@ -2780,7 +2853,10 @@ exports.mpWebhookSuscripcion = onRequest(
             console.log(`[MP sub webhook] Comprobante enviado a ${dest}`);
           }
         } catch (mailErr) {
-          console.warn('[MP sub webhook] No se pudo enviar comprobante:', mailErr?.message);
+          console.warn(
+            '[MP sub webhook] No se pudo enviar comprobante:',
+            mailErr?.message,
+          );
         }
       }
 
