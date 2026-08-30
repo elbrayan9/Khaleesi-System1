@@ -1855,23 +1855,9 @@ exports.crearPagoMP = onCall({ enforceAppCheck: true }, async (request) => {
   }
 
   // Buscamos el Access Token de Mercado Pago del comercio (sucursal o negocio).
-  let accessToken = null;
-  try {
-    if (sucursalId) {
-      const sucDoc = await db.collection('sucursales').doc(sucursalId).get();
-      if (sucDoc.exists) {
-        const d = sucDoc.data();
-        accessToken =
-          d?.configuracion?.mpAccessToken || d?.mpAccessToken || null;
-      }
-    }
-    if (!accessToken) {
-      const negDoc = await db.collection('datosNegocio').doc(uid).get();
-      if (negDoc.exists) accessToken = negDoc.data()?.mpAccessToken || null;
-    }
-  } catch (e) {
-    console.error('[MP] Error leyendo Access Token:', e);
-  }
+  // Una sola puerta al token, que además lo muda a la bóveda si sigue en el
+  // lugar viejo. Antes esto estaba copiado en tres lados.
+  const accessToken = await leerAccessTokenComercio(uid, sucursalId);
 
   if (!accessToken) {
     throw new HttpsError(
@@ -1969,18 +1955,7 @@ exports.mpWebhook = onRequest(async (req, res) => {
 
     // Access Token del comercio (igual que crearPagoMP: sucursal, luego negocio).
     const sucId = req.query.suc;
-    let token = null;
-    if (sucId) {
-      const sucDoc = await db.collection('sucursales').doc(sucId).get();
-      if (sucDoc.exists) {
-        const d = sucDoc.data();
-        token = d?.configuracion?.mpAccessToken || d?.mpAccessToken || null;
-      }
-    }
-    if (!token) {
-      const negDoc = await db.collection('datosNegocio').doc(uid).get();
-      token = negDoc.exists ? negDoc.data()?.mpAccessToken : null;
-    }
+    const token = await leerAccessTokenComercio(uid, sucId);
     if (!token) {
       console.warn(`[MP webhook] sin token (uid=${uid}, suc=${sucId})`);
       return res.status(200).send('sin token');
@@ -2029,24 +2004,279 @@ exports.mpWebhook = onRequest(async (req, res) => {
 // ===============================================
 // Lee el Access Token del comercio (sucursal primero, luego negocio). Es el
 // mismo criterio que usa crearPagoMP / mpWebhook.
+// ---------------------------------------------------------------------------
+// Configurar la cuenta de Mercado Pago
+//
+// El token entra por acá y no vuelve a salir. La pantalla de Configuración solo
+// recibe si está puesto, de qué cuenta es y los últimos cuatro caracteres, que
+// alcanzan para reconocerlo sin que sirvan para usarlo.
+// ---------------------------------------------------------------------------
+
+/** Quién puede tocar el token de esta sucursal. */
+async function exigirDuenoDeSucursal(uid, sucursalId) {
+  if (!sucursalId) return;
+  const doc = await db.collection('sucursales').doc(sucursalId).get();
+  if (!doc.exists || doc.data()?.userId !== uid) {
+    throw new HttpsError('permission-denied', 'Esa sucursal no es tuya.');
+  }
+}
+
+exports.guardarTokenMp = onCall({ enforceAppCheck: true }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
+  }
+  const uid = request.auth.uid;
+  const { sucursalId = null, token } = request.data || {};
+  const limpio = String(token || '').trim();
+
+  if (!limpio) {
+    throw new HttpsError('invalid-argument', 'Falta el Access Token.');
+  }
+  await exigirDuenoDeSucursal(uid, sucursalId);
+
+  // Se prueba contra Mercado Pago antes de guardarlo: guardar un token que no
+  // sirve es peor que no guardar nada, porque el error recién aparece cuando
+  // hay un cliente esperando para pagar.
+  let cuenta = null;
+  try {
+    const r = await fetch(`${MP_API}/users/me`, {
+      headers: { Authorization: `Bearer ${limpio}` },
+    });
+    const me = await r.json();
+    if (!r.ok || !me?.id) {
+      throw new HttpsError(
+        'invalid-argument',
+        'Mercado Pago no reconoce ese Access Token. Copialo de nuevo desde ' +
+          'tu panel de desarrollador (el de producción, no el de prueba).',
+      );
+    }
+    cuenta = me.nickname || me.email || String(me.id);
+  } catch (e) {
+    if (e instanceof HttpsError) throw e;
+    throw new HttpsError(
+      'unavailable',
+      'No se pudo verificar el token con Mercado Pago. Probá de nuevo.',
+    );
+  }
+
+  await guardarSecretoMp(uid, sucursalId, limpio, cuenta);
+
+  // En la configuración queda solo la marca, que sí puede ver el navegador.
+  const publico = {
+    mpConfigurado: true,
+    mpCuenta: cuenta,
+    mpUltimos4: limpio.slice(-4),
+    mpAccessToken: admin.firestore.FieldValue.delete(),
+  };
+  if (sucursalId) {
+    await db
+      .collection('sucursales')
+      .doc(sucursalId)
+      .set({ configuracion: publico }, { merge: true });
+  } else {
+    await db.collection('datosNegocio').doc(uid).set(publico, { merge: true });
+  }
+
+  console.log(`[MP] Token guardado en la bóveda para uid=${uid}`);
+  return { ok: true, cuenta, ultimos4: limpio.slice(-4) };
+});
+
+exports.borrarTokenMp = onCall({ enforceAppCheck: true }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
+  }
+  const uid = request.auth.uid;
+  const { sucursalId = null } = request.data || {};
+  await exigirDuenoDeSucursal(uid, sucursalId);
+
+  await refSecretoMp(uid, sucursalId).delete();
+  const publico = {
+    mpConfigurado: false,
+    mpCuenta: null,
+    mpUltimos4: null,
+    mpAccessToken: admin.firestore.FieldValue.delete(),
+  };
+  if (sucursalId) {
+    await db
+      .collection('sucursales')
+      .doc(sucursalId)
+      .set({ configuracion: publico }, { merge: true });
+  } else {
+    await db.collection('datosNegocio').doc(uid).set(publico, { merge: true });
+  }
+  return { ok: true };
+});
+
+exports.estadoTokenMp = onCall({ enforceAppCheck: true }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
+  }
+  const uid = request.auth.uid;
+  const { sucursalId = null } = request.data || {};
+  await exigirDuenoDeSucursal(uid, sucursalId);
+
+  // Leerlo acá también dispara la mudanza del token viejo, así que con solo
+  // abrir Configuración el comercio queda migrado.
+  const token = await leerAccessTokenComercio(uid, sucursalId);
+  if (!token) return { configurado: false };
+
+  const doc = await refSecretoMp(uid, sucursalId).get();
+  return {
+    configurado: true,
+    cuenta: doc.data()?.cuenta || null,
+    ultimos4: doc.data()?.ultimos4 || String(token).slice(-4),
+  };
+});
+
+// ---------------------------------------------------------------------------
+// El Access Token de Mercado Pago del comercio
+//
+// Es una credencial de alto valor: permite cobrar, consultar movimientos y
+// hacer devoluciones. Vivía en `sucursales/{id}.configuracion.mpAccessToken`,
+// junto al resto de la configuración, y ahí tenía un problema: ese documento se
+// descarga ENTERO al navegador del dueño en cada sesión. O sea que el token
+// quedaba en memoria del cliente y persistido en el IndexedDB del navegador de
+// la computadora del local. Un XSS en el sistema —ya tuvimos uno en el aviso de
+// pedidos— alcanzaba para llevarse la cuenta de Mercado Pago del comercio.
+//
+// Ahora vive en `secretosMp`, una colección que las reglas le niegan por
+// completo al cliente. Solo se lee desde acá, con el Admin SDK, que no pasa por
+// las reglas. El navegador nunca más lo ve: de la pantalla de configuración
+// sale hacia una función y no vuelve.
+// ---------------------------------------------------------------------------
+
+const refSecretoMp = (uid, sucursalId) =>
+  db
+    .collection('secretosMp')
+    .doc(sucursalId ? `suc_${sucursalId}` : `uid_${uid}`);
+
+/**
+ * Devuelve el Access Token del comercio, mirando primero la bóveda.
+ *
+ * Si todavía está en el lugar viejo, lo muda y lo borra de ahí. La migración va
+ * acá y no en un script aparte porque así ocurre sola en el primer cobro de
+ * cada comercio, sin ventana en la que alguien se quede sin poder cobrar.
+ */
 async function leerAccessTokenComercio(uid, sucursalId) {
+  try {
+    const doc = await refSecretoMp(uid, sucursalId).get();
+    if (doc.exists && doc.data()?.accessToken) return doc.data().accessToken;
+    // Sin sucursal el secreto puede estar guardado a nombre del dueño.
+    if (sucursalId) {
+      const porDueno = await refSecretoMp(uid, null).get();
+      if (porDueno.exists && porDueno.data()?.accessToken) {
+        return porDueno.data().accessToken;
+      }
+    }
+  } catch (e) {
+    console.error('[MP] Error leyendo el token de la bóveda:', e);
+  }
+
+  // --- Lugar viejo, con mudanza ---
   let token = null;
+  let origen = null;
   try {
     if (sucursalId) {
       const sucDoc = await db.collection('sucursales').doc(sucursalId).get();
       if (sucDoc.exists) {
         const d = sucDoc.data();
         token = d?.configuracion?.mpAccessToken || d?.mpAccessToken || null;
+        if (token) origen = { tipo: 'sucursal', id: sucursalId };
       }
     }
     if (!token) {
       const negDoc = await db.collection('datosNegocio').doc(uid).get();
-      if (negDoc.exists) token = negDoc.data()?.mpAccessToken || null;
+      if (negDoc.exists) {
+        token = negDoc.data()?.mpAccessToken || null;
+        if (token) origen = { tipo: 'negocio', id: uid };
+      }
     }
   } catch (e) {
-    console.error('[Point] Error leyendo Access Token:', e);
+    console.error('[MP] Error leyendo Access Token:', e);
+  }
+
+  if (token && origen) {
+    try {
+      await guardarSecretoMp(uid, sucursalId, token);
+      await limpiarTokenViejo(origen);
+      console.log(
+        `[MP] Token mudado a la bóveda (${origen.tipo}=${origen.id})`,
+      );
+    } catch (e) {
+      // Si la mudanza falla, el cobro sigue andando con el token viejo.
+      console.error('[MP] No se pudo mudar el token:', e);
+    }
   }
   return token;
+}
+
+/** Guarda el token en la bóveda, con los datos no sensibles para mostrar. */
+async function guardarSecretoMp(uid, sucursalId, accessToken, cuenta = null) {
+  await refSecretoMp(uid, sucursalId).set(
+    {
+      accessToken,
+      uid,
+      sucursalId: sucursalId || null,
+      ultimos4: String(accessToken).slice(-4),
+      cuenta: cuenta || null,
+      actualizado: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  );
+}
+
+// Borrar el token del lugar viejo espera a que el frontend nuevo esté
+// publicado.
+//
+// El backend se desplegó primero y el deploy del frontend quedó cancelado en
+// Netlify. El frontend viejo, que es el que hay en producción ahora mismo,
+// decide si muestra el menú "Pagos recibidos" mirando `mpAccessToken` en la
+// configuración: si lo borramos antes de que llegue el nuevo, el comercio
+// pierde ese menú sin que nada se lo explique.
+//
+// La copia a la bóveda ocurre igual y las funciones ya leen de ahí, así que no
+// se pierde nada esperando; lo único que se posterga es sacar el token del
+// lugar donde el navegador puede verlo, que es como está hoy de todos modos.
+//
+// Poner en true cuando el frontend nuevo esté arriba.
+const BORRAR_TOKEN_VIEJO = false;
+
+/** Borra el token del lugar viejo, ya copiado a la bóveda. */
+async function limpiarTokenViejo(origen) {
+  if (!BORRAR_TOKEN_VIEJO) {
+    // Se marca igual, que es lo que mira el frontend nuevo.
+    const marca = { mpConfigurado: true };
+    if (origen.tipo === 'sucursal') {
+      await db
+        .collection('sucursales')
+        .doc(origen.id)
+        .set({ configuracion: marca }, { merge: true });
+    } else {
+      await db
+        .collection('datosNegocio')
+        .doc(origen.id)
+        .set(marca, { merge: true });
+    }
+    return;
+  }
+  const borrar = admin.firestore.FieldValue.delete();
+  if (origen.tipo === 'sucursal') {
+    await db
+      .collection('sucursales')
+      .doc(origen.id)
+      .set(
+        {
+          mpAccessToken: borrar,
+          configuracion: { mpAccessToken: borrar, mpConfigurado: true },
+        },
+        { merge: true },
+      );
+  } else {
+    await db
+      .collection('datosNegocio')
+      .doc(origen.id)
+      .set({ mpAccessToken: borrar, mpConfigurado: true }, { merge: true });
+  }
 }
 
 const POINT_API = 'https://api.mercadopago.com/point/integration-api';
