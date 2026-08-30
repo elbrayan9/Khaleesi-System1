@@ -2923,8 +2923,15 @@ exports.crearQrInteroperable = onCall(
     );
 
     const externalReference = ventaId || `qr_${uid}_${Date.now()}`;
-    const WEBHOOK_QR_URL =
-      'https://us-central1-khaleesy-system.cloudfunctions.net/mpWebhookQr';
+
+    // Dónde avisa Mercado Pago cuando alguien paga:
+    //   https://us-central1-khaleesy-system.cloudfunctions.net/mpWebhookQr
+    //
+    // Esa dirección va cargada en el panel de Mercado Pago, a nivel de la
+    // aplicación. Se intentó mandarla dentro de la propia orden para no
+    // depender de una configuración hecha a mano, y la API rechazó el pedido
+    // entero con "unsupported_properties": ese campo existe para otro tipo de
+    // operación, no para una orden de QR.
 
     try {
       await db
@@ -2976,15 +2983,6 @@ exports.crearQrInteroperable = onCall(
           unit_price: montoFinal,
         },
       ],
-      // Dónde avisar cuando paguen. Se manda igual aunque la cuenta tenga su
-      // dirección configurada en el panel: si la API lo ignora no molesta, y si
-      // lo toma evita depender de una configuración que se hace a mano y que
-      // nadie recuerda haber hecho.
-      seller_configuration: {
-        notification_info: {
-          notification_url: `${WEBHOOK_QR_URL}?uid=${uid}&suc=${sucursalId || ''}`,
-        },
-      },
     };
 
     const orderR = await fetch(`${MP_API}/v1/orders`, {

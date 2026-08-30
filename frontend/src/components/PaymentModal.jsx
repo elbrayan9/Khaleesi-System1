@@ -9,7 +9,7 @@ import CobroQrInteroperableModal from './CobroQrInteroperableModal';
 import { useAppContext } from '../context/AppContext.jsx';
 import useAtajosTeclado from '../hooks/useAtajosTeclado.js';
 import TeclaAtajo from './ui/TeclaAtajo.jsx';
-import { Check, Wallet, QrCode, CreditCard } from 'lucide-react';
+import { Check, Wallet, CreditCard } from 'lucide-react';
 
 // Cache por sesión de los posnet detectados por sucursal (evita relistar en
 // cada apertura del modal). undefined = no consultado todavía.
@@ -41,7 +41,8 @@ function PaymentModal({
   // facturado a AFIP. Va aparte en la venta y en el ticket.
   const [propina, setPropina] = useState(0);
   const [showMP, setShowMP] = useState(false); // modal de cobro Mercado Pago
-  const [showQr, setShowQr] = useState(false); // modal QR interoperable
+  // Queda listo para cuando el QR interoperable vuelva: hoy nadie lo prende.
+  const [showQr, setShowQr] = useState(false);
   const [showPoint, setShowPoint] = useState(false); // modal de cobro posnet
   const [posnetDevices, setPosnetDevices] = useState([]); // posnet detectados
 
@@ -166,6 +167,10 @@ function PaymentModal({
   // mostrador —el cliente paga todo junto— y por eso tiene botón y tecla.
   const ponerRestante = () => setMontoActual(montoRestante.toFixed(2));
 
+  // Hay algo cobrado pero todavía no alcanza. Es lo único que justifica mostrar
+  // un segundo importe al lado del total.
+  const hayPagoParcial = montoRestante > 0 && montoRestante !== totalACobrar;
+
   // Mercado Pago confirmó el pago: agregamos el pago por el saldo restante.
   const handleMpPagado = () => {
     setPagos((prev) => [
@@ -268,8 +273,11 @@ function PaymentModal({
               )}
             </div>
 
+            {/* "Falta" solo cuando ya se cargó algún pago. Sin pagos, lo que
+                falta ES el total, y repetir el mismo número al lado hace dudar
+                de si son dos cosas distintas. */}
             <div className="text-right">
-              {montoRestante > 0 ? (
+              {hayPagoParcial ? (
                 <>
                   <p className="text-xs uppercase tracking-wider text-amber-500/80">
                     Falta
@@ -278,7 +286,7 @@ function PaymentModal({
                     ${formatCurrency(montoRestante)}
                   </p>
                 </>
-              ) : (
+              ) : montoRestante > 0 ? null : (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-sm font-semibold text-emerald-400 ring-1 ring-emerald-500/30">
                   <Check size={15} strokeWidth={3} />
                   Cubierto
@@ -475,10 +483,15 @@ function PaymentModal({
             pantalla donde el alto es lo que escasea. Van en fila: son
             hermanos, se eligen de un vistazo, y el modal deja de necesitar
             scroll en una notebook. */}
+        {/* El QR interoperable —el de todas las billeteras— salió de acá: la
+            API de Mercado Pago rechazaba la orden y el cajero se quedaba con un
+            cartel de error delante del cliente. El código sigue en su lugar,
+            listo para volver cuando funcione; lo que se sacó es la puerta de
+            entrada. */}
         {montoRestante > 0 && (
           <div
             className={`mb-4 grid gap-2 ${
-              posnetDevices.length > 0 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'
+              posnetDevices.length > 0 ? 'sm:grid-cols-2' : 'grid-cols-1'
             }`}
           >
             <button
@@ -488,15 +501,6 @@ function PaymentModal({
             >
               <Wallet size={16} />
               Mercado Pago
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setShowQr(true)}
-              className="flex min-h-[44px] cursor-pointer items-center justify-center gap-2 rounded-lg border border-teal-500 bg-teal-500/10 px-3 py-2 text-sm font-semibold text-teal-300 transition-colors hover:bg-teal-500 hover:text-white focus:outline-none focus:ring-2 focus:ring-teal-400"
-            >
-              <QrCode size={16} />
-              QR de todas
             </button>
 
             {posnetDevices.length > 0 && (
