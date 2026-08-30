@@ -6,7 +6,6 @@ import { useAppContext } from '../context/AppContext'; // Importar hook
 import { subirImagenProducto } from '../services/storageService';
 import { buscarDatosProducto } from '../services/productLookup';
 import EscanerNombreModal from './EscanerNombreModal.jsx';
-import useRelayEscaner from '../hooks/useRelayEscaner.js';
 
 // Redimensiona/comprime una imagen a máx 800px y JPEG, para que Storage quede
 // liviano y la carga sea rápida. Si algo falla, devuelve el archivo original.
@@ -39,8 +38,7 @@ const resizeImage = (file, maxSize = 800) =>
 
 function ProductForm({ onSave, productToEdit, onCancelEdit, initialBarcode }) {
   // mostrarMensaje ya no es prop
-  const { mostrarMensaje, currentUser, canAccessAI, sucursalActual } =
-    useAppContext();
+  const { mostrarMensaje, currentUser, canAccessAI } = useAppContext();
 
   const [nombre, setNombre] = useState('');
   const [codigoBarras, setCodigoBarras] = useState('');
@@ -100,28 +98,6 @@ function ProductForm({ onSave, productToEdit, onCancelEdit, initialBarcode }) {
     if (initialBarcode && !productToEdit) buscarDatos(initialBarcode);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialBarcode]);
-
-  // Celu como pistola, también para cargar. Cargar productos es justo donde más
-  // molesta el lector del mostrador: hay que llevar cada paquete hasta el
-  // escritorio. Con esto se recorre la caja con el teléfono, se dispara, y el
-  // código aparece acá en la pantalla grande, donde se termina de completar.
-  useRelayEscaner(sucursalActual?.id, (codigo) => {
-    // Un QR del sistema no es el código del producto sino la etiqueta que ESTE
-    // programa imprimió: guardarlo como código de barras dejaría el producto
-    // apuntando a sí mismo. Si llega uno, se avisa y no se toca el campo.
-    if (/\/product\//.test(codigo)) {
-      mostrarMensaje?.(
-        'Ese es el QR de una etiqueta del sistema, no el código del envase.',
-        'warning',
-      );
-      return;
-    }
-    setCodigoBarras(codigo);
-    // Mismo camino que un lector conectado por USB: busca los datos en las
-    // bases públicas. Al editar no se dispara la búsqueda, para no ponerse a
-    // traer datos de un producto que ya está cargado a mano.
-    if (!productToEdit) buscarDatos(codigo);
-  });
 
   const handleApplyPercentage = () => {
     const percentage = parseFloat(increasePercentage);

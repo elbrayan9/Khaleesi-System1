@@ -2,6 +2,7 @@
 // El hook 'useRef' nos permitirá controlar un input invisible
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import ProductForm from './ProductForm.jsx';
+import useRelayEscaner from '../hooks/useRelayEscaner.js';
 import ProductTable from './ProductTable.jsx';
 import EscanerCamaraModal from './EscanerCamaraModal.jsx';
 import CargarFacturaModal from './CargarFacturaModal.jsx';
@@ -24,6 +25,7 @@ import {
   Download,
   AlertTriangle,
   Printer,
+  FileText,
   TrendingUp,
   Trash2, // <--- AÑADIDO
   Package,
@@ -54,6 +56,7 @@ function ProductosTab() {
     handleBulkPriceUpdate,
     handleDeleteSelected, // <--- NUEVO
     handleDeleteDuplicates, // <--- NUEVO
+    sucursalActual,
   } = useAppContext();
 
   // --- INICIO DE LA NUEVA LÓGICA DE ALERTAS ---
@@ -90,16 +93,19 @@ function ProductosTab() {
         const t = new Date(v.timestamp || v.createdAt || 0).getTime();
         if (t >= hace30)
           (v.items || []).forEach((it) => {
-            vendidos[it.nombre] = (vendidos[it.nombre] || 0) + (it.cantidad || 0);
+            vendidos[it.nombre] =
+              (vendidos[it.nombre] || 0) + (it.cantidad || 0);
           });
       });
       const datos = productos
         .filter(
-          (p) => p.stock <= umbralStockBajo * 2 || (vendidos[p.nombre] || 0) > 0,
+          (p) =>
+            p.stock <= umbralStockBajo * 2 || (vendidos[p.nombre] || 0) > 0,
         )
         .slice(0, 60)
         .map(
-          (p) => `${p.nombre}: stock ${p.stock}, vendidos30 ${vendidos[p.nombre] || 0}`,
+          (p) =>
+            `${p.nombre}: stock ${p.stock}, vendidos30 ${vendidos[p.nombre] || 0}`,
         )
         .join('\n');
       if (!datos) {
@@ -107,9 +113,8 @@ function ProductosTab() {
         setCargandoRepo(false);
         return;
       }
-      const { getFunctions, httpsCallable } = await import(
-        'firebase/functions'
-      );
+      const { getFunctions, httpsCallable } =
+        await import('firebase/functions');
       const fn = httpsCallable(getFunctions(), 'sugerirReposicion');
       const res = await fn({ datos });
       setRepoTexto(res.data?.texto || 'Sin sugerencias.');
@@ -120,8 +125,32 @@ function ProductosTab() {
     }
   };
 
+  /**
+   * Llega un código escaneado, sea de la cámara de la PC o del celular.
+   *
+   * Los dos caminos hacen lo mismo a propósito: si el producto ya está, se abre
+   * para editarlo —que es lo que uno quiere el 90% de las veces, corregir un
+   * precio o sumar stock—; y si es nuevo, el formulario arranca con el código
+   * puesto. Cuando esto vivía en dos lados, el celular solo llenaba el campo y
+   * te dejaba creando un producto que ya existía.
+   */
   const handleCargaEscaneada = (code) => {
     setShowCargaEscaner(false);
+    // Un QR del sistema es la etiqueta que ESTE programa imprimió, no el código
+    // del envase: guardarlo dejaría al producto apuntándose a sí mismo. Pero sí
+    // sirve para abrir ese producto, que es su razón de ser.
+    const esEtiqueta = String(code).match(/\/product\/([^/?#\s]+)/);
+    if (esEtiqueta) {
+      const porId = productos.find((p) => p.id === esEtiqueta[1]);
+      if (porId) {
+        handleEditProduct(porId);
+        setInitialBarcode('');
+        mostrarMensaje('Producto encontrado: editalo.', 'info');
+      } else {
+        mostrarMensaje('Esa etiqueta no es de este catálogo.', 'warning');
+      }
+      return;
+    }
     const existente = productos.find(
       (p) => String(p.codigoBarras) === String(code),
     );
@@ -189,6 +218,12 @@ function ProductosTab() {
 
   // --- AÑADIDO ---
   // Esta función se activa al hacer clic en el nuevo botón "Importar"
+  // Celu como pistola, también para cargar. Cargar productos es donde más
+  // molesta el lector del mostrador: hay que llevar cada paquete hasta el
+  // escritorio. Con esto se recorre la caja con el teléfono y cada código cae
+  // acá, en la pantalla grande.
+  useRelayEscaner(sucursalActual?.id, handleCargaEscaneada);
+
   const handleImportClick = () => {
     fileInputRef.current.click();
   };
@@ -471,15 +506,6 @@ function ProductosTab() {
             <i className="fas fa-camera"></i> Cargar con cámara
           </button>
         )}
-      {canAccessAI && (
-        <button
-          type="button"
-          onClick={() => setShowFactura(true)}
-          className="mb-3 flex w-full items-center justify-center gap-2 rounded-md border border-emerald-500 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-300 hover:bg-emerald-500 hover:text-white sm:ml-2 sm:w-auto"
-        >
-          <i className="fas fa-file-invoice"></i> Cargar factura (foto) — IA
-        </button>
-      )}
       <ProductForm
         onSave={handleSave}
         productToEdit={editingProduct}
@@ -579,6 +605,21 @@ function ProductosTab() {
                 <UploadCloud className="mr-2 h-4 w-4" />
                 Exportar
               </Button>
+              {/* Cargar una factura es una acción sobre el catálogo, como
+                  importar o exportar: va con las otras y no suelta arriba del
+                  formulario, donde competía por atención con el alta a mano. */}
+              {canAccessAI && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowFactura(true)}
+                  className="border-emerald-500 bg-transparent text-emerald-400 hover:bg-emerald-500 hover:text-white"
+                  title="Foto, PDF o planilla del proveedor: la IA lee los renglones"
+                >
+                  <FileText className="mr-2 h-4 w-4" />
+                  Cargar factura — IA
+                </Button>
+              )}
               <Button
                 variant="default"
                 size="sm"
