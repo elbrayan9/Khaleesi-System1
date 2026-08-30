@@ -13,6 +13,7 @@ import {
   addProducto,
   addPedido,
   updateProducto,
+  recibirPedidoYActualizarStock,
 } from '../services/firestoreService';
 
 function CargarFacturaModal({ onClose }) {
@@ -159,6 +160,20 @@ function CargarFacturaModal({ onClose }) {
       );
     };
 
+    // El orden importa, y antes estaba al revés.
+    //
+    // Se sumaba el stock leyendo el valor actual y escribiendo la suma desde el
+    // navegador, y recién después se anotaba el pedido. Dos personas cargando
+    // facturas al mismo tiempo en dos máquinas leían el mismo stock viejo y la
+    // segunda pisaba a la primera: una factura entera desaparecía sin dejar
+    // señal. Y si el registro del pedido fallaba, el stock ya estaba sumado sin
+    // nada que lo explicara ni forma de revertirlo.
+    //
+    // Ahora: primero se resuelve qué producto es cada renglón, después se anota
+    // el pedido, y el stock lo suma recibirPedidoYActualizarStock con
+    // increment() en un solo lote. increment() lo resuelve el servidor sobre el
+    // valor real del momento, así que dos cargas simultáneas se suman en vez de
+    // pisarse, y el pedido queda escrito antes de que el stock se mueva.
     let ok = 0;
     const itemsDelPedido = [];
 
@@ -167,85 +182,95 @@ function CargarFacturaModal({ onClose }) {
       const cantidad = Number(it.cantidad) || 0;
       const costo = Number(it.costo) || 0;
       try {
+        let productoId;
         if (existente) {
-          // eslint-disable-next-line no-await-in-loop
-          await updateProducto(existente.id, {
-            stock: (Number(existente.stock) || 0) + cantidad,
-            costo: costo || existente.costo || 0,
-            // El código de barras se completa si el producto no lo tenía: es
-            // lo que después permite escanearlo en la caja.
-            ...(it.codigo && !existente.codigoBarras
-              ? { codigoBarras: it.codigo }
-              : {}),
-          });
-          itemsDelPedido.push({
-            productoId: existente.id,
-            nombre: existente.nombre,
-            cantidad,
-            costoUnitario: costo,
-          });
+          productoId = existente.id;
+          // El código de barras se completa si el producto no lo tenía: es lo
+          // que después permite escanearlo en la caja. Va aparte del stock
+          // porque no es una suma: escribir el mismo código dos veces da el
+          // mismo resultado.
+          if (it.codigo && !existente.codigoBarras) {
+            await updateProducto(existente.id, { codigoBarras: it.codigo });
+          }
         } else {
-          // eslint-disable-next-line no-await-in-loop
-          const idCreado = await addProducto(
+          // Nace en cero: las unidades de esta factura las suma el lote de
+          // abajo, como a cualquier otro producto. Si se creara ya con el
+          // stock, el increment() posterior lo duplicaría.
+          productoId = await addProducto(
             currentUser?.uid,
             {
               nombre: it.nombre,
               codigoBarras: it.codigo || null,
               costo,
               precio: Number(it.precio) || costo,
-              stock: cantidad,
+              stock: 0,
               categoria: it.categoria || null,
               vendidoPor: it.vendidoPor || 'unidad',
             },
             sucursalActual?.id,
           );
-          itemsDelPedido.push({
-            productoId: idCreado || null,
-            nombre: it.nombre,
-            cantidad,
-            costoUnitario: costo,
-          });
         }
+        if (!productoId) continue;
+        itemsDelPedido.push({
+          productoId,
+          nombre: existente ? existente.nombre : it.nombre,
+          cantidad,
+          costoUnitario: costo,
+        });
         ok += 1;
       } catch (_) {
         /* seguimos con el resto */
       }
     }
 
-    // La compra queda registrada como un pedido ya recibido. Antes la factura
-    // se aplicaba y no dejaba rastro: no se podía saber de dónde salió ese
-    // stock, ni revertirlo si se cargó mal.
-    if (proveedorDetectado && itemsDelPedido.length) {
-      try {
-        await addPedido(
-          currentUser?.uid,
-          {
-            proveedorId: proveedorDetectado.id,
-            proveedorNombre: proveedorDetectado.nombre,
-            fechaPedido: new Date().toISOString().split('T')[0],
-            fechaRecepcion: new Date().toISOString().split('T')[0],
-            // Nace recibido: el stock ya se sumó arriba, así que volver a
-            // recibirlo lo duplicaría.
-            estado: 'recibido',
-            items: itemsDelPedido,
-            totalCosto: itemsDelPedido.reduce(
-              (t, i) => t + i.cantidad * i.costoUnitario,
-              0,
-            ),
-            notas: [
-              'Cargado desde una foto de la factura.',
-              cabecera?.comprobante
-                ? `Comprobante ${cabecera.comprobante}`
-                : '',
-              cabecera?.fecha ? `Fecha ${cabecera.fecha}` : '',
-            ]
-              .filter(Boolean)
-              .join(' · '),
-          },
-          sucursalActual?.id,
+    // La compra queda registrada como un pedido, y recién entonces se toca el
+    // stock. Se anota aunque no se haya reconocido al proveedor: sin este
+    // documento no hay de dónde salió ese stock ni cómo revertirlo, que es
+    // justamente lo que se quiere evitar.
+    if (itemsDelPedido.length) {
+      const pedidoId = await addPedido(
+        currentUser?.uid,
+        {
+          proveedorId: proveedorDetectado?.id || null,
+          proveedorNombre:
+            proveedorDetectado?.nombre ||
+            cabecera?.proveedor?.nombre ||
+            'Proveedor sin identificar',
+          fechaPedido: new Date().toISOString().split('T')[0],
+          // Nace pendiente: lo pasa a recibido el mismo lote que suma el stock,
+          // así el estado y las unidades no pueden quedar contando cosas
+          // distintas.
+          estado: 'pendiente',
+          items: itemsDelPedido,
+          totalCosto: itemsDelPedido.reduce(
+            (t, i) => t + i.cantidad * i.costoUnitario,
+            0,
+          ),
+          notas: [
+            'Cargado desde una foto de la factura.',
+            cabecera?.comprobante ? `Comprobante ${cabecera.comprobante}` : '',
+            cabecera?.fecha ? `Fecha ${cabecera.fecha}` : '',
+          ]
+            .filter(Boolean)
+            .join(' · '),
+        },
+        sucursalActual?.id,
+      );
+
+      const sumado = await recibirPedidoYActualizarStock({
+        id: pedidoId,
+        items: itemsDelPedido,
+      });
+      if (!sumado) {
+        // El pedido quedó pendiente, con todo lo que hay que recibir adentro.
+        // Se puede recibir a mano desde Proveedores sin volver a sacarle la
+        // foto a la factura.
+        mostrarMensaje?.(
+          'No se pudo sumar el stock. La compra quedó anotada como pedido pendiente en Proveedores: recibila desde ahí.',
+          'error',
         );
-      } catch (_) {
-        /* si falla el registro, el stock igual quedó cargado */
+        onClose?.();
+        return;
       }
     }
 
