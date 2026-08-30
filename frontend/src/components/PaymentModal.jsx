@@ -9,6 +9,7 @@ import CobroQrInteroperableModal from './CobroQrInteroperableModal';
 import { useAppContext } from '../context/AppContext.jsx';
 import useAtajosTeclado from '../hooks/useAtajosTeclado.js';
 import TeclaAtajo from './ui/TeclaAtajo.jsx';
+import { Check, Wallet, QrCode, CreditCard } from 'lucide-react';
 
 // Cache por sesión de los posnet detectados por sucursal (evita relistar en
 // cada apertura del modal). undefined = no consultado todavía.
@@ -161,6 +162,10 @@ function PaymentModal({
     setMetodoPagoActual('efectivo'); // Resetea al método por defecto
   };
 
+  // Poner en el monto lo que falta cubrir. Es el gesto más repetido del
+  // mostrador —el cliente paga todo junto— y por eso tiene botón y tecla.
+  const ponerRestante = () => setMontoActual(montoRestante.toFixed(2));
+
   // Mercado Pago confirmó el pago: agregamos el pago por el saldo restante.
   const handleMpPagado = () => {
     setPagos((prev) => [
@@ -206,17 +211,27 @@ function PaymentModal({
 
   // Cerrar con Escape y confirmar con F2, para terminar la venta sin soltar el
   // teclado. F2 es la misma tecla que abrió este modal: se aprieta dos veces y
-  // la venta queda cerrada.
+  // la venta queda cerrada. F7 pone lo que falta y F8 agrega el pago.
   //
-  // Enter queda afuera a propósito: dentro de este modal se tipean montos, y
-  // rematar una venta por apretar Enter de más sería peor que ahorrar un clic.
+  // Enter NO confirma la venta, a propósito: acá se tipean montos, y rematar
+  // una venta por un Enter de más sería peor que ahorrar un clic. Dentro de los
+  // campos de plata sí agrega el pago, que es lo que uno espera al terminar de
+  // escribir un número —y si se equivocó, el pago se puede quitar.
+  //
+  // Cada atajo repite el mismo freno que su botón: si el botón no deja hacer
+  // algo, la tecla tampoco. Si no, el teclado sería un atajo para saltarse las
+  // validaciones.
   useAtajosTeclado(
     {
       Escape: onClose,
-      // Mismo freno que el botón: si falta cubrir el total, no confirma. Sin
-      // esto el atajo cerraría ventas a medio pagar, que el botón no permite.
       F2: () => {
         if (montoRestante <= 0) handleConfirmar();
+      },
+      F7: () => {
+        if (montoRestante > 0) ponerRestante();
+      },
+      F8: () => {
+        if (montoRestante > 0) handleAgregarPago();
       },
     },
     isOpen && !showMP && !showPoint && !showQr,
@@ -231,41 +246,51 @@ function PaymentModal({
           Registrar Pago
         </h3>
 
-        {/* SECCIÓN DE TOTALES */}
-        <div className="mb-4 rounded-lg bg-zinc-900 p-3 text-center">
-          {Number(propina) > 0 ? (
-            <>
-              <div className="flex justify-between px-1 text-sm text-zinc-400">
-                <span>Subtotal</span>
-                <span>${formatCurrency(total)}</span>
-              </div>
-              <div className="flex justify-between px-1 text-sm text-emerald-400">
-                <span>Propina</span>
-                <span>+ ${formatCurrency(Number(propina))}</span>
-              </div>
-              <p className="mt-1 text-sm text-zinc-400">Total a Cobrar</p>
-              <p className="text-3xl font-bold text-white">
+        {/* SECCIÓN DE TOTALES
+            El importe a un lado y el estado del cobro al otro. Antes iban los
+            tres apilados y centrados, con tamaños parecidos: había que leer
+            para saber si la venta ya estaba cubierta. Ahora se ve de un
+            vistazo, que es lo que se mira mil veces por día. */}
+        <div className="mb-4 rounded-xl bg-zinc-900 p-4 ring-1 ring-white/5">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-wider text-zinc-500">
+                {Number(propina) > 0 ? 'Total a cobrar' : 'Total a pagar'}
+              </p>
+              <p className="text-4xl font-bold tabular-nums text-white">
                 ${formatCurrency(totalACobrar)}
               </p>
-            </>
-          ) : (
-            <>
-              <p className="text-sm text-zinc-400">Total a Pagar</p>
-              <p className="text-3xl font-bold text-white">
-                ${formatCurrency(totalACobrar)}
-              </p>
-            </>
-          )}
-          {montoRestante > 0 && montoRestante !== totalACobrar && (
-            <p className="text-lg font-semibold text-yellow-400">
-              Faltan: ${formatCurrency(montoRestante)}
-            </p>
-          )}
-          {vueltoAcumulado > 0 && (
-            <p className="text-xl font-bold text-green-400">
-              Vuelto: ${formatCurrency(vueltoAcumulado)}
-            </p>
-          )}
+              {Number(propina) > 0 && (
+                <p className="mt-0.5 text-xs tabular-nums text-zinc-400">
+                  ${formatCurrency(total)} + ${formatCurrency(Number(propina))}{' '}
+                  de propina
+                </p>
+              )}
+            </div>
+
+            <div className="text-right">
+              {montoRestante > 0 ? (
+                <>
+                  <p className="text-xs uppercase tracking-wider text-amber-500/80">
+                    Falta
+                  </p>
+                  <p className="text-2xl font-bold tabular-nums text-amber-400">
+                    ${formatCurrency(montoRestante)}
+                  </p>
+                </>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-sm font-semibold text-emerald-400 ring-1 ring-emerald-500/30">
+                  <Check size={15} strokeWidth={3} />
+                  Cubierto
+                </span>
+              )}
+              {vueltoAcumulado > 0 && (
+                <p className="mt-1 text-sm font-semibold tabular-nums text-emerald-400">
+                  Vuelto ${formatCurrency(vueltoAcumulado)}
+                </p>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* FORMULARIO PARA AGREGAR NUEVO PAGO */}
@@ -300,17 +325,30 @@ function PaymentModal({
                 </label>
                 <div className="flex">
                   <input
+                    id="pago-monto"
                     type="number"
+                    // El teclado del celular abre en números y con coma, que es
+                    // como se escribe la plata.
+                    inputMode="decimal"
                     value={montoActual}
                     onChange={(e) => setMontoActual(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAgregarPago();
+                      }
+                    }}
                     placeholder={formatCurrency(montoRestante)}
-                    className="w-full rounded-l-md border border-zinc-600 bg-zinc-700 p-2"
+                    className="w-full rounded-l-md border border-zinc-600 bg-zinc-700 p-2 tabular-nums text-zinc-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                   <button
-                    onClick={() => setMontoActual(montoRestante.toFixed(2))}
-                    className="rounded-r-md bg-zinc-600 px-2 text-xs hover:bg-zinc-500"
+                    type="button"
+                    onClick={ponerRestante}
+                    title="Poner lo que falta (F7)"
+                    className="flex shrink-0 cursor-pointer items-center gap-1 rounded-r-md bg-zinc-600 px-3 text-xs font-medium text-zinc-100 transition-colors hover:bg-zinc-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   >
                     Restante
+                    <TeclaAtajo className="border-zinc-400">F7</TeclaAtajo>
                   </button>
                 </div>
               </div>
@@ -324,16 +362,26 @@ function PaymentModal({
                 </label>
                 <input
                   type="number"
+                  inputMode="decimal"
                   value={pagaCon}
                   onChange={(e) => setPagaCon(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAgregarPago();
+                    }
+                  }}
                   placeholder="Ej: 1000"
-                  className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2"
+                  className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 tabular-nums text-zinc-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
+                {/* Los billetes que existen en la calle. Se agrandaron para
+                    que se acierten con el dedo en una pantalla táctil, que es
+                    donde más se usan. */}
                 <div className="mt-2 flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={() => setPagaCon(montoRestante.toFixed(2))}
-                    className="rounded-md bg-zinc-600 px-3 py-1 text-xs font-semibold text-white hover:bg-zinc-500"
+                    className="min-h-[38px] cursor-pointer rounded-md bg-zinc-600 px-3 text-xs font-semibold text-white transition-colors hover:bg-zinc-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   >
                     Justo
                   </button>
@@ -342,7 +390,7 @@ function PaymentModal({
                       key={billete}
                       type="button"
                       onClick={() => setPagaCon(String(billete))}
-                      className="rounded-md bg-zinc-600 px-3 py-1 text-xs font-semibold text-white hover:bg-zinc-500"
+                      className="min-h-[38px] cursor-pointer rounded-md bg-zinc-600 px-3 text-xs font-semibold tabular-nums text-white transition-colors hover:bg-zinc-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     >
                       ${billete.toLocaleString('es-AR')}
                     </button>
@@ -357,10 +405,12 @@ function PaymentModal({
             )}
 
             <button
+              type="button"
               onClick={handleAgregarPago}
-              className="w-full rounded-md bg-blue-600 py-2 font-bold text-white hover:bg-blue-700"
+              className="flex min-h-[44px] w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-blue-600 py-2 font-bold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
               Agregar Pago
+              <TeclaAtajo className="border-blue-300/50">F8</TeclaAtajo>
             </button>
           </div>
         )}
@@ -420,55 +470,81 @@ function PaymentModal({
           )}
         </div>
 
-        {/* COBRO CON MERCADO PAGO (QR / link) */}
+        {/* COBROS DIGITALES
+            Iban uno abajo del otro, ocupando tres bloques de alto en una
+            pantalla donde el alto es lo que escasea. Van en fila: son
+            hermanos, se eligen de un vistazo, y el modal deja de necesitar
+            scroll en una notebook. */}
         {montoRestante > 0 && (
-          <button
-            type="button"
-            onClick={() => setShowMP(true)}
-            className="mb-4 flex w-full items-center justify-center gap-2 rounded-lg border border-sky-600 bg-sky-600/10 px-4 py-2 font-semibold text-sky-400 transition-colors hover:bg-sky-600 hover:text-white"
+          <div
+            className={`mb-4 grid gap-2 ${
+              posnetDevices.length > 0 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'
+            }`}
           >
-            Cobrar con Mercado Pago (QR / Link)
-          </button>
-        )}
+            <button
+              type="button"
+              onClick={() => setShowMP(true)}
+              className="flex min-h-[44px] cursor-pointer items-center justify-center gap-2 rounded-lg border border-sky-600 bg-sky-600/10 px-3 py-2 text-sm font-semibold text-sky-400 transition-colors hover:bg-sky-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-sky-400"
+            >
+              <Wallet size={16} />
+              Mercado Pago
+            </button>
 
-        {/* COBRO CON QR INTEROPERABLE (todas las billeteras / bancos) */}
-        {montoRestante > 0 && (
-          <button
-            type="button"
-            onClick={() => setShowQr(true)}
-            className="mb-4 flex w-full items-center justify-center gap-2 rounded-lg border border-teal-500 bg-teal-500/10 px-4 py-2 font-semibold text-teal-300 transition-colors hover:bg-teal-500 hover:text-white"
-          >
-            Cobrar con QR (todas las billeteras)
-          </button>
-        )}
+            <button
+              type="button"
+              onClick={() => setShowQr(true)}
+              className="flex min-h-[44px] cursor-pointer items-center justify-center gap-2 rounded-lg border border-teal-500 bg-teal-500/10 px-3 py-2 text-sm font-semibold text-teal-300 transition-colors hover:bg-teal-500 hover:text-white focus:outline-none focus:ring-2 focus:ring-teal-400"
+            >
+              <QrCode size={16} />
+              QR de todas
+            </button>
 
-        {/* COBRO CON POSNET (Mercado Pago Point) — solo si hay uno vinculado */}
-        {montoRestante > 0 && posnetDevices.length > 0 && (
-          <button
-            type="button"
-            onClick={() => setShowPoint(true)}
-            className="mb-4 flex w-full items-center justify-center gap-2 rounded-lg border border-indigo-500 bg-indigo-500/10 px-4 py-2 font-semibold text-indigo-300 transition-colors hover:bg-indigo-500 hover:text-white"
-          >
-            Cobrar con posnet (Point)
-          </button>
+            {posnetDevices.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowPoint(true)}
+                className="flex min-h-[44px] cursor-pointer items-center justify-center gap-2 rounded-lg border border-indigo-500 bg-indigo-500/10 px-3 py-2 text-sm font-semibold text-indigo-300 transition-colors hover:bg-indigo-500 hover:text-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              >
+                <CreditCard size={16} />
+                Posnet
+              </button>
+            )}
+          </div>
         )}
 
         {/* BOTONES FINALES */}
-        <div className="mt-6 flex justify-end gap-3 border-t border-zinc-700 pt-4">
+        <div className="mt-5 flex items-center justify-end gap-3 border-t border-zinc-700 pt-4">
           <button
+            type="button"
             onClick={onClose}
-            className="rounded-md bg-zinc-600 px-4 py-2 hover:bg-zinc-500"
+            className="min-h-[44px] cursor-pointer rounded-lg px-4 text-zinc-300 transition-colors hover:bg-zinc-700 hover:text-white focus:outline-none focus:ring-2 focus:ring-zinc-500"
           >
             Cancelar
-            <TeclaAtajo className="border-zinc-400">Esc</TeclaAtajo>
+            <TeclaAtajo className="border-zinc-500">Esc</TeclaAtajo>
           </button>
+          {/* El que cierra la venta pesa más que todo lo demás del modal: es el
+              final del camino y se aprieta con la cola esperando. La tecla se
+              muestra siempre, no solo cuando está habilitado, así se aprende
+              aunque hoy falte cubrir el total. */}
           <button
+            type="button"
             onClick={handleConfirmar}
             disabled={montoRestante > 0}
-            className="rounded-md bg-green-600 px-4 py-2 font-bold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-zinc-500"
+            title={
+              montoRestante > 0
+                ? `Todavía faltan $${formatCurrency(montoRestante)}`
+                : 'Confirmar la venta (F2)'
+            }
+            className="flex min-h-[48px] cursor-pointer items-center gap-2 rounded-lg bg-emerald-600 px-6 text-base font-bold text-white shadow-lg shadow-emerald-900/30 transition-colors hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-400 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-300 disabled:shadow-none"
           >
             Confirmar Venta
-            {montoRestante <= 0 && <TeclaAtajo>F2</TeclaAtajo>}
+            <TeclaAtajo
+              className={
+                montoRestante > 0 ? 'border-zinc-500' : 'border-emerald-300/60'
+              }
+            >
+              F2
+            </TeclaAtajo>
           </button>
         </div>
       </div>
