@@ -91,3 +91,36 @@ describe('PaginationControls', () => {
     expect(handlePageChange).toHaveBeenCalledWith(4);
   });
 });
+
+// El caso que aparecía en Reportes: "Mostrando 0-NaN de", sin número al final.
+// Un NaN en pantalla es de las cosas que más rápido hacen desconfiar del resto
+// de lo que muestra el sistema, y en un reporte de plata todavía más.
+describe('cuando el que llama no pasa el rango', () => {
+  it('no escribe NaN: directamente no muestra el rango', () => {
+    render(
+      <PaginationControls
+        currentPage={1}
+        totalPages={3}
+        onPageChange={() => {}}
+      />,
+    );
+    expect(screen.queryByText(/NaN/)).toBeNull();
+    expect(screen.queryByText(/Mostrando/)).toBeNull();
+    // Los botones tienen que seguir andando: el rango es un adorno, la
+    // navegación no.
+    expect(screen.getByRole('button', { name: /Siguiente/i })).toBeTruthy();
+  });
+
+  it('tampoco con itemsPerPage en cero', () => {
+    render(
+      <PaginationControls
+        currentPage={1}
+        totalPages={2}
+        onPageChange={() => {}}
+        itemsPerPage={0}
+        totalItems={20}
+      />,
+    );
+    expect(screen.queryByText(/NaN/)).toBeNull();
+  });
+});

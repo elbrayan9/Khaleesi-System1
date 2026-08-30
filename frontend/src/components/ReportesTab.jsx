@@ -17,7 +17,6 @@ import {
   FileBarChart,
   TrendingUp,
   TrendingDown,
-  DollarSign,
   Wallet,
   Lock,
   Unlock,
@@ -695,11 +694,20 @@ function ReportesTab({
           <div className="rounded-lg bg-orange-500/10 p-2 text-orange-500">
             <FileBarChart className="h-6 w-6" />
           </div>
+          {/* El subtítulo decía "Gestión diaria y métricas clave", que es el
+              título dicho de nuevo con otras palabras. En su lugar va el dato
+              que la persona vino a buscar: cuánto se vendió. */}
           <div>
             <h2 className="text-xl font-bold text-white">Caja y Reportes</h2>
-            <p className="text-xs text-zinc-400">
-              Gestión diaria y métricas clave
-            </p>
+            {mostrarTodo && (
+              <p className="text-xs text-zinc-400">
+                <span className="font-semibold text-emerald-400">
+                  ${formatCurrency(totalVentasDia)}
+                </span>{' '}
+                en {ventasDelDia.length}{' '}
+                {ventasDelDia.length === 1 ? 'venta' : 'ventas'}
+              </p>
+            )}
           </div>
         </div>
 
@@ -742,6 +750,20 @@ function ReportesTab({
             <CornerDownLeft className="h-4 w-4" /> Hoy
           </motion.button>
 
+          {/* Abrir la caja es LA acción de esta pantalla —lo primero que se
+              hace a la mañana y lo último a la noche—, y estaba abajo de todo
+              en la columna derecha, después de tres tablas. Acá arriba está
+              donde va el ojo, al lado de la fecha sobre la que va a operar. */}
+          {mostrarTodo && (
+            <motion.button
+              onClick={() => setCajaAbierta(true)}
+              className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-900/20 hover:bg-blue-700"
+              whileTap={{ scale: 0.95 }}
+            >
+              <Wallet className="h-4 w-4" /> Caja
+            </motion.button>
+          )}
+
           {mostrarTodo && (
             <motion.button
               onClick={handleExportarMes}
@@ -773,28 +795,11 @@ function ReportesTab({
         </div>
       </div>
 
-      {/* Ventas del día. Los totales de ingresos y egresos, el saldo y el
-          desglose por medio de pago viven ahora en la pantalla de Caja: tenerlos
-          acá también obligaba a mantener dos veces el mismo cálculo, y cuando
-          uno de los dos cambiaba, el otro mentía. */}
-      {mostrarTodo && (
-        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-zinc-400">
-                Ventas del Día
-              </p>
-              <DollarSign className="h-4 w-4 text-emerald-500" />
-            </div>
-            <p className="mt-2 text-2xl font-bold text-emerald-400">
-              ${formatCurrency(totalVentasDia)}
-            </p>
-            <p className="text-xs text-zinc-500">
-              {ventasDelDia.length} transacciones
-            </p>
-          </div>
-        </div>
-      )}
+      {/* Acá vivía una tarjeta con las ventas del día, sola dentro de una
+          grilla de tres columnas que quedó de cuando eran tres: ocupaba un
+          renglón entero de alto para mostrar un número y dejaba dos tercios de
+          ancho vacíos. El número se movió al encabezado, y ese alto se lo queda
+          el gráfico y las tablas, que es lo que se mira. */}
 
       <div className="grid h-[calc(100dvh-13rem)] min-h-0 grid-cols-1 gap-6 lg:grid-cols-12">
         {/* --- LEFT COLUMN: Chart + Tables (65-70%) --- */}
@@ -1035,6 +1040,8 @@ function ReportesTab({
                     currentPage={currentPageDia}
                     totalPages={totalPagesDia}
                     onPageChange={setCurrentPageDia}
+                    itemsPerPage={ITEMS_PER_PAGE_REPORTE}
+                    totalItems={filteredSortedMovimientosDia.length}
                   />
                 </div>
               </div>
@@ -1235,6 +1242,8 @@ function ReportesTab({
                     currentPage={currentPageMes}
                     totalPages={totalPagesMes}
                     onPageChange={setCurrentPageMes}
+                    itemsPerPage={ITEMS_PER_PAGE_REPORTE}
+                    totalItems={filteredSortedMovimientosMes.length}
                   />
                 </div>
               </div>
@@ -1244,18 +1253,6 @@ function ReportesTab({
 
         {/* --- RIGHT COLUMN: Sidebar (Caja, Actions, Stack) (30-35%) --- */}
         <div className="custom-scrollbar flex h-full flex-col gap-6 overflow-y-auto pr-1 lg:col-span-4 xl:col-span-3">
-          {mostrarTodo && (
-            <motion.button
-              onClick={() => setCajaAbierta(true)}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 p-4 font-bold text-white shadow-lg shadow-blue-900/20 hover:from-blue-700 hover:to-indigo-700"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <Wallet className="h-5 w-5" />
-              Caja
-            </motion.button>
-          )}
-
           {/* Stack Components */}
           <div className="space-y-6">
             {mostrarTodo && <HistorialTurnos />}
