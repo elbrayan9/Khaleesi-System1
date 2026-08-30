@@ -8,8 +8,6 @@ import VentaPorVozModal, { soportaVoz } from './VentaPorVozModal.jsx';
 import EscanerNombreModal from './EscanerNombreModal.jsx';
 import SearchBar from './SearchBar.jsx';
 import Swal from '../utils/swalTheme.js'; // Swal con el tema del sistema
-import { doc, onSnapshot } from 'firebase/firestore';
-import { db } from '../firebaseConfig';
 import { useAppContext } from '../context/AppContext.jsx';
 import SelectorVendedor from './SelectorVendedor';
 import ShiftManager from './ShiftManager';
@@ -19,6 +17,7 @@ import { ShoppingCart } from 'lucide-react';
 import useAtajosTeclado from '../hooks/useAtajosTeclado.js';
 import { sonarEscaneo, sonarErrorEscaneo } from '../utils/sonido.js';
 import TeclaAtajo from './ui/TeclaAtajo.jsx';
+import useRelayEscaner from '../hooks/useRelayEscaner.js';
 
 function VentaTab() {
   // --- OBTENER DATOS Y FUNCIONES DESDE EL CONTEXTO ---
@@ -274,22 +273,9 @@ function VentaTab() {
     }
   };
 
-  // Relay "celu como pistola": escucha códigos escaneados desde el celu y los
-  // agrega a la venta en tiempo real.
-  useEffect(() => {
-    const sucId = sucursalActual?.id;
-    if (!sucId) return undefined;
-    const ultimoTs = { current: Date.now() };
-    const unsub = onSnapshot(doc(db, 'scannerRelay', sucId), (snap) => {
-      const d = snap.data();
-      if (d?.codigo && d?.ts && d.ts > ultimoTs.current) {
-        ultimoTs.current = d.ts;
-        handleAgregarPorCodigo(String(d.codigo));
-      }
-    });
-    return () => unsub();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sucursalActual]);
+  // Celu como pistola: cada código que se escanea en el teléfono entra acá y se
+  // agrega a la venta, igual que si lo hubiera leído el lector del mostrador.
+  useRelayEscaner(sucursalActual?.id, handleAgregarPorCodigo);
 
   // REEMPLAZA 'handleAgregarManual' con esta versión:
   const handleAgregarManual = () => {
