@@ -19,7 +19,10 @@ const {
 } = geocoding;
 
 test('normalizar saca tildes, mayúsculas y puntuación', () => {
-  assert.strictEqual(normalizarDireccion('Av. CÓRDOBA 1234'), 'av cordoba 1234');
+  assert.strictEqual(
+    normalizarDireccion('Av. CÓRDOBA 1234'),
+    'av cordoba 1234',
+  );
   assert.strictEqual(normalizarDireccion('  Güemes   señor  '), 'guemes senor');
 });
 
@@ -53,7 +56,9 @@ test('la clave es un hash parejo y no la dirección en claro', () => {
 
 test('el recuadro sale en el orden que espera Nominatim', () => {
   // izquierda, arriba, derecha, abajo
-  const r = recuadroAlrededor({ lat: -34.6, lng: -58.4 }, 0.5).split(',').map(Number);
+  const r = recuadroAlrededor({ lat: -34.6, lng: -58.4 }, 0.5)
+    .split(',')
+    .map(Number);
   assert.ok(r[0] < r[2], 'la izquierda va antes que la derecha');
   assert.ok(r[1] > r[3], 'arriba va antes que abajo');
   assert.strictEqual(r[0], -58.9);
@@ -100,13 +105,54 @@ test('sin clave va directo al buscador libre', async () => {
   assert.strictEqual(r.label, 'desde OSM');
 });
 
-test('con clave prefiere el buscador bueno', async () => {
+test('sin referencia, con clave usa el buscador bueno', async () => {
   const r = await buscarDireccion('Av. Colón 100', null, 'una-clave', {
     ors: async () => PUNTO_ORS,
     osm: async () => PUNTO_OSM,
   });
   assert.strictEqual(r.proveedor, 'ors');
   assert.strictEqual(r.lat, PUNTO_ORS.lat);
+});
+
+// --- Con un punto de referencia, gana el más cercano ---
+//
+// Este es el caso real que motivó la regla: probando en Córdoba, cada buscador
+// clavó una dirección que el otro mandaba a decenas de kilómetros. Quedarse
+// siempre con el mismo se comía uno de los dos casos.
+
+const CENTRO_CBA = { lat: -31.42, lng: -64.18 };
+
+test('gana el candidato más cercano a la referencia, aunque sea el de respaldo', async () => {
+  const r = await buscarDireccion(
+    'Bv. San Juan 1000',
+    CENTRO_CBA,
+    'una-clave',
+    {
+      // Lo que devolvió ORS de verdad con esta dirección: 47 km al oeste.
+      ors: async () => ({ lat: -31.42, lng: -64.68, label: 'lejos' }),
+      osm: async () => ({ lat: -31.425, lng: -64.19, label: 'la buena' }),
+    },
+  );
+  assert.strictEqual(r.proveedor, 'nominatim');
+  assert.strictEqual(r.label, 'la buena');
+});
+
+test('y también gana el bueno cuando el de respaldo es el que se va lejos', async () => {
+  const r = await buscarDireccion('9 de Julio 500', CENTRO_CBA, 'una-clave', {
+    ors: async () => ({ lat: -31.423, lng: -64.185, label: 'la buena' }),
+    // Saldán, 16 km: el resultado real de Nominatim con esta dirección.
+    osm: async () => ({ lat: -31.28, lng: -64.3, label: 'Saldan' }),
+  });
+  assert.strictEqual(r.proveedor, 'ors');
+  assert.strictEqual(r.label, 'la buena');
+});
+
+test('con referencia, si uno no encuentra nada gana el otro', async () => {
+  const r = await buscarDireccion('Calle rara 1', CENTRO_CBA, 'una-clave', {
+    ors: async () => null,
+    osm: async () => ({ lat: -31.43, lng: -64.19, label: 'unico' }),
+  });
+  assert.strictEqual(r.label, 'unico');
 });
 
 test('si el buscador bueno se cae, sigue con el otro', async () => {

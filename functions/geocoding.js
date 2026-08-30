@@ -153,13 +153,26 @@ async function buscarEnOrs(texto, cerca, apiKey) {
   return { lat, lng, label: String(f.properties?.label || '').slice(0, 200) };
 }
 
+/** Distancia aproximada en km, suficiente para comparar dos candidatos. */
+function kmAproximados(a, b) {
+  return Math.hypot((a.lat - b.lat) * 111, (a.lng - b.lng) * 92);
+}
+
 /**
- * Busca una dirección, con el mejor buscador disponible.
+ * Busca una dirección.
  *
  * Devuelve `{ lat, lng, label, proveedor }` o `null` si ninguno la encontró.
- * Si el preferido se cae, se prueba con el otro antes de darse por vencido: que
- * un servicio esté caído no tiene por qué dejar al comercio sin poder ubicar su
- * local.
+ *
+ * **Con un punto de referencia se le pregunta a los dos y gana el más
+ * cercano.** No es por las dudas: probando direcciones reales de Córdoba
+ * ninguno de los dos resultó confiable solo. OpenRouteService clavó
+ * "9 de Julio 500" que el otro mandaba a Saldán, 16 km más allá; y Nominatim
+ * clavó "Bv. San Juan 1000" que OpenRouteService mandaba a 47 km. Preferir uno
+ * y usar el otro solo de respaldo se comía ese segundo caso, porque el
+ * preferido sí contesta, nada más que mal.
+ *
+ * Sin punto de referencia no hay con qué desempatar, así que se usa el mejor
+ * disponible y listo.
  */
 async function buscarDireccion(
   texto,
@@ -170,16 +183,38 @@ async function buscarDireccion(
   // prueba nada, falla sola un martes.
   buscadores = { ors: buscarEnOrs, osm: buscarEnNominatim },
 ) {
-  if (apiKeyOrs) {
+  const intentar = async (fn, proveedor) => {
     try {
-      const r = await buscadores.ors(texto, cerca, apiKeyOrs);
-      if (r) return { ...r, proveedor: 'ors' };
+      const r = await fn();
+      return r ? { ...r, proveedor } : null;
     } catch (e) {
-      console.warn('[geocoding] ORS falló, se prueba con OSM:', e?.message);
+      console.warn(`[geocoding] ${proveedor} falló:`, e?.message);
+      return null;
     }
-  }
-  const r = await buscadores.osm(texto, cerca);
-  return r ? { ...r, proveedor: 'nominatim' } : null;
+  };
+
+  const conOrs = apiKeyOrs
+    ? await intentar(() => buscadores.ors(texto, cerca, apiKeyOrs), 'ors')
+    : null;
+
+  const referencia =
+    cerca && coordenadaValida(cerca.lat, cerca.lng) ? cerca : null;
+
+  // Sin referencia, el que conteste primero: no hay forma de saber cuál acertó.
+  if (!referencia && conOrs) return conOrs;
+
+  const conOsm = await intentar(
+    () => buscadores.osm(texto, cerca),
+    'nominatim',
+  );
+
+  if (!conOrs) return conOsm;
+  if (!conOsm) return conOrs;
+  if (!referencia) return conOrs;
+
+  return kmAproximados(conOsm, referencia) < kmAproximados(conOrs, referencia)
+    ? conOsm
+    : conOrs;
 }
 
 module.exports = {
@@ -190,4 +225,5 @@ module.exports = {
   buscarEnNominatim,
   buscarEnOrs,
   buscarDireccion,
+  kmAproximados,
 };
