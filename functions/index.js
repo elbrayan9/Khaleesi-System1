@@ -1311,6 +1311,45 @@ async function siguienteCodigoPedido(sucursalId) {
   });
 }
 
+// Un producto, para la etiqueta de la góndola.
+//
+// La página que se abre al escanear el QR de un producto leía el documento
+// entero desde el navegador, y ahí adentro viajan el costo, el margen y el
+// stock: cualquiera que escaneara una etiqueta en el local se llevaba lo que le
+// cuesta al comercio cada cosa que vende.
+//
+// Acá se devuelve solo lo que la etiqueta muestra. Sin sesión, porque el que
+// escanea es un cliente parado en el pasillo.
+exports.getProductoPublico = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
+    const productoId = String(request.data?.productoId || '').trim();
+    if (!productoId) {
+      throw new HttpsError('invalid-argument', 'Falta el producto.');
+    }
+    try {
+      const snap = await db.collection('productos').doc(productoId).get();
+      if (!snap.exists) {
+        throw new HttpsError('not-found', 'Producto no encontrado.');
+      }
+      const p = snap.data() || {};
+      return {
+        id: snap.id,
+        nombre: p.nombre || '',
+        descripcion: p.descripcion || '',
+        precio: Number(p.precio) || 0,
+        codigoBarras: p.codigoBarras || null,
+        imagenUrl: p.imagenUrl || null,
+        vendidoPor: p.vendidoPor === 'peso' ? 'peso' : 'unidad',
+      };
+    } catch (error) {
+      if (error.code) throw error;
+      console.error('[getProductoPublico] error:', error);
+      throw new HttpsError('internal', 'No se pudo leer el producto.');
+    }
+  },
+);
+
 exports.crearPedidoTienda = onCall(
   { enforceAppCheck: true },
   async (request) => {

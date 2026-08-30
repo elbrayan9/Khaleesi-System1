@@ -1,8 +1,6 @@
 // frontend/src/screens/PublicProductView.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../firebaseConfig';
 import { formatCurrency } from '../utils/helpers';
 import AppLogo from '../components/AppLogo';
 
@@ -18,14 +16,16 @@ const PublicProductView = () => {
         if (!productId) {
           throw new Error('No se especificó un producto.');
         }
-        const productRef = doc(db, 'productos', productId);
-        const productSnap = await getDoc(productRef);
-
-        if (productSnap.exists()) {
-          setProduct({ id: productSnap.id, ...productSnap.data() });
-        } else {
-          throw new Error('Producto no encontrado.');
-        }
+        // Se pide por una función y no leyendo el documento entero: adentro
+        // del producto viajan el costo, el margen y el stock, y esta página la
+        // abre cualquiera que escanee la etiqueta en la góndola. La función
+        // devuelve solo lo que se muestra.
+        const { getFunctions, httpsCallable } =
+          await import('firebase/functions');
+        const fn = httpsCallable(getFunctions(), 'getProductoPublico');
+        const { data } = await fn({ productoId: productId });
+        if (!data?.id) throw new Error('Producto no encontrado.');
+        setProduct(data);
       } catch (err) {
         setError(err.message);
       } finally {
