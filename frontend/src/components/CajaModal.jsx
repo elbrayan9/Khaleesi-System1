@@ -467,32 +467,36 @@ function CajaModal({
 
                   {/* TOTALES: la fila que se mira primero al cuadrar la caja */}
                   <tfoot className="sticky bottom-0 border-t-2 border-zinc-600 bg-zinc-800">
-                    <tr className="font-semibold text-white">
+                    <tr className="text-white">
                       <td
                         colSpan={3}
-                        className="px-3 py-2.5 text-right text-zinc-400"
+                        className="px-3 py-2 text-right text-zinc-400"
                       >
-                        Totales del día
+                        Movimientos del día
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-green-400">
-                        $
-                        {formatCurrency(
-                          totalIngresos +
-                            (arrastraSaldo && saldoAnterior > 0
-                              ? saldoAnterior
-                              : 0),
-                        )}
+                      <td className="whitespace-nowrap px-3 py-2 text-right font-semibold tabular-nums text-green-400">
+                        ${formatCurrency(totalIngresos)}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-red-400">
+                      <td className="whitespace-nowrap px-3 py-2 text-right font-semibold tabular-nums text-red-400">
                         ${formatCurrency(totalEgresos)}
                       </td>
                     </tr>
+                    {arrastraSaldo && saldoAnterior !== 0 && (
+                      <tr className="text-zinc-400">
+                        <td colSpan={4} className="px-3 py-1.5 text-right">
+                          Venía del día anterior
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums">
+                          ${formatCurrency(saldoAnterior)}
+                        </td>
+                      </tr>
+                    )}
                     <tr className="border-t border-zinc-700 text-white">
                       <td
                         colSpan={4}
                         className="px-3 py-2.5 text-right font-semibold"
                       >
-                        Saldo
+                        Saldo en caja
                       </td>
                       <td
                         className={

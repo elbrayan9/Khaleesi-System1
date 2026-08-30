@@ -65,19 +65,29 @@ const CloseShiftModal = ({
   onConfirm,
   turnoActivo,
   ventas,
+  notasCD = [],
   vendedorActual,
 }) => {
   const verArqueoCompleto = vendedorActual?.verArqueoCompleto !== false;
-  
+
   const [billetes, setBilletes] = useState({
-    '20000': '', '10000': '', '2000': '', '1000': '', '500': '', '200': '', '100': '', '50': '', '20': '', '10': ''
+    20000: '',
+    10000: '',
+    2000: '',
+    1000: '',
+    500: '',
+    200: '',
+    100: '',
+    50: '',
+    20: '',
+    10: '',
   });
   const [montoDeclarado, setMontoDeclarado] = useState('');
 
   useEffect(() => {
     if (!verArqueoCompleto) {
       let sum = 0;
-      Object.keys(billetes).forEach(b => {
+      Object.keys(billetes).forEach((b) => {
         const cant = parseInt(billetes[b]) || 0;
         sum += parseInt(b) * cant;
       });
@@ -104,21 +114,49 @@ const CloseShiftModal = ({
     return acc;
   }, {});
 
-  const totalEsperadoEfectivo = (turnoActivo?.montoInicial || 0) + (desglosePagos['efectivo'] || 0);
+  // Las notas de crédito con devolución sacan plata del cajón: si se vendió
+  // algo en efectivo y después se devolvió, ese dinero ya no está. Sin esto el
+  // cierre pedía cuadrar contra un total que incluía una venta anulada, y
+  // siempre daba faltante.
+  //
+  // Se toman las del turno por fecha: las notas no guardan el id del turno, y
+  // pedirlo obligaría a migrar las que ya existen.
+  const notasDelTurno = (notasCD || []).filter((n) => {
+    if (n.tipo !== 'credito') return false;
+    // Solo cuenta la que devolvió dinero en efectivo. Una nota por error de
+    // facturación, o devuelta a la tarjeta, no toca la caja.
+    const enEfectivo =
+      !n.metodoPago || String(n.metodoPago).toLowerCase() === 'efectivo';
+    if (!enEfectivo) return false;
+    // Del día del turno en adelante.
+    return !turnoActivo?.fechaApertura || n.fecha === turnoActivo.fechaApertura;
+  });
+
+  const totalDevueltoEfectivo = notasDelTurno.reduce(
+    (s, n) => s + (Number(n.monto) || 0),
+    0,
+  );
+
+  const totalEsperadoEfectivo =
+    (turnoActivo?.montoInicial || 0) +
+    (desglosePagos['efectivo'] || 0) -
+    totalDevueltoEfectivo;
 
   const handleConfirm = () => {
     let diferencia = 0;
     if (!verArqueoCompleto) {
-       diferencia = Number(montoDeclarado) - totalEsperadoEfectivo;
+      diferencia = Number(montoDeclarado) - totalEsperadoEfectivo;
     }
-    
+
     onConfirm({
       totalVentas: totalVentasTurno,
       totalFinal: totalEsperado,
-      montoDeclaradoEfectivo: verArqueoCompleto ? totalEsperadoEfectivo : Number(montoDeclarado),
+      montoDeclaradoEfectivo: verArqueoCompleto
+        ? totalEsperadoEfectivo
+        : Number(montoDeclarado),
       diferenciaEfectivo: diferencia,
       cierreCiego: !verArqueoCompleto,
-      montoReal: totalEsperado + diferencia // <-- Vital for HistorialTurnos
+      montoReal: totalEsperado + diferencia, // <-- Vital for HistorialTurnos
     });
   };
 
@@ -129,7 +167,7 @@ const CloseShiftModal = ({
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-lg rounded-lg bg-zinc-800 p-6 max-h-[90vh] overflow-y-auto"
+        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg bg-zinc-800 p-6"
       >
         <h3 className="mb-4 text-lg font-bold text-white">
           Resumen y Cierre de Turno
@@ -143,69 +181,107 @@ const CloseShiftModal = ({
           </div>
 
           {verArqueoCompleto ? (
-             <>
-                <div className="flex justify-between">
-                  <span>Monto Inicial:</span>{' '}
-                  <span>${formatCurrency(turnoActivo.montoInicial)}</span>
-                </div>
-                <div className="flex justify-between border-b border-zinc-600 pb-2">
-                  <span>Ventas Totales:</span>{' '}
-                  <span className="font-bold text-white">
-                    ${formatCurrency(totalVentasTurno)}
+            <>
+              <div className="flex justify-between">
+                <span>Monto Inicial:</span>{' '}
+                <span>${formatCurrency(turnoActivo.montoInicial)}</span>
+              </div>
+              <div className="flex justify-between border-b border-zinc-600 pb-2">
+                <span>Ventas Totales:</span>{' '}
+                <span className="font-bold text-white">
+                  ${formatCurrency(totalVentasTurno)}
+                </span>
+              </div>
+              <div className="py-2">
+                <p className="mb-1 text-xs font-semibold uppercase text-zinc-500">
+                  Desglose por Medio de Pago
+                </p>
+                {Object.entries(desglosePagos).length === 0 ? (
+                  <p className="text-sm italic text-zinc-500">Sin ventas.</p>
+                ) : (
+                  Object.entries(desglosePagos).map(([metodo, monto]) => (
+                    <div key={metodo} className="flex justify-between text-sm">
+                      <span className="capitalize text-zinc-400">
+                        {metodo.replace(/_/g, ' ')}:
+                      </span>
+                      <span className="text-zinc-200">
+                        ${formatCurrency(monto)}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+              {totalDevueltoEfectivo > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-amber-400">
+                    Devuelto por notas de crédito:
+                  </span>
+                  <span className="text-amber-400">
+                    -${formatCurrency(totalDevueltoEfectivo)}
                   </span>
                 </div>
-                <div className="py-2">
-                  <p className="mb-1 text-xs font-semibold uppercase text-zinc-500">
-                    Desglose por Medio de Pago
-                  </p>
-                  {Object.entries(desglosePagos).length === 0 ? (
-                    <p className="text-sm italic text-zinc-500">Sin ventas.</p>
-                  ) : (
-                    Object.entries(desglosePagos).map(([metodo, monto]) => (
-                      <div key={metodo} className="flex justify-between text-sm">
-                        <span className="capitalize text-zinc-400">{metodo.replace(/_/g, ' ')}:</span>
-                        <span className="text-zinc-200">${formatCurrency(monto)}</span>
-                      </div>
-                    ))
-                  )}
-                </div>
-                <div className="mt-2 flex justify-between border-t border-zinc-600 pt-2 text-lg font-bold">
-                  <span>Total Esperado en Caja (Efectivo + Inicial):</span>{' '}
-                  <span className="text-cyan-400">
-                    ${formatCurrency(totalEsperadoEfectivo)}
-                  </span>
-                </div>
-             </>
+              )}
+              <div className="mt-2 flex justify-between border-t border-zinc-600 pt-2 text-lg font-bold">
+                <span>Total Esperado en Caja (Efectivo + Inicial):</span>{' '}
+                <span className="text-cyan-400">
+                  ${formatCurrency(totalEsperadoEfectivo)}
+                </span>
+              </div>
+            </>
           ) : (
-             <div className="mt-4 border-t border-zinc-600 pt-4">
-                <p className="mb-3 text-sm font-bold text-amber-500 text-center uppercase tracking-wide">
-                  Cierre Ciego Requerido
-                </p>
-                <p className="mb-4 text-sm text-zinc-400">
-                  Por favor, cuente el dinero en caja e ingrese las cantidades de cada billete.
-                </p>
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                   {['20000', '10000', '2000', '1000', '500', '200', '100', '50', '20', '10'].map(denom => (
-                     <div key={denom} className="flex items-center justify-between bg-zinc-700/50 p-2 rounded">
-                       <Label className="text-zinc-300 w-16 text-right mr-2">${denom}</Label>
-                       <Input 
-                          type="number" 
-                          min="0"
-                          placeholder="0"
-                          value={billetes[denom]}
-                          onChange={(e) => setBilletes(prev => ({...prev, [denom]: e.target.value}))}
-                          className="w-20 h-8 text-center"
-                       />
-                     </div>
-                   ))}
-                </div>
-                <div className="flex items-center justify-between bg-zinc-700 p-3 rounded-lg border border-zinc-600">
-                  <span className="font-bold text-white">Total Declarado:</span>
-                  <span className="text-xl font-bold text-green-400">
-                    {montoDeclarado !== '' ? `$${formatCurrency(montoDeclarado)}` : '$0'}
-                  </span>
-                </div>
-             </div>
+            <div className="mt-4 border-t border-zinc-600 pt-4">
+              <p className="mb-3 text-center text-sm font-bold uppercase tracking-wide text-amber-500">
+                Cierre Ciego Requerido
+              </p>
+              <p className="mb-4 text-sm text-zinc-400">
+                Por favor, cuente el dinero en caja e ingrese las cantidades de
+                cada billete.
+              </p>
+              <div className="mb-4 grid grid-cols-2 gap-3">
+                {[
+                  '20000',
+                  '10000',
+                  '2000',
+                  '1000',
+                  '500',
+                  '200',
+                  '100',
+                  '50',
+                  '20',
+                  '10',
+                ].map((denom) => (
+                  <div
+                    key={denom}
+                    className="flex items-center justify-between rounded bg-zinc-700/50 p-2"
+                  >
+                    <Label className="mr-2 w-16 text-right text-zinc-300">
+                      ${denom}
+                    </Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      placeholder="0"
+                      value={billetes[denom]}
+                      onChange={(e) =>
+                        setBilletes((prev) => ({
+                          ...prev,
+                          [denom]: e.target.value,
+                        }))
+                      }
+                      className="h-8 w-20 text-center"
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center justify-between rounded-lg border border-zinc-600 bg-zinc-700 p-3">
+                <span className="font-bold text-white">Total Declarado:</span>
+                <span className="text-xl font-bold text-green-400">
+                  {montoDeclarado !== ''
+                    ? `$${formatCurrency(montoDeclarado)}`
+                    : '$0'}
+                </span>
+              </div>
+            </div>
           )}
         </div>
 
@@ -239,6 +315,7 @@ const ShiftManager = () => {
     handleAbrirTurno,
     handleCerrarTurno,
     ventas,
+    notasCD, // para descontar las devoluciones del cierre
     sucursalActual,
     vendedores, // <--- Necesario para validar
   } = useAppContext();
@@ -262,10 +339,13 @@ const ShiftManager = () => {
           // Convertir Timestamps de Firestore a strings ISO (recursivo)
           const sanitize = (obj) => {
             if (!obj || typeof obj !== 'object') return obj;
-            if (typeof obj.toDate === 'function') return obj.toDate().toISOString();
+            if (typeof obj.toDate === 'function')
+              return obj.toDate().toISOString();
             if (Array.isArray(obj)) return obj.map(sanitize);
             const result = {};
-            Object.keys(obj).forEach((key) => { result[key] = sanitize(obj[key]); });
+            Object.keys(obj).forEach((key) => {
+              result[key] = sanitize(obj[key]);
+            });
             return result;
           };
           setTurnoActivo(sanitize(raw));
@@ -350,6 +430,7 @@ const ShiftManager = () => {
         }}
         turnoActivo={turnoActivo}
         ventas={ventas}
+        notasCD={notasCD}
         vendedorActual={vendedorValido}
       />
     </div>

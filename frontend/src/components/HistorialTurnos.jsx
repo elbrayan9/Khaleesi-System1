@@ -149,9 +149,6 @@ const HistorialTurnos = () => {
       `,
       showConfirmButton: true,
       confirmButtonText: 'Cerrar',
-      customClass: {
-        popup: 'border border-zinc-800 rounded-xl shadow-2xl',
-      },
     });
   };
 

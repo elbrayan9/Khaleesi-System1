@@ -52,7 +52,6 @@ const TicketImprimiendose = lazy(
 // 747x1024 (264 KB) para dibujarse en un círculo de 96px: ahora son 192px y
 // 8 KB. Las tres juntas bajaron de 399 KB a 47 KB.
 import profileImage from '../assets/profile.webp';
-import dashboardDesktop from '../assets/dashboard-desktop.webp';
 import dashboardMobile from '../assets/dashboard-mobile.webp';
 import TypeAnimation from '../components/TypeAnimation';
 import { AnimatedButton } from '../components/AnimatedButton';
@@ -469,12 +468,13 @@ const LandingPage = () => {
                       app.khaleesisystem.com.ar
                     </div>
                   </div>
-                  <img
-                    src={dashboardDesktop}
-                    alt="Panel de control de Khaleesi System"
-                    className="block w-full"
-                    fetchPriority="high"
-                  />
+                  <Suspense
+                    fallback={
+                      <div className="aspect-[16/10] w-full bg-zinc-950" />
+                    }
+                  >
+                    <MockupSistema />
+                  </Suspense>
                 </div>
               </Tilt3D>
             </motion.div>
@@ -727,7 +727,7 @@ const LandingPage = () => {
               >
                 {/* Computer Mockup */}
                 <motion.div
-                  className="absolute left-0 top-10 z-10 h-[300px] w-[90%] rounded-xl border border-zinc-700 bg-zinc-900/90 shadow-2xl backdrop-blur-sm sm:h-[350px] md:w-[80%]"
+                  className="absolute left-0 top-6 z-10 h-[280px] w-[78%] rounded-xl border border-zinc-700 bg-zinc-900/90 shadow-2xl backdrop-blur-sm sm:h-[330px] sm:w-[72%]"
                   initial={{ opacity: 0, y: 50 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, delay: 0.2 }}
@@ -742,7 +742,9 @@ const LandingPage = () => {
                     </div>
 
                     <div className="h-full w-full overflow-hidden pt-8">
-                      <Suspense fallback={<div className="h-full w-full bg-zinc-950" />}>
+                      <Suspense
+                        fallback={<div className="h-full w-full bg-zinc-950" />}
+                      >
                         <MockupSistema />
                       </Suspense>
                     </div>
@@ -751,7 +753,7 @@ const LandingPage = () => {
 
                 {/* Phone Mockup */}
                 <motion.div
-                  className="absolute bottom-0 right-4 z-20 h-[350px] w-[180px] rounded-[2rem] border-4 border-zinc-800 bg-zinc-900 shadow-2xl sm:right-10 sm:h-[400px] sm:w-[200px]"
+                  className="absolute bottom-0 right-0 z-20 h-[320px] w-[155px] rounded-[2rem] border-4 border-zinc-800 bg-zinc-900 shadow-2xl shadow-black/60 sm:h-[360px] sm:w-[175px]"
                   initial={{ opacity: 0, y: 100 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   animate={{ y: [0, -15, 0] }}
@@ -878,10 +880,10 @@ const LandingPage = () => {
             por Mercado Pago.
           </p>
 
-          <HoverEffectWrapper className="mx-auto mt-8 grid max-w-5xl grid-cols-1 gap-8 md:grid-cols-2">
+          <HoverEffectWrapper className="mx-auto mt-12 grid max-w-5xl grid-cols-1 items-start gap-6 md:grid-cols-2 md:gap-8">
             {/* PLAN BÁSICO */}
             <motion.div
-              className="group relative overflow-hidden rounded-xl border border-white/10 bg-zinc-800/50 p-8 shadow-xl transition-transform hover:scale-105"
+              className="group relative rounded-2xl border border-white/10 bg-zinc-900/60 p-8 backdrop-blur-sm transition-all duration-300 hover:border-white/20 hover:bg-zinc-900/80"
               initial={{ opacity: 0, x: -20 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
@@ -896,7 +898,7 @@ const LandingPage = () => {
                   Ideal para pequeños comercios que recién comienzan.
                 </p>
                 <div className="mt-6 flex items-baseline justify-center gap-2">
-                  <span className="text-4xl font-extrabold text-white">
+                  <span className="text-5xl font-extrabold tracking-tight text-white">
                     {billingCycle === 'monthly' ? '$20.000' : '$200.000'}
                   </span>
                   <span className="text-zinc-400">
@@ -904,32 +906,32 @@ const LandingPage = () => {
                   </span>
                 </div>
 
-                <ul className="mt-6 space-y-3 text-left text-sm">
+                <ul className="mt-8 space-y-2.5 border-t border-white/5 pt-6 text-left text-sm">
                   <li className="flex items-center gap-2 text-zinc-300">
-                    <CheckCircle className="h-5 w-5 flex-shrink-0 text-green-500" />
+                    <CheckCircle className="h-4 w-4 flex-shrink-0 text-emerald-500" />
                     Punto de Venta (POS)
                   </li>
                   <li className="flex items-center gap-2 text-zinc-300">
-                    <CheckCircle className="h-5 w-5 flex-shrink-0 text-green-500" />
+                    <CheckCircle className="h-4 w-4 flex-shrink-0 text-emerald-500" />
                     Control de Stock y Caja
                   </li>
                   <li className="flex items-center gap-2 text-zinc-300">
-                    <CheckCircle className="h-5 w-5 flex-shrink-0 text-green-500" />
+                    <CheckCircle className="h-4 w-4 flex-shrink-0 text-emerald-500" />
                     Reportes Básicos
                   </li>
-                  <li className="flex items-center gap-2 text-zinc-500">
-                    <XCircle className="h-5 w-5 flex-shrink-0 text-zinc-600" />
+                  <li className="flex items-center gap-2 text-zinc-600">
+                    <XCircle className="h-4 w-4 flex-shrink-0 text-zinc-700" />
                     Facturación AFIP
                   </li>
-                  <li className="flex items-center gap-2 text-zinc-500">
-                    <XCircle className="h-5 w-5 flex-shrink-0 text-zinc-600" />
+                  <li className="flex items-center gap-2 text-zinc-600">
+                    <XCircle className="h-4 w-4 flex-shrink-0 text-zinc-700" />
                     Multi-sucursal
                   </li>
                 </ul>
 
                 <Link to="/signup?plan=basic" className="w-full">
                   <AnimatedButton
-                    className="mt-8 w-full border border-blue-600 py-3 font-semibold text-blue-500"
+                    className="mt-8 w-full rounded-lg border border-white/15 py-3 font-semibold text-zinc-200 transition-colors hover:border-white/30 hover:bg-white/5"
                     variant="outline"
                     shimmerColor="rgba(0,0,0,0.1)"
                     shimmerDuration="3s"
@@ -943,7 +945,7 @@ const LandingPage = () => {
 
             {/* PLAN COMPLETO */}
             <motion.div
-              className="group relative overflow-hidden rounded-xl border border-blue-500/50 bg-zinc-800 p-8 shadow-2xl shadow-blue-500/20 transition-transform hover:scale-105"
+              className="group relative rounded-2xl border border-blue-500/60 bg-gradient-to-b from-blue-950/40 to-zinc-900 p-8 shadow-2xl shadow-blue-950/50 ring-1 ring-blue-500/10 transition-all duration-300 hover:border-blue-400/80 hover:shadow-blue-900/40 md:-mt-4 md:pb-10 md:pt-10"
               initial={{ opacity: 0, x: 20 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
@@ -952,8 +954,8 @@ const LandingPage = () => {
               {/* Glow Effect Layer removed - handled by wrapper */}
 
               <div className="relative z-10">
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-1 text-sm font-bold text-white shadow-lg">
-                  MÁS POPULAR
+                <div className="absolute -top-12 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-zinc-950 shadow-lg shadow-blue-500/30 md:-top-14">
+                  Más elegido
                 </div>
                 <h4 className="text-xl font-bold text-white">Plan Completo</h4>
 
@@ -961,7 +963,7 @@ const LandingPage = () => {
                   La solución definitiva sin límites.
                 </p>
                 <div className="mt-6 flex items-baseline justify-center gap-2">
-                  <span className="text-4xl font-extrabold text-white">
+                  <span className="text-5xl font-extrabold tracking-tight text-white">
                     {billingCycle === 'monthly' ? '$35.000' : '$350.000'}
                   </span>
                   <span className="text-zinc-400">
@@ -974,45 +976,45 @@ const LandingPage = () => {
                   </p>
                 )}
 
-                <ul className="mt-6 space-y-3 text-left text-sm">
+                <ul className="mt-8 space-y-2.5 border-t border-white/5 pt-6 text-left text-sm">
                   <li className="flex items-center gap-2 text-zinc-300">
-                    <CheckCircle className="h-5 w-5 flex-shrink-0 text-green-500" />
+                    <CheckCircle className="h-4 w-4 flex-shrink-0 text-emerald-500" />
                     Todo lo del Plan Básico
                   </li>
                   <li className="flex items-center gap-2 font-medium text-white">
-                    <CheckCircle className="h-5 w-5 flex-shrink-0 text-blue-400" />
+                    <CheckCircle className="h-4 w-4 flex-shrink-0 text-blue-400" />
                     Facturación Electrónica AFIP
                   </li>
                   <li className="flex items-center gap-2 font-medium text-white">
-                    <CheckCircle className="h-5 w-5 flex-shrink-0 text-blue-400" />
+                    <CheckCircle className="h-4 w-4 flex-shrink-0 text-blue-400" />
                     Gestión Multi-sucursal
                   </li>
                   <li className="flex items-center gap-2 text-zinc-300">
-                    <CheckCircle className="h-5 w-5 flex-shrink-0 text-green-500" />
+                    <CheckCircle className="h-4 w-4 flex-shrink-0 text-emerald-500" />
                     Soporte Prioritario
                   </li>
                   <li className="flex items-center gap-2 font-medium text-white">
-                    <CheckCircle className="h-5 w-5 flex-shrink-0 text-blue-400" />
+                    <CheckCircle className="h-4 w-4 flex-shrink-0 text-blue-400" />
                     Reporte Diario Automático
                   </li>
                   <li className="flex items-center gap-2 font-medium text-white">
-                    <CheckCircle className="h-5 w-5 flex-shrink-0 text-blue-400" />
+                    <CheckCircle className="h-4 w-4 flex-shrink-0 text-blue-400" />
                     Tienda online con QR + pedidos por WhatsApp
                   </li>
                   <li className="flex items-center gap-2 font-medium text-white">
-                    <CheckCircle className="h-5 w-5 flex-shrink-0 text-blue-400" />
+                    <CheckCircle className="h-4 w-4 flex-shrink-0 text-blue-400" />
                     IA: cargá productos y facturas con una foto
                   </li>
                   <li className="flex items-center gap-2 font-medium text-white">
-                    <CheckCircle className="h-5 w-5 flex-shrink-0 text-blue-400" />
+                    <CheckCircle className="h-4 w-4 flex-shrink-0 text-blue-400" />
                     IA: reposición inteligente y resumen del día
                   </li>
                   <li className="flex items-center gap-2 font-medium text-white">
-                    <CheckCircle className="h-5 w-5 flex-shrink-0 text-blue-400" />
+                    <CheckCircle className="h-4 w-4 flex-shrink-0 text-blue-400" />
                     IA: asistente que ejecuta acciones por vos
                   </li>
                   <li className="flex items-center gap-2 text-zinc-300">
-                    <CheckCircle className="h-5 w-5 flex-shrink-0 text-green-500" />
+                    <CheckCircle className="h-4 w-4 flex-shrink-0 text-emerald-500" />
                     Actualizaciones Continuas
                   </li>
                 </ul>

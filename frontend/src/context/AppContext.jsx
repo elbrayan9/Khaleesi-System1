@@ -1742,9 +1742,6 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
         denyButtonText: 'WhatsApp',
         denyButtonColor: '#25D366',
         cancelButtonText: 'Imprimir',
-        customClass: {
-          title: 'text-zinc-100',
-        },
       });
 
       // Manejar envío de WhatsApp
@@ -2002,11 +1999,6 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       showCancelButton: true,
       confirmButtonText: 'Sí, eliminar',
       cancelButtonText: 'Cancelar',
-      customClass: {
-        popup: 'text-sm rounded-lg',
-        title: 'text-zinc-100 !text-lg',
-        htmlContainer: 'text-zinc-300',
-      },
     });
 
     if (result.isConfirmed) {

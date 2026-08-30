@@ -63,6 +63,18 @@ const BASE = {
   },
 };
 
+/**
+ * Las clases del tema, para las llamadas que necesiten agregar alguna propia.
+ *
+ * Pasar un `customClass` suelto **reemplaza** el del mixin, no lo completa: como
+ * el tema desactiva los estilos nativos de SweetAlert, los botones se quedan sin
+ * fondo ni color y parecen texto plano. Quien necesite sumar una clase tiene que
+ * extender esto:
+ *
+ *   customClass: { ...CLASES, popup: CLASES.popup + ' mi-clase' }
+ */
+export const CLASES = BASE.customClass;
+
 /** Swal con el tema del sistema puesto. Se usa igual que el original. */
 export const swal = Swal.mixin(BASE);
 
