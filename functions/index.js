@@ -5,6 +5,7 @@ const {
   onRequest,
 } = require('firebase-functions/v2/https');
 const { idsDeCajaQr } = require('./mpIds');
+const geocoding = require('./geocoding');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const functions = require('firebase-functions');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -1178,6 +1179,97 @@ async function leerTiendaPublicada(sucursalId) {
   const estado = await estadoTiendaSucursal(sucursalId);
   return estado.ok ? estado.suc : null;
 }
+
+// ---------------------------------------------------------------------------
+// Buscar una direccion en el mapa
+//
+// Las partes puras —normalizar, armar la clave, consultar— viven en
+// geocoding.js, con sus pruebas. Aca queda lo que necesita Firestore: el cache
+// y el tope diario.
+// ---------------------------------------------------------------------------
+
+// Holgado para un comercio, y corta antes de que un abuso deje sin servicio al
+// resto. Pasado el tope se responde que no se pudo y la pantalla cae a poner el
+// pin a mano, que es la salida que siempre esta disponible.
+const TOPE_DIARIO_GEOCODING = 1500;
+
+/** Suma uno al contador del dia. Devuelve false si ya se paso del tope. */
+async function hayCuotaGeocoding() {
+  const hoy = new Date().toISOString().slice(0, 10);
+  const ref = db.collection('contadores').doc(`geocoding_${hoy}`);
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const usadas = Number(snap.exists ? snap.data()?.usadas : 0) || 0;
+    if (usadas >= TOPE_DIARIO_GEOCODING) return false;
+    tx.set(ref, { usadas: usadas + 1, dia: hoy }, { merge: true });
+    return true;
+  });
+}
+
+exports.geocodificarDireccion = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
+    const texto = String(request.data?.texto || '')
+      .trim()
+      .slice(0, 200);
+    const cerca = request.data?.cerca || null;
+    if (texto.length < 5) return { ok: false, motivo: 'corta' };
+
+    const ref = db.collection('geocache').doc(geocoding.claveCache(texto));
+
+    // 1) Lo que ya se busco alguna vez. En delivery las direcciones repiten
+    // muchisimo —clientes que vuelven, el mismo barrio— asi que esto es lo que
+    // mantiene bajo el uso del servicio.
+    try {
+      const cacheado = await ref.get();
+      if (cacheado.exists) {
+        const d = cacheado.data();
+        ref.set({ hits: (d.hits || 0) + 1 }, { merge: true }).catch(() => {});
+        return {
+          ok: true,
+          lat: d.lat,
+          lng: d.lng,
+          label: d.label,
+          cache: true,
+        };
+      }
+    } catch (e) {
+      console.warn('[geocoding] no se pudo leer el cache:', e?.message);
+    }
+
+    if (!(await hayCuotaGeocoding())) {
+      console.warn('[geocoding] tope diario alcanzado');
+      return { ok: false, motivo: 'cuota' };
+    }
+
+    try {
+      const r = await geocoding.buscarEnNominatim(texto, cerca);
+      if (!r) return { ok: false, motivo: 'sin-resultados' };
+
+      // Noventa dias: una calle no se muda, pero la numeracion se corrige.
+      const noventaDias = Date.now() + 90 * 24 * 60 * 60 * 1000;
+      ref
+        .set({
+          q: geocoding.normalizarDireccion(texto),
+          lat: r.lat,
+          lng: r.lng,
+          label: r.label,
+          proveedor: 'nominatim',
+          hits: 1,
+          creadoEn: admin.firestore.FieldValue.serverTimestamp(),
+          expiraEn: admin.firestore.Timestamp.fromMillis(noventaDias),
+        })
+        .catch((e) =>
+          console.warn('[geocoding] no se pudo cachear:', e?.message),
+        );
+
+      return { ok: true, ...r, cache: false };
+    } catch (e) {
+      console.error('[geocoding] error:', e?.message || e);
+      return { ok: false, motivo: 'servicio' };
+    }
+  },
+);
 
 // Número de pedido corto y correlativo por sucursal.
 async function siguienteCodigoPedido(sucursalId) {

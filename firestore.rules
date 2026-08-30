@@ -52,8 +52,22 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // El caché de direcciones ya buscadas y los contadores internos.
+    //
+    // Cerradas para el cliente: las escriben y leen solo las Cloud Functions
+    // con el Admin SDK. `geocache` guarda direcciones de gente que hizo
+    // pedidos, así que no tiene por qué estar al alcance de ningún navegador;
+    // `contadores` son los frenos anti-abuso, y verlos es media ayuda para
+    // esquivarlos.
+    match /geocache/{docId} {
+      allow read, write: if false;
+    }
+    match /contadores/{docId} {
+      allow read, write: if false;
+    }
+
     // Resto (ventas, clientes, notas, etc.): IGUAL que tenías, ahora excluyendo
-    // también 'sucursales' y 'secretosMp'.
+    // también 'sucursales', 'secretosMp', 'geocache' y 'contadores'.
     //
     // Lo de secretosMp acá arriba no es redundante con el `if false`: en
     // Firestore alcanza con que UNA regla permita para que el acceso se
@@ -61,9 +75,9 @@ service cloud.firestore {
     // día que un documento de secretos tuviera un campo `userId` quedaría
     // legible por su dueño.
     match /{collection}/{docId} {
-      allow read, update, delete: if (collection != 'datosNegocio' && collection != 'productos' && collection != 'sucursales' && collection != 'secretosMp') &&
+      allow read, update, delete: if (collection != 'datosNegocio' && collection != 'productos' && collection != 'sucursales' && collection != 'secretosMp' && collection != 'geocache' && collection != 'contadores') &&
                      ((isOwner(resource.data.userId) && isUserActive()) || isAdmin());
-      allow create: if (collection != 'datosNegocio' && collection != 'productos' && collection != 'sucursales' && collection != 'secretosMp') &&
+      allow create: if (collection != 'datosNegocio' && collection != 'productos' && collection != 'sucursales' && collection != 'secretosMp' && collection != 'geocache' && collection != 'contadores') &&
                      ((isOwner(request.resource.data.userId) && isUserActive()) || isAdmin());
     }
   }

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { resizeImage, imagenADataUrl } from '../utils/image.js';
+import SelectorUbicacion from './SelectorUbicacion.jsx';
 import { subirLogoNegocio } from '../services/storageService';
 import ImportDataTab from './ImportDataTab';
 import ImpresoraTermicaConfig from './ImpresoraTermicaConfig';
@@ -98,6 +99,9 @@ function ConfiguracionTab() {
   // Logo del negocio (para la factura).
   const [logoUrl, setLogoUrl] = useState('');
   const [logoDataUrl, setLogoDataUrl] = useState('');
+  // Dónde queda el local en el mapa. Se usa para el seguimiento del pedido:
+  // sin esto no hay de dónde salir para dibujar el recorrido.
+  const [geo, setGeo] = useState(null);
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState('');
   const [subiendoLogo, setSubiendoLogo] = useState(false);
@@ -135,6 +139,11 @@ function ConfiguracionTab() {
       setInicioActividades(datosNegocio.inicioActividades || '');
       setLogoUrl(datosNegocio.logoUrl || '');
       setLogoDataUrl(datosNegocio.logoDataUrl || '');
+      setGeo(
+        datosNegocio.geo?.lat && datosNegocio.geo?.lng
+          ? datosNegocio.geo
+          : null,
+      );
       setLogoPreview(datosNegocio.logoUrl || '');
       setLogoFile(null);
       const bc = datosNegocio.balanzaConfig || {};
@@ -464,6 +473,15 @@ function ConfiguracionTab() {
       inicioActividades: inicioActividades.trim(),
       logoUrl: finalLogoUrl,
       logoDataUrl: finalLogoDataUrl,
+      geo: geo
+        ? {
+            lat: geo.lat,
+            lng: geo.lng,
+            fuente: geo.fuente || 'manual',
+            label: geo.label || null,
+            actualizadoEn: Date.now(),
+          }
+        : null,
       balanzaConfig: {
         prefijo: String(balanzaConfig.prefijo || '20').trim(),
         modo: balanzaConfig.modo === 'peso' ? 'peso' : 'precio',
@@ -790,6 +808,34 @@ function ConfiguracionTab() {
                 de Cierre de Caja armará un link listo para enviar a este
                 contacto.
               </p>
+            </div>
+
+            {/* DÓNDE QUEDA EL LOCAL (para el seguimiento del pedido) */}
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-sm font-medium text-zinc-300">
+                Ubicación del local en el mapa
+              </label>
+              <p className="mb-2 text-xs text-zinc-400">
+                Es de acá de donde sale el repartidor. Se usa para dibujar el
+                recorrido y calcular cuánto falta, en el seguimiento que ve tu
+                cliente. Se marca una sola vez.
+              </p>
+              <SelectorUbicacion
+                valor={geo}
+                direccion={direccion}
+                onCambio={(p) => setGeo(p)}
+                alto={260}
+              />
+              {geo ? (
+                <p className="mt-1 text-xs text-emerald-400">
+                  Local ubicado. Acordate de guardar los cambios.
+                </p>
+              ) : (
+                <p className="mt-1 text-xs text-amber-400">
+                  Todavía sin ubicar: el seguimiento va a mostrar solo al
+                  repartidor, sin recorrido ni tiempo estimado.
+                </p>
+              )}
             </div>
 
             {/* LOGO DEL NEGOCIO (para la factura) */}

@@ -52,6 +52,18 @@ await env.withSecurityRulesDisabled(async (ctx) => {
     uid: DUENO,
     ultimos4: 'dad',
   });
+  // El caché de direcciones: guarda dónde vive gente que hizo pedidos.
+  await setDoc(doc(db, 'geocache', 'abc123'), {
+    q: 'av cordoba 1234',
+    lat: -34.6,
+    lng: -58.4,
+    label: 'Av. Córdoba 1234, CABA',
+  });
+  // Los frenos anti-abuso.
+  await setDoc(doc(db, 'contadores', 'geocoding_2026-08-30'), { usadas: 12 });
+  // Y uno con userId, que es lo que el comodín podría dejar pasar.
+  await setDoc(doc(db, 'contadores', 'con_dueno'), { userId: DUENO, usadas: 1 });
+
   // El caso que el comodín podría dejar pasar: un secreto con userId.
   await setDoc(doc(db, 'secretosMp', 'uid_' + DUENO), {
     accessToken: 'APP_USR-otro-secreto',
@@ -88,6 +100,28 @@ test('ni siquiera el admin: nadie lo necesita desde el navegador', async () => {
 test('nadie puede escribir un token desde el navegador', async () => {
   await assertFails(
     setDoc(doc(comoDueno, 'secretosMp', 'suc_suc1'), { accessToken: 'robado' }),
+  );
+});
+
+test('nadie lee el caché de direcciones, que tiene domicilios de clientes', async () => {
+  await assertFails(getDoc(doc(comoDueno, 'geocache', 'abc123')));
+  await assertFails(getDoc(doc(comoOtro, 'geocache', 'abc123')));
+  await assertFails(getDoc(doc(comoAdmin, 'geocache', 'abc123')));
+  await assertFails(getDoc(doc(sinSesion, 'geocache', 'abc123')));
+});
+
+test('tampoco se escribe una dirección al caché desde el navegador', async () => {
+  await assertFails(
+    setDoc(doc(comoDueno, 'geocache', 'abc123'), { lat: 0, lng: 0 }),
+  );
+});
+
+test('los contadores anti-abuso quedan fuera de la vista', async () => {
+  await assertFails(getDoc(doc(comoDueno, 'contadores', 'geocoding_2026-08-30')));
+  // Ni siquiera el que lleva su propio userId, que es por donde se colaría.
+  await assertFails(getDoc(doc(comoDueno, 'contadores', 'con_dueno')));
+  await assertFails(
+    setDoc(doc(comoDueno, 'contadores', 'con_dueno'), { usadas: 0 }),
   );
 });
 
