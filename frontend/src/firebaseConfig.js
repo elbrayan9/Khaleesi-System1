@@ -12,6 +12,7 @@ import {
   isSupported as analyticsIsSupported,
 } from 'firebase/analytics';
 import { getStorage } from 'firebase/storage';
+import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 
 // Config desde Vite (.env)
 const firebaseConfig = {
@@ -42,27 +43,34 @@ export const app = initializeApp(firebaseConfig);
 // Pero no se puede posponer sin más: Auth y Storage tienen enforcement, o sea
 // que sin token de App Check el login falla. Así que la landing lo arranca
 // cuando el navegador queda libre, y cualquier otra pantalla lo arranca ya.
-let promesaAppCheck = null;
+let appCheck = null;
 
 // La marca que dice que en este navegador ya se inició sesión alguna vez.
 export const MARCA_SESION = 'khaleesi:tuvo-sesion';
 
-/** Arranca App Check una sola vez. Devuelve la misma promesa siempre. */
+/**
+ * Arranca App Check una sola vez.
+ *
+ * Es SÍNCRONO a propósito. Antes esta función hacía `import()` del módulo, y
+ * eso abría una ventana: entre que la pantalla pedía datos y que App Check
+ * terminaba de inicializarse, las consultas salían sin token. Con Firestore ya
+ * aplicando la verificación, esas consultas se rechazan. El módulo pesa 22 KB;
+ * los 345 KB que se querían evitar los baja `initializeAppCheck` al pedir
+ * reCAPTCHA, así que posponer la llamada —y no el import— ahorra lo mismo sin
+ * dejar ninguna consulta afuera.
+ */
 export function asegurarAppCheck() {
-  if (promesaAppCheck) return promesaAppCheck;
-  if (typeof window === 'undefined') return Promise.resolve(null);
+  if (appCheck) return appCheck;
+  if (typeof window === 'undefined') return null;
 
   const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
-  if (!recaptchaSiteKey) return Promise.resolve(null);
+  if (!recaptchaSiteKey) return null;
 
-  promesaAppCheck = import('firebase/app-check').then(
-    ({ initializeAppCheck, ReCaptchaV3Provider }) =>
-      initializeAppCheck(app, {
-        provider: new ReCaptchaV3Provider(recaptchaSiteKey),
-        isTokenAutoRefreshEnabled: true,
-      }),
-  );
-  return promesaAppCheck;
+  appCheck = initializeAppCheck(app, {
+    provider: new ReCaptchaV3Provider(recaptchaSiteKey),
+    isTokenAutoRefreshEnabled: true,
+  });
+  return appCheck;
 }
 
 if (typeof window !== 'undefined') {
