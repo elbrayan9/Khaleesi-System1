@@ -1,11 +1,15 @@
 // El comprobante saliendo de la impresora.
 //
-// Una tarjeta oscura con el resumen del cobro y, saliendo desde atrás, el
-// ticket de papel. Tres fases: procesando, imprimiendo, listo.
+// Antes esto era una tarjeta con un papel apareciendo por detrás. Ahora es una
+// impresora: una carcasa con la pantalla del cobro arriba y una ranura de
+// salida abajo, y el papel emergiendo de esa ranura.
 //
-// El recibo vive detrás de la tarjeta con z-index menor y desplazado hacia
-// arriba; cuando llega la fase de impresión baja deslizándose, que es lo que da
-// la ilusión de que la tarjeta lo está expulsando.
+// El truco es de capas: el papel vive detrás de la carcasa (z-0) y arranca
+// desplazado hacia arriba, escondido; cuando llega la fase de impresión baja
+// deslizándose. Como la carcasa es opaca y está por delante, el papel parece
+// nacer de la ranura.
+//
+// Tres fases: procesando, imprimiendo, listo.
 
 import { useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
@@ -51,17 +55,26 @@ const RAYAS = [
   2, 1, 1, 2, 3, 1, 2, 1, 1, 3,
 ];
 
+// Los datos del pie del ticket, en pares etiqueta/valor: alineados en dos
+// columnas se leen como un comprobante y no como un párrafo suelto.
+const PIE = [
+  ['Comprobante', '0001-00004821'],
+  ['Pagado con', 'Mercado Pago'],
+  ['Fecha', '29 AGO 2026 · 14:32'],
+];
+
 function TicketImprimiendose() {
   const sinMovimiento = useReducedMotion();
   const [fase, setFase] = useState(sinMovimiento ? 2 : 0);
-  const papelRef = useRef(null);
-  const [altoPapel, setAltoPapel] = useState(0);
+  const carcasaRef = useRef(null);
+  const [altoCarcasa, setAltoCarcasa] = useState(0);
 
-  // Se mide el papel para deslizarlo exactamente su propio alto: así queda
-  // apoyado justo debajo de la tarjeta, sin números mágicos que se rompan
-  // cuando cambie el contenido.
+  // Se mide LA CARCASA, no el papel: el ticket tiene que bajar hasta que su
+  // borde superior quede en la ranura, y eso depende de cuánto mide la
+  // impresora. Midiendo el papel —como hacía antes— un ticket más largo se
+  // desliza de más y queda flotando, despegado del aparato.
   useEffect(() => {
-    const medir = () => setAltoPapel(papelRef.current?.offsetHeight || 0);
+    const medir = () => setAltoCarcasa(carcasaRef.current?.offsetHeight || 0);
     medir();
     window.addEventListener('resize', medir);
     return () => window.removeEventListener('resize', medir);
@@ -81,39 +94,39 @@ function TicketImprimiendose() {
 
   return (
     <div className="relative mx-auto w-full max-w-[340px] select-none">
-      {/* --- EL PAPEL, detrás de la tarjeta --- */}
+      {/* --- EL PAPEL, detrás de la carcasa ---
+          Más angosto que la impresora, como el rollo de 58 mm dentro de un
+          equipo más ancho. */}
       <motion.div
-        ref={papelRef}
         aria-hidden="true"
         initial={false}
-        animate={{ y: imprimiendo ? altoPapel - 12 : -8 }}
+        animate={{ y: imprimiendo ? altoCarcasa - 6 : -12 }}
         transition={{
-          duration: sinMovimiento ? 0 : 1.5,
+          duration: sinMovimiento ? 0 : 1.6,
           ease: [0.22, 1, 0.36, 1],
         }}
-        className="absolute inset-x-3 top-0 z-0 shadow-xl"
+        className="absolute inset-x-7 top-0 z-0 drop-shadow-[0_18px_25px_rgba(0,0,0,0.45)]"
       >
-        <div className="bg-[#f5f2ea] px-5 pb-4 pt-5 font-mono text-[10.5px] leading-snug text-zinc-800">
-          <div className="mb-2 text-center">
-            <div className="mx-auto mb-1 h-5 w-5 rotate-45 bg-zinc-800" />
-            <p className="font-bold tracking-widest">KHALEESI SYSTEM</p>
-            <p className="text-[10px] text-zinc-500">
-              Comprobante de suscripción
-            </p>
+        <div className="bg-[#f5f2ea] px-5 pb-4 pt-6 font-mono text-[10.5px] leading-relaxed text-zinc-800">
+          {/* El logo impreso: un cuadrado sólido, como sale del cabezal
+              térmico, que no tiene grises. */}
+          <div className="mx-auto mb-4 flex h-9 w-9 items-center justify-center bg-zinc-900">
+            <span className="h-3.5 w-3.5 rotate-45 bg-[#f5f2ea]" />
           </div>
 
-          <div className="border-y border-dashed border-zinc-400 py-2">
-            <div className="flex justify-between">
+          <div className="border-t border-dashed border-zinc-400" />
+
+          <div className="py-3">
+            <div className="flex justify-between font-semibold tracking-wider">
               <span>PLAN COMPLETO</span>
               <span className="tabular-nums">${pesos(SUBTOTAL)}</span>
             </div>
-            <div className="flex justify-between text-zinc-500">
-              <span>Suscripción anual</span>
-              <span>12 meses</span>
-            </div>
+            <p className="text-zinc-500">Suscripción anual · 12 meses</p>
           </div>
 
-          <div className="py-2">
+          <div className="border-t border-dashed border-zinc-400" />
+
+          <div className="py-3">
             <div className="flex justify-between text-zinc-600">
               <span>Subtotal</span>
               <span className="tabular-nums">${pesos(SUBTOTAL)}</span>
@@ -122,89 +135,111 @@ function TicketImprimiendose() {
               <span>IVA 21%</span>
               <span className="tabular-nums">${pesos(IVA)}</span>
             </div>
-            <div className="mt-1 flex justify-between border-t border-zinc-400 pt-1 font-bold">
+            <div className="mt-3 flex items-baseline justify-between font-bold tracking-wider">
               <span>TOTAL PAGADO</span>
-              <span className="tabular-nums">${pesos(TOTAL)}</span>
+              <span className="text-[15px] tabular-nums">${pesos(TOTAL)}</span>
             </div>
           </div>
 
-          <div className="border-t border-dashed border-zinc-400 pt-2 text-[10px] text-zinc-500">
-            <p>Comprobante: 0001-00004821</p>
-            <p>Pagado con: Mercado Pago</p>
-            <p>Fecha: 29 AGO 2026</p>
+          <div className="border-t border-dashed border-zinc-400" />
+
+          <div className="space-y-0.5 py-3 text-zinc-600">
+            {PIE.map(([etiqueta, valor]) => (
+              <div key={etiqueta} className="flex justify-between gap-3">
+                <span className="text-zinc-500">{etiqueta}</span>
+                <span className="text-right">{valor}</span>
+              </div>
+            ))}
           </div>
 
-          <div className="mt-2.5 flex h-7 items-end justify-center gap-[2px]">
+          <div className="mt-2 flex h-9 items-end justify-center gap-[2px]">
             {RAYAS.map((ancho, i) => (
               <span
                 key={i}
-                className="bg-zinc-800"
+                className="bg-zinc-900"
                 style={{
                   width: `${ancho}px`,
-                  height: i % 3 === 0 ? '100%' : '80%',
+                  height: i % 3 === 0 ? '100%' : '82%',
                 }}
               />
             ))}
           </div>
-          <p className="mt-1 text-center text-[9px] tracking-[0.25em] text-zinc-500">
-            0001000048212026
+          <p className="mt-1.5 text-center text-[9px] tracking-[0.3em] text-zinc-500">
+            0001 00004821
           </p>
         </div>
         {/* El corte del papel */}
         <div style={TIRA_DENTADA} />
       </motion.div>
 
-      {/* --- LA TARJETA, por delante --- */}
-      <div className="relative z-10 rounded-3xl border border-white/10 bg-zinc-950 p-6 shadow-2xl shadow-black/60">
-        <div className="mb-6 flex items-start justify-between">
-          <div>
-            <p className="text-lg font-bold text-white">Plan Completo</p>
-            <p className="text-sm text-zinc-400">Suscripción anual</p>
+      {/* --- LA IMPRESORA, por delante --- */}
+      <div
+        ref={carcasaRef}
+        className="relative z-10 rounded-[26px] bg-zinc-900 p-3 pb-4 shadow-2xl shadow-black/70 ring-1 ring-white/10"
+      >
+        <div className="mb-3 flex items-center justify-between px-2 pt-1">
+          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-zinc-700">
+            <span className="h-2.5 w-2.5 rotate-45 bg-zinc-300" />
+          </span>
+          <span className="flex items-center gap-1.5 rounded-full bg-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-300 ring-1 ring-white/10">
+            <Home size={13} /> Khaleesi
+          </span>
+        </div>
+
+        {/* La pantalla del aparato, hundida en la carcasa */}
+        <div className="rounded-2xl bg-zinc-950 p-5 ring-1 ring-white/5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-base font-bold leading-tight text-white">
+                Plan Completo
+              </p>
+              <p className="text-sm text-zinc-400">Suscripción anual</p>
+            </div>
+            <div className="shrink-0 text-right">
+              <p className="text-sm text-zinc-400">Total</p>
+              <p className="text-xl font-bold tabular-nums text-white">
+                ${pesos(TOTAL)}
+              </p>
+            </div>
           </div>
-          <span className="flex items-center gap-1 rounded-full bg-white/5 px-2.5 py-1 text-xs text-zinc-400">
-            <Home size={12} /> Khaleesi
-          </span>
-        </div>
 
-        <div className="mb-6 text-right">
-          <p className="text-sm text-zinc-400">Total</p>
-          <p className="text-3xl font-bold tabular-nums text-white">
-            ${pesos(TOTAL)}
-          </p>
-        </div>
-
-        {/* Estado: el ícono y el texto cambian juntos con la fase */}
-        <div
-          className="flex items-center gap-2 border-t border-white/10 pt-4"
-          role="status"
-          aria-live="polite"
-        >
-          {listo ? (
-            <motion.span
-              initial={sinMovimiento ? false : { scale: 0.4, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 14 }}
-              className="flex h-5 w-5 items-center justify-center rounded-full bg-green-500"
-            >
-              <Check size={13} strokeWidth={3} className="text-zinc-950" />
-            </motion.span>
-          ) : (
-            <Loader2
-              size={20}
-              className={
-                'text-blue-400 ' + (sinMovimiento ? '' : 'animate-spin')
-              }
-            />
-          )}
-          <span
-            className={
-              'text-sm font-medium ' +
-              (listo ? 'text-green-400' : 'text-zinc-300')
-            }
+          {/* Estado: el ícono y el texto cambian juntos con la fase */}
+          <div
+            className="mt-5 flex items-center gap-2.5"
+            role="status"
+            aria-live="polite"
           >
-            {FASES[fase].texto}
-          </span>
+            {listo ? (
+              <motion.span
+                initial={sinMovimiento ? false : { scale: 0.4, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 14 }}
+                className="flex h-5 w-5 items-center justify-center rounded-full bg-green-500"
+              >
+                <Check size={13} strokeWidth={3} className="text-zinc-950" />
+              </motion.span>
+            ) : (
+              <Loader2
+                size={20}
+                className={
+                  'text-zinc-400 ' + (sinMovimiento ? '' : 'animate-spin')
+                }
+              />
+            )}
+            <span
+              className={
+                'text-sm font-medium ' +
+                (listo ? 'text-green-400' : 'text-zinc-300')
+              }
+            >
+              {FASES[fase].texto}
+            </span>
+          </div>
         </div>
+
+        {/* La ranura de salida: la sombra interior es lo que la hace leer como
+            un hueco y no como una raya pintada sobre la carcasa. */}
+        <div className="mx-4 mt-3 h-[5px] rounded-full bg-zinc-950 shadow-[inset_0_1.5px_2px_rgba(0,0,0,0.9)]" />
       </div>
     </div>
   );
