@@ -20,6 +20,7 @@ import {
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import * as fsService from '../services/firestoreService';
 import { obtenerFechaHoraActual, formatCurrency } from '../utils/helpers';
+import { buscarDuplicados, resumenDuplicados } from '../utils/duplicados.js';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import Swal from '../utils/swalTheme.js'; // Swal con el tema del sistema
 import { sonarEscaneo } from '../utils/sonido.js';
@@ -2246,62 +2247,42 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     return success;
   };
 
-  // --- NUEVO: Eliminar duplicados ---
+  // Limpiar productos repetidos.
+  //
+  // Agrupaba SOLO por código de barras, y con un `if (p.codigoBarras)` los que
+  // no tienen código quedaban afuera. Son justo los que más se duplican: una
+  // factura de proveedor que factura con su código interno no deja ningún EAN,
+  // así que sus productos se crean sin código, y si esa factura se carga dos
+  // veces quedan dos fichas de cada cosa. El botón las miraba y contestaba "no
+  // se encontraron productos duplicados".
   const handleDeleteDuplicates = async () => {
-    // 1. Agrupar por código de barras
-    const grupos = {};
-    let duplicadosCount = 0;
-    let productosAEliminar = [];
+    const { aEliminar, grupos } = buscarDuplicados(productos);
 
-    productos.forEach((p) => {
-      if (p.codigoBarras) {
-        const codigo = String(p.codigoBarras).trim();
-        if (!grupos[codigo]) grupos[codigo] = [];
-        grupos[codigo].push(p);
-      }
-    });
-
-    // 2. Identificar duplicados
-    Object.values(grupos).forEach((grupo) => {
-      if (grupo.length > 1) {
-        // Ordenar: Mayor stock primero, luego fecha actualización más reciente
-        grupo.sort((a, b) => {
-          if (b.stock !== a.stock) return b.stock - a.stock;
-          // Si stock es igual, el más nuevo (timestamp)
-          const timeA = a.lastUpdated?.seconds || 0;
-          const timeB = b.lastUpdated?.seconds || 0;
-          return timeB - timeA;
-        });
-
-        // El primero (índice 0) es el "ganador", el resto se borran
-        const [ganador, ...perdedores] = grupo;
-        perdedores.forEach((p) => productosAEliminar.push(p.id));
-        duplicadosCount += perdedores.length;
-      }
-    });
-
-    if (duplicadosCount === 0) {
+    if (aEliminar.length === 0) {
       mostrarMensaje('No se encontraron productos duplicados.', 'info');
       return;
     }
 
+    // Se nombran los productos y no solo se cuentan: borrar fichas del catálogo
+    // no se deshace, y un número suelto no alcanza para decidir.
     const confirm = await confirmarAccion(
-      'Eliminar Duplicados',
-      `Se encontraron ${duplicadosCount} productos duplicados (mismo código de barras). Se conservará el que tenga mayor stock. ¿Deseas eliminarlos?`,
-    );
+      `¿Eliminar ${aEliminar.length} ficha(s) repetida(s)?`,
+      `De cada producto repetido se conserva el de mayor stock:
 
+${resumenDuplicados(grupos)}`,
+      'warning',
+      'Sí, limpiar',
+    );
     if (!confirm) return;
 
     setIsLoadingData(true);
-    const success = await fsService.deleteProducts(productosAEliminar);
-    if (success) {
-      mostrarMensaje(
-        `Se eliminaron ${duplicadosCount} productos duplicados.`,
-        'success',
-      );
-    } else {
-      mostrarMensaje('Error al eliminar duplicados.', 'error');
-    }
+    const success = await fsService.deleteProducts(aEliminar);
+    mostrarMensaje(
+      success
+        ? `Se eliminaron ${aEliminar.length} ficha(s) repetida(s).`
+        : 'Error al eliminar duplicados.',
+      success ? 'success' : 'error',
+    );
     setIsLoadingData(false);
   };
 
