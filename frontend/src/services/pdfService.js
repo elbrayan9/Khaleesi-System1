@@ -240,22 +240,36 @@ export const generarPdfVenta = async (
   doc.text(codigoComprobante, centerX, margin + 14, { align: 'center' });
 
   // COLUMNA IZQUIERDA (EMISOR)
+  //
+  // El logo y el nombre comparten la primera línea; los datos del emisor van
+  // debajo de los dos. Antes el logo se dibujaba en un rincón con alto libre y
+  // el resto del bloque no se enteraba: un logo cuadrado bajaba hasta la línea
+  // de "Razón Social" y se le encimaba, y además arrancaba tres milímetros más
+  // a la izquierda que todo el texto, así que se veía torcido.
   const leftColX = margin + 5;
+  // Hasta dónde puede llegar esta columna sin meterse en la caja de la letra.
+  const finColumna = centerX - boxSize / 2 - 3;
   let currentY = margin + 10;
 
-  // Logo del negocio (opcional), a la izquierda del nombre.
   let nameX = leftColX;
+  let baseLogo = 0;
   if (datosNegocio?.logoDataUrl || datosNegocio?.logoUrl) {
     try {
       const logo = await cargarLogoParaPdf(datosNegocio);
       if (logo) {
-        const maxW = 16;
-        const maxH = 14;
+        // El alto se acota además del ancho: es lo que impide que un logo
+        // cuadrado invada los datos de abajo.
+        const maxW = 15;
+        const maxH = 11;
         const ratio = Math.min(maxW / logo.w, maxH / logo.h);
         const lw = logo.w * ratio;
         const lh = logo.h * ratio;
-        doc.addImage(logo.dataUrl, logo.format, margin + 2, margin + 2, lw, lh);
-        nameX = margin + 2 + lw + 3;
+        const logoY = margin + 3;
+        doc.addImage(logo.dataUrl, logo.format, leftColX, logoY, lw, lh);
+        nameX = leftColX + lw + 3;
+        baseLogo = logoY + lh;
+        // El nombre queda centrado con el logo y no colgado arriba.
+        currentY = logoY + lh / 2 + 2;
       }
     } catch (e) {
       // El comprobante sale igual, sin logo: es preferible a no emitirlo.
@@ -267,18 +281,42 @@ export const generarPdfVenta = async (
     }
   }
 
-  // Nombre Fantasía (Grande)
-  doc.setFontSize(18);
-  doc.text(datosNegocio?.nombre || 'Mi Negocio', nameX, currentY);
-  currentY += 8;
+  // Nombre Fantasía (Grande).
+  //
+  // Se achica hasta que entre en lo que queda de columna. Con el logo al lado
+  // el espacio es menor, y un nombre largo terminaba cruzando la línea
+  // divisoria y metiéndose abajo de la letra del comprobante.
+  const nombreNegocio = datosNegocio?.nombre || 'Mi Negocio';
+  const anchoNombre = finColumna - nameX;
+  let tamNombre = 18;
+  doc.setFontSize(tamNombre);
+  while (tamNombre > 12 && doc.getTextWidth(nombreNegocio) > anchoNombre) {
+    tamNombre -= 0.5;
+    doc.setFontSize(tamNombre);
+  }
+  // Si ni al mínimo entra, se parte en renglones. Achicar sin techo dejaría el
+  // nombre del negocio ilegible; no partirlo lo mandaba por encima de la línea
+  // divisoria, abajo de la letra del comprobante.
+  const lineasNombre = doc.splitTextToSize(nombreNegocio, anchoNombre);
+  doc.text(lineasNombre, nameX, currentY);
+  const altoNombre = lineasNombre.length * tamNombre * 0.42;
+
+  // Los datos arrancan debajo de lo más bajo: el nombre o el logo.
+  currentY = Math.max(currentY + altoNombre + 1.5, baseLogo + 4.5);
 
   // Datos Emisor
   doc.setFontSize(9);
   doc.setFont(font, 'bold');
   doc.text('Razón Social:', leftColX, currentY);
   doc.setFont(font, 'normal');
-  doc.text(datosNegocio?.nombre || '', leftColX + 22, currentY);
-  currentY += 5;
+  // Igual que el nombre de arriba: una razón social larga llegaba hasta la
+  // línea divisoria y se metía abajo de la letra del comprobante.
+  const razonLineas = doc.splitTextToSize(
+    datosNegocio?.nombre || '',
+    finColumna - (leftColX + 22),
+  );
+  doc.text(razonLineas, leftColX + 22, currentY);
+  currentY += Math.max(5, razonLineas.length * 4);
 
   doc.setFont(font, 'bold');
   doc.text('Domicilio:', leftColX, currentY);
