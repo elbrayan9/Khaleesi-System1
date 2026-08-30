@@ -6,6 +6,7 @@ import {
   motion,
   AnimatePresence,
   useScroll,
+  useSpring,
   useTransform,
 } from 'framer-motion';
 import {
@@ -58,6 +59,12 @@ import { AnimatedButton } from '../components/AnimatedButton';
 import HoverEffectWrapper from '../components/HoverEffectWrapper';
 import Tilt3D from '../components/Tilt3D';
 import { registrarContacto } from '../utils/medicion.js';
+import {
+  Revelar,
+  GrillaEscalonada,
+  ItemEscalonado,
+  useParallax,
+} from '../components/landing/scroll.jsx';
 
 // Componente para cada tarjeta de característica (CON EFECTO GLOW)
 const FeatureCard = ({
@@ -101,6 +108,22 @@ const LandingPage = () => {
   const heroVisualY = useTransform(scrollYProgress, [0, 1], [0, 120]);
   const heroVisualScale = useTransform(scrollYProgress, [0, 1], [1, 0.9]);
   const heroVisualOpacity = useTransform(scrollYProgress, [0, 0.85], [1, 0.3]);
+
+  // La barra de lectura del borde del header: cuánto queda de página.
+  // El resorte le saca el temblor que tiene el scroll de una rueda o un
+  // trackpad, que avanza a saltos y no de forma continua.
+  const { scrollYProgress: progresoPagina } = useScroll();
+  const progreso = useSpring(progresoPagina, {
+    stiffness: 260,
+    damping: 40,
+    restDelta: 0.001,
+  });
+
+  // Parallax de las secciones: cada bloque se mueve a distinta velocidad que
+  // la pagina mientras pasa, que es lo que da profundidad al bajar.
+  const showcase = useParallax(40);
+  const impresora = useParallax(50);
+  const desarrollador = useParallax(30);
 
   // Lista COMPLETA de 12 características con texto ajustado
   const features = [
@@ -232,11 +255,26 @@ const LandingPage = () => {
     },
   ];
 
+  // overflow-x-clip y no hidden: `hidden` convierte a este div en un contenedor
+  // de scroll, y entonces el header sticky se ancla a él en vez de a la
+  // ventana. Estaba declarado sticky pero no se pegaba nunca: al bajar se iba
+  // con la página, y con él la barra de progreso. `clip` recorta igual sin
+  // crear ese contenedor. Queda hidden primero como respaldo para los
+  // navegadores viejos que no entienden clip.
   return (
-    <div className="relative min-h-screen w-full overflow-x-hidden bg-zinc-900 text-zinc-200">
+    <div className="relative min-h-screen w-full overflow-x-hidden bg-zinc-900 text-zinc-200 [overflow-x:clip]">
       <ThreeBackground />
 
       <header className="sticky top-0 z-50 flex items-center justify-between border-b border-white/5 bg-zinc-900/80 p-4 backdrop-blur-md sm:px-6">
+        {/* La barra de lectura, pegada al borde de abajo del header. El origen
+            a la izquierda es lo que la hace crecer y no estirarse desde el
+            centro. */}
+        <motion.div
+          aria-hidden="true"
+          style={{ scaleX: progreso, transformOrigin: '0%' }}
+          className="absolute inset-x-0 bottom-0 h-[2px] bg-gradient-to-r from-blue-500 to-cyan-400"
+        />
+
         <div className="flex items-center gap-3">
           <AppLogo
             onLogoClick={() => window.scrollTo(0, 0)}
@@ -484,7 +522,7 @@ const LandingPage = () => {
         {/* Solutions Section */}
         <section className="relative border-t border-white/5 bg-zinc-900 px-4 py-20 sm:py-24">
           <div className="mx-auto max-w-7xl">
-            <div className="mb-16 text-center">
+            <Revelar className="mb-16 text-center">
               <h3 className="text-3xl font-bold text-white sm:text-4xl">
                 ¿Por qué elegir Khaleesi System?
               </h3>
@@ -492,9 +530,9 @@ const LandingPage = () => {
                 Más que un sistema de ventas, somos tu socio estratégico para el
                 crecimiento.
               </p>
-            </div>
+            </Revelar>
 
-            <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+            <GrillaEscalonada className="grid grid-cols-1 gap-8 md:grid-cols-3">
               {[
                 {
                   title: 'Ahorra Tiempo',
@@ -565,13 +603,9 @@ const LandingPage = () => {
                   ),
                 },
               ].map((item, index) => (
-                <motion.div
+                <ItemEscalonado
                   key={index}
                   className="group relative overflow-hidden rounded-2xl border border-white/10 bg-zinc-800/50 p-8 transition-all hover:border-blue-500/50 hover:bg-zinc-800"
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: index * 0.1 }}
                 >
                   <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400 transition-colors group-hover:bg-blue-500 group-hover:text-white">
                     {item.icon}
@@ -580,23 +614,23 @@ const LandingPage = () => {
                     {item.title}
                   </h4>
                   <p className="text-zinc-400">{item.description}</p>
-                </motion.div>
+                </ItemEscalonado>
               ))}
-            </div>
+            </GrillaEscalonada>
           </div>
         </section>
 
         {/* Business Types Section */}
         <section className="bg-zinc-900/80 px-4 py-20 sm:py-24">
           <div className="mx-auto max-w-7xl">
-            <div className="mb-16 text-center">
+            <Revelar className="mb-16 text-center">
               <h3 className="text-3xl font-bold text-white sm:text-4xl">
                 Adaptable a cualquier Negocio
               </h3>
               <p className="mx-auto mt-4 max-w-2xl text-zinc-400">
                 Diseñado para cubrir las necesidades específicas de tu rubro.
               </p>
-            </div>
+            </Revelar>
 
             <HoverEffectWrapper className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {[
@@ -661,28 +695,15 @@ const LandingPage = () => {
         {/* Features Section */}
         <section id="features" className="bg-zinc-900/80 px-4 py-20 sm:py-24">
           <div className="mx-auto max-w-7xl">
-            <div className="text-center">
+            <Revelar className="text-center">
               <h3 className="text-3xl font-bold text-white sm:text-4xl">
-                <motion.span
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.6 }}
-                >
-                  Una Herramienta para Cada Necesidad
-                </motion.span>
+                Una Herramienta para Cada Necesidad
               </h3>
-              <motion.p
-                className="mx-auto mt-4 max-w-2xl text-zinc-400"
-                initial={{ opacity: 0 }}
-                whileInView={{ opacity: 1 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-              >
+              <p className="mx-auto mt-4 max-w-2xl text-zinc-400">
                 Funcionalidades diseñadas para potenciar y automatizar tu
                 negocio desde el día uno.
-              </motion.p>
-            </div>
+              </p>
+            </Revelar>
             <HoverEffectWrapper className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
               {features.map((feature, index) => (
                 <FeatureCard
@@ -699,16 +720,14 @@ const LandingPage = () => {
         </section>
 
         {/* Device Showcase Section */}
-        <section className="relative overflow-hidden px-4 py-24 sm:py-32">
+        <section
+          ref={showcase.ref}
+          className="relative overflow-hidden px-4 py-24 sm:py-32"
+        >
           <div className="absolute inset-0 bg-blue-600/5 blur-[60px]" />
           <div className="relative mx-auto max-w-7xl">
             <div className="grid items-center gap-12 lg:grid-cols-2">
-              <motion.div
-                initial={{ opacity: 0, x: -50 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.8 }}
-                className="text-center lg:text-left"
-              >
+              <Revelar desde="izquierda" className="text-center lg:text-left">
                 <h3 className="text-3xl font-bold text-white sm:text-4xl">
                   Tu Negocio, <br />
                   <span className="text-blue-400">En Todas Partes</span>
@@ -718,69 +737,73 @@ const LandingPage = () => {
                   Diseño responsivo que se adapta a tu computadora, tablet o
                   celular.
                 </p>
-              </motion.div>
+              </Revelar>
 
-              <Tilt3D
-                max={10}
-                glare={false}
-                className="relative mx-auto h-[400px] w-full max-w-[600px] lg:h-[500px]"
-              >
-                {/* Computer Mockup */}
-                <motion.div
-                  className="absolute left-0 top-6 z-10 h-[280px] w-[78%] rounded-xl border border-zinc-700 bg-zinc-900/90 shadow-2xl backdrop-blur-sm sm:h-[330px] sm:w-[72%]"
-                  initial={{ opacity: 0, y: 50 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.8, delay: 0.2 }}
-                  style={{ transformStyle: 'preserve-3d' }}
+              <motion.div style={{ y: showcase.y }}>
+                <Tilt3D
+                  max={10}
+                  glare={false}
+                  className="relative mx-auto h-[400px] w-full max-w-[600px] lg:h-[500px]"
                 >
-                  {/* Screen Content */}
-                  <div className="relative h-full w-full overflow-hidden rounded-xl bg-zinc-900 p-2">
-                    <div className="absolute inset-x-0 top-0 z-10 flex h-8 items-center gap-2 border-b border-zinc-800 bg-zinc-900/95 px-4 backdrop-blur">
-                      <div className="h-3 w-3 rounded-full bg-red-500" />
-                      <div className="h-3 w-3 rounded-full bg-yellow-500" />
-                      <div className="h-3 w-3 rounded-full bg-green-500" />
-                    </div>
+                  {/* Computer Mockup */}
+                  <motion.div
+                    className="absolute left-0 top-6 z-10 h-[280px] w-[78%] rounded-xl border border-zinc-700 bg-zinc-900/90 shadow-2xl backdrop-blur-sm sm:h-[330px] sm:w-[72%]"
+                    initial={{ opacity: 0, y: 50 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: '-80px' }}
+                    transition={{ duration: 0.8, delay: 0.2 }}
+                    style={{ transformStyle: 'preserve-3d' }}
+                  >
+                    {/* Screen Content */}
+                    <div className="relative h-full w-full overflow-hidden rounded-xl bg-zinc-900 p-2">
+                      <div className="absolute inset-x-0 top-0 z-10 flex h-8 items-center gap-2 border-b border-zinc-800 bg-zinc-900/95 px-4 backdrop-blur">
+                        <div className="h-3 w-3 rounded-full bg-red-500" />
+                        <div className="h-3 w-3 rounded-full bg-yellow-500" />
+                        <div className="h-3 w-3 rounded-full bg-green-500" />
+                      </div>
 
-                    <div className="h-full w-full overflow-hidden pt-8">
-                      <Suspense
-                        fallback={<div className="h-full w-full bg-zinc-950" />}
-                      >
-                        <MockupSistema />
-                      </Suspense>
+                      <div className="h-full w-full overflow-hidden pt-8">
+                        <Suspense
+                          fallback={
+                            <div className="h-full w-full bg-zinc-950" />
+                          }
+                        >
+                          <MockupSistema />
+                        </Suspense>
+                      </div>
                     </div>
-                  </div>
-                </motion.div>
+                  </motion.div>
 
-                {/* Phone Mockup */}
-                <motion.div
-                  className="absolute bottom-0 right-0 z-20 h-[320px] w-[155px] rounded-[2rem] border-4 border-zinc-800 bg-zinc-900 shadow-2xl shadow-black/60 sm:h-[360px] sm:w-[175px]"
-                  initial={{ opacity: 0, y: 100 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  animate={{ y: [0, -15, 0] }}
-                  transition={{
-                    duration: 0.8,
-                    delay: 0.4,
-                  }}
-                >
-                  {/* Phone Screen */}
-                  <div className="relative h-full w-full overflow-hidden rounded-[1.7rem] bg-zinc-900">
-                    {/* Phone Notch/Header */}
-                    <div className="absolute inset-x-0 top-0 z-10 flex h-12 items-end justify-center bg-zinc-900/90 pb-2 backdrop-blur">
-                      <div className="h-1 w-16 rounded-full bg-zinc-800" />
-                    </div>
+                  {/* Phone Mockup */}
+                  <motion.div
+                    className="absolute bottom-0 right-0 z-20 h-[320px] w-[155px] rounded-[2rem] border-4 border-zinc-800 bg-zinc-900 shadow-2xl shadow-black/60 sm:h-[360px] sm:w-[175px]"
+                    initial={{ opacity: 0, y: 100 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: '-80px' }}
+                    transition={{ duration: 0.8, delay: 0.4 }}
+                  >
+                    {/* Phone Screen */}
+                    <div className="relative h-full w-full overflow-hidden rounded-[1.7rem] bg-zinc-900">
+                      {/* Phone Notch/Header */}
+                      <div className="absolute inset-x-0 top-0 z-10 flex h-12 items-end justify-center bg-zinc-900/90 pb-2 backdrop-blur">
+                        <div className="h-1 w-16 rounded-full bg-zinc-800" />
+                      </div>
 
-                    {/* El celular, funcionando igual que la computadora de
+                      {/* El celular, funcionando igual que la computadora de
                         al lado, pero mostrando lo suyo: la cámara escaneando. */}
-                    <div className="h-full w-full overflow-hidden pt-12">
-                      <Suspense
-                        fallback={<div className="h-full w-full bg-zinc-950" />}
-                      >
-                        <MockupCelu />
-                      </Suspense>
+                      <div className="h-full w-full overflow-hidden pt-12">
+                        <Suspense
+                          fallback={
+                            <div className="h-full w-full bg-zinc-950" />
+                          }
+                        >
+                          <MockupCelu />
+                        </Suspense>
+                      </div>
                     </div>
-                  </div>
-                </motion.div>
-              </Tilt3D>
+                  </motion.div>
+                </Tilt3D>
+              </motion.div>
             </div>
           </div>
         </section>
@@ -788,14 +811,9 @@ const LandingPage = () => {
         {/* Pricing Section */}
         {/* El comprobante saliendo, justo antes de los precios: muestra qué
             pasa después de pagar, que es la duda de quien está por decidir. */}
-        <section className="px-4 pb-4 pt-20 sm:pt-24">
+        <section ref={impresora.ref} className="px-4 pb-4 pt-20 sm:pt-24">
           <div className="mx-auto grid max-w-4xl items-center gap-10 lg:grid-cols-2">
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true, margin: '-80px' }}
-              transition={{ duration: 0.6 }}
-            >
+            <Revelar desde="izquierda">
               <h3 className="text-3xl font-bold text-white sm:text-4xl">
                 Cada cobro,{' '}
                 <span className="text-blue-400">con su comprobante</span>
@@ -805,15 +823,11 @@ const LandingPage = () => {
                 la impresora térmica del mostrador o en PDF para mandar por
                 WhatsApp, con los datos de tu negocio y tu logo.
               </p>
-            </motion.div>
+            </Revelar>
 
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-80px' }}
-              transition={{ duration: 0.6, delay: 0.15 }}
-              className="pb-[340px]"
-            >
+            {/* La impresora sube un poco mientras la seccion pasa: acompaña al
+                papel, que ya baja solo. */}
+            <motion.div style={{ y: impresora.y }} className="pb-[340px]">
               {/* El papel sale hacia abajo unos 340px: hay que reservarle el
                   lugar o queda dibujado fuera de la parte visible. */}
               <Suspense fallback={<div className="h-[240px]" />}>
@@ -825,12 +839,7 @@ const LandingPage = () => {
 
         <section id="pricing" className="px-4 py-20 sm:py-24">
           <div className="mx-auto max-w-md text-center">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-            >
+            <Revelar>
               <h3 className="text-3xl font-bold text-white sm:text-4xl">
                 Un Plan Simple y Transparente
               </h3>
@@ -838,7 +847,7 @@ const LandingPage = () => {
                 Comienza gratis. Sin necesidad de tarjeta de crédito. Todas las
                 funciones incluidas.
               </p>
-            </motion.div>
+            </Revelar>
           </div>
 
           <div className="mt-8 flex justify-center">
