@@ -9,6 +9,8 @@
 
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { Check } from 'lucide-react';
+import { useEnPantalla } from './scroll.jsx';
 
 // El guion del ciclo. Cada paso dice cuánto dura y qué se ve.
 const PRODUCTOS = [
@@ -44,21 +46,23 @@ function MockupSistema() {
   const [listoParaAnimar, setListoParaAnimar] = useState(false);
   useEffect(() => {
     if (sinMovimiento) return undefined;
-    const pedir =
-      window.requestIdleCallback || ((f) => setTimeout(f, 1200));
+    const pedir = window.requestIdleCallback || ((f) => setTimeout(f, 1200));
     const cancelar = window.cancelIdleCallback || clearTimeout;
     const id = pedir(() => setListoParaAnimar(true), { timeout: 2500 });
     return () => cancelar(id);
   }, [sinMovimiento]);
 
+  // El ciclo se congela cuando el mockup no está en pantalla.
+  const { ref: caja, visible } = useEnPantalla();
+
   useEffect(() => {
-    if (sinMovimiento || !listoParaAnimar) return undefined;
+    if (sinMovimiento || !listoParaAnimar || !visible) return undefined;
     const t = setTimeout(
       () => setPaso((p) => (p + 1) % PASOS.length),
       PASOS[paso].ms,
     );
     return () => clearTimeout(t);
-  }, [paso, sinMovimiento, listoParaAnimar]);
+  }, [paso, sinMovimiento, listoParaAnimar, visible]);
 
   const actual = PASOS[paso].id;
   const cuantosItems =
@@ -76,7 +80,10 @@ function MockupSistema() {
   const listo = actual === 'listo';
 
   return (
-    <div className="flex aspect-[16/10] w-full bg-zinc-950 text-left text-[10px] sm:text-xs">
+    <div
+      ref={caja}
+      className="flex aspect-[4/3] w-full bg-zinc-950 text-left text-[10px] sm:aspect-[16/10] sm:text-xs"
+    >
       {/* --- MENÚ LATERAL --- */}
       <aside className="hidden w-[22%] shrink-0 border-r border-white/5 bg-zinc-900/80 p-3 sm:block">
         <div className="mb-4 flex items-center gap-1.5">
@@ -127,7 +134,7 @@ function MockupSistema() {
               </AnimatePresence>
               {/* El cursor titilando es lo que da la sensación de que alguien
                   está del otro lado, tipeando. */}
-              {!sinMovimiento && (
+              {!sinMovimiento && visible && (
                 <motion.span
                   animate={{ opacity: [1, 0, 1] }}
                   transition={{ duration: 1, repeat: Infinity }}
@@ -209,11 +216,15 @@ function MockupSistema() {
                         : 'bg-zinc-700 text-zinc-500')
                 }
               >
-                {listo
-                  ? '✓ Venta registrada'
-                  : cobrando
-                    ? 'Cobrando…'
-                    : 'Cobrar'}
+                {listo ? (
+                  <span className="flex items-center justify-center gap-1">
+                    <Check size={11} strokeWidth={3} /> Venta registrada
+                  </span>
+                ) : cobrando ? (
+                  'Cobrando...'
+                ) : (
+                  'Cobrar'
+                )}
               </motion.div>
             </div>
           </div>

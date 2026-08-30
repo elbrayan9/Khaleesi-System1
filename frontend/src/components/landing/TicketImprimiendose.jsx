@@ -14,6 +14,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Check, Home, Loader2 } from 'lucide-react';
+import { useEnPantalla } from './scroll.jsx';
 
 const pesos = (n) =>
   n.toLocaleString('es-AR', {
@@ -80,20 +81,26 @@ function TicketImprimiendose() {
     return () => window.removeEventListener('resize', medir);
   }, []);
 
+  // El ciclo se congela cuando la impresora no está en pantalla.
+  const { ref: caja, visible } = useEnPantalla();
+
   useEffect(() => {
-    if (sinMovimiento) return undefined;
+    if (sinMovimiento || !visible) return undefined;
     const t = setTimeout(
       () => setFase((f) => (f + 1) % FASES.length),
       FASES[fase].ms,
     );
     return () => clearTimeout(t);
-  }, [fase, sinMovimiento]);
+  }, [fase, sinMovimiento, visible]);
 
   const imprimiendo = fase >= 1;
   const listo = fase === 2;
 
   return (
-    <div className="relative mx-auto w-full max-w-[340px] select-none">
+    <div
+      ref={caja}
+      className="relative mx-auto w-full max-w-[340px] select-none"
+    >
       {/* --- EL PAPEL, detrás de la carcasa ---
           Más angosto que la impresora, como el rollo de 58 mm dentro de un
           equipo más ancho. */}

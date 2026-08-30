@@ -743,11 +743,11 @@ const LandingPage = () => {
                 <Tilt3D
                   max={10}
                   glare={false}
-                  className="relative mx-auto h-[400px] w-full max-w-[600px] lg:h-[500px]"
+                  className="relative mx-auto flex h-auto w-full max-w-[600px] flex-col items-center sm:block sm:h-[400px] lg:h-[500px]"
                 >
                   {/* Computer Mockup */}
                   <motion.div
-                    className="absolute left-0 top-6 z-10 h-[280px] w-[78%] rounded-xl border border-zinc-700 bg-zinc-900/90 shadow-2xl backdrop-blur-sm sm:h-[330px] sm:w-[72%]"
+                    className="relative z-10 h-[300px] w-full rounded-xl border border-zinc-700 bg-zinc-900/90 shadow-2xl backdrop-blur-sm sm:absolute sm:left-0 sm:top-6 sm:h-[330px] sm:w-[72%]"
                     initial={{ opacity: 0, y: 50 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true, margin: '-80px' }}
@@ -776,7 +776,7 @@ const LandingPage = () => {
 
                   {/* Phone Mockup */}
                   <motion.div
-                    className="absolute bottom-0 right-0 z-20 h-[320px] w-[155px] rounded-[2rem] border-4 border-zinc-800 bg-zinc-900 shadow-2xl shadow-black/60 sm:h-[360px] sm:w-[175px]"
+                    className="relative z-20 mt-6 h-[300px] w-[150px] rounded-[2rem] border-4 border-zinc-800 bg-zinc-900 shadow-2xl shadow-black/60 sm:absolute sm:bottom-0 sm:right-0 sm:mt-0 sm:h-[360px] sm:w-[175px]"
                     initial={{ opacity: 0, y: 100 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true, margin: '-80px' }}

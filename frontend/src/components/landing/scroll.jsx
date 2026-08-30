@@ -11,7 +11,7 @@
 // página— y todas respetan "reducir movimiento": con esa preferencia activada
 // no se anima nada y el contenido aparece directamente en su lugar.
 
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   motion,
   useReducedMotion,
@@ -110,6 +110,35 @@ export function ItemEscalonado({ children, className, ...resto }) {
       {children}
     </motion.div>
   );
+}
+
+// ¿El elemento está en pantalla?
+//
+// Los mockups animan en un ciclo sin fin. Fuera de pantalla ese ciclo sigue
+// gastando CPU y batería para dibujar algo que nadie ve: en un celular, con
+// tres mockups en la página, eso se nota. Con esto cada uno se congela cuando
+// sale y retoma cuando vuelve.
+export function useEnPantalla(margen = '200px') {
+  const ref = useRef(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const nodo = ref.current;
+    // Sin IntersectionObserver se da por visible: perder la animación es peor
+    // que gastar de más.
+    if (!nodo || typeof IntersectionObserver === 'undefined') {
+      setVisible(true);
+      return undefined;
+    }
+    const obs = new IntersectionObserver(
+      ([e]) => setVisible(e.isIntersecting),
+      { rootMargin: margen },
+    );
+    obs.observe(nodo);
+    return () => obs.disconnect();
+  }, [margen]);
+
+  return { ref, visible };
 }
 
 // Parallax: el elemento se mueve a distinta velocidad que la página mientras

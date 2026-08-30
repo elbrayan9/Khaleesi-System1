@@ -12,6 +12,8 @@
 
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { Check } from 'lucide-react';
+import { useEnPantalla } from './scroll.jsx';
 
 const PASOS = [
   { id: 'buscando', ms: 1500 },
@@ -38,21 +40,27 @@ function MockupCelu() {
     return () => cancelar(id);
   }, [sinMovimiento]);
 
+  // El ciclo se congela cuando el mockup no está en pantalla.
+  const { ref: caja, visible } = useEnPantalla();
+
   useEffect(() => {
-    if (sinMovimiento || !listoParaAnimar) return undefined;
+    if (sinMovimiento || !listoParaAnimar || !visible) return undefined;
     const t = setTimeout(
       () => setPaso((p) => (p + 1) % PASOS.length),
       PASOS[paso].ms,
     );
     return () => clearTimeout(t);
-  }, [paso, sinMovimiento, listoParaAnimar]);
+  }, [paso, sinMovimiento, listoParaAnimar, visible]);
 
   const actual = PASOS[paso].id;
   const leido = actual !== 'buscando';
   const enviado = actual === 'enviado';
 
   return (
-    <div className="flex h-full w-full flex-col bg-zinc-950 px-2 pb-2 text-left text-[9px]">
+    <div
+      ref={caja}
+      className="flex h-full w-full flex-col bg-zinc-950 px-2 pb-2 text-left text-[9px]"
+    >
       <div className="mb-1.5 flex items-center justify-between px-0.5">
         <span className="font-semibold text-white">Escáner</span>
         <span className="text-[8px] text-zinc-500">Caja 1</span>
@@ -93,7 +101,7 @@ function MockupCelu() {
 
         {/* La línea que barre el visor: es lo que hace que se lea como una
             cámara buscando y no como una foto. */}
-        {!sinMovimiento && !leido && (
+        {!sinMovimiento && !leido && visible && (
           <motion.div
             animate={{ y: ['15%', '85%', '15%'] }}
             transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
@@ -129,7 +137,7 @@ function MockupCelu() {
                 Coca-Cola 2.25 L
               </span>
               <span className="mt-0.5 flex items-center gap-1 text-emerald-400">
-                <span className="text-[11px] leading-none">✓</span>
+                <Check size={11} strokeWidth={3} />
                 Agregado a la venta
               </span>
             </motion.div>
@@ -141,7 +149,7 @@ function MockupCelu() {
               exit={{ opacity: 0 }}
               className="flex h-full items-center justify-center rounded-lg border border-white/10 px-2 text-center text-zinc-500"
             >
-              {leido ? 'Enviando a la caja…' : 'Apuntá al código de barras'}
+              {leido ? 'Enviando a la caja...' : 'Apuntá al código de barras'}
             </motion.div>
           )}
         </AnimatePresence>
