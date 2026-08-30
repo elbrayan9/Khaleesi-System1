@@ -9,11 +9,36 @@ service cloud.firestore {
              get(/databases/$(database)/documents/datosNegocio/$(request.auth.uid)).data.subscriptionStatus in ['active', 'trial'];
     }
 
-    // datosNegocio (igual que tenías: leer dueño/admin; editar solo activo/admin)
+    // datosNegocio: leer dueño/admin; editar solo activo/admin.
+    //
+    // **Lo que el comercio NO puede tocar de su propio documento.**
+    //
+    // Acá vive lo que decide qué puede usar y hasta cuándo: el plan y el estado
+    // de la suscripción. El servidor los lee para habilitar la facturación
+    // ante ARCA, las funciones con IA y la tienda online. Como el dueño puede
+    // escribir su propio documento, sin esta restricción le alcanzaba con una
+    // línea en la consola del navegador para ponerse `plan: 'premium'` y una
+    // fecha de vencimiento en 2099, y usar gratis todo lo que se cobra.
+    //
+    // Esos campos los escriben únicamente el webhook de Mercado Pago y el
+    // administrador, los dos con el Admin SDK, que no pasa por estas reglas.
+    function tocaLaSuscripcion() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasAny(['plan', 'subscriptionStatus', 'subscriptionEndDate',
+                 'precioLegacy', 'precioLegacyHasta']);
+    }
+    function traeLaSuscripcion() {
+      return request.resource.data.keys()
+        .hasAny(['plan', 'subscriptionStatus', 'subscriptionEndDate',
+                 'precioLegacy', 'precioLegacyHasta']);
+    }
+
     match /datosNegocio/{userId} {
       allow read: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId);
-      allow update, delete: if (isOwner(userId) && isUserActive()) || isAdmin();
+      allow create: if isAdmin() || (isOwner(userId) && !traeLaSuscripcion());
+      allow update: if isAdmin() ||
+                       (isOwner(userId) && isUserActive() && !tocaLaSuscripcion());
+      allow delete: if isAdmin();
     }
 
     // productos.
@@ -84,6 +109,25 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Los topes diarios de las funciones con IA y los avisos al administrador.
+    //
+    // `_usage_daily` quedaba bajo la regla general, y su identificador es
+    // predecible (`<uid>_<fecha>`). Alcanzaba con crear el documento del día a
+    // nombre propio con el contador en cero para volverse dueño de él y poder
+    // resetearlo cuando quisiera: el tope de llamadas a la IA dejaba de existir
+    // y el costo lo pagaba el sistema.
+    match /_usage_daily/{docId} {
+      allow read, write: if false;
+    }
+    match /paymentNotifications/{docId} {
+      allow read, write: if false;
+    }
+    // Los pagos de suscripción ya usados, para que un mismo comprobante no
+    // sirva dos veces.
+    match /pagosProcesados/{docId} {
+      allow read, write: if false;
+    }
+
     // Resto (ventas, clientes, notas, etc.): IGUAL que tenías, ahora excluyendo
     // también 'sucursales', 'secretosMp', 'geocache' y 'contadores'.
     //
@@ -93,9 +137,9 @@ service cloud.firestore {
     // día que un documento de secretos tuviera un campo `userId` quedaría
     // legible por su dueño.
     match /{collection}/{docId} {
-      allow read, update, delete: if (collection != 'datosNegocio' && collection != 'productos' && collection != 'sucursales' && collection != 'secretosMp' && collection != 'geocache' && collection != 'contadores' && collection != 'scannerRelay') &&
+      allow read, update, delete: if (collection != 'datosNegocio' && collection != 'productos' && collection != 'sucursales' && collection != 'secretosMp' && collection != 'geocache' && collection != 'contadores' && collection != 'scannerRelay' && collection != '_usage_daily' && collection != 'paymentNotifications' && collection != 'pagosProcesados') &&
                      ((isOwner(resource.data.userId) && isUserActive()) || isAdmin());
-      allow create: if (collection != 'datosNegocio' && collection != 'productos' && collection != 'sucursales' && collection != 'secretosMp' && collection != 'geocache' && collection != 'contadores' && collection != 'scannerRelay') &&
+      allow create: if (collection != 'datosNegocio' && collection != 'productos' && collection != 'sucursales' && collection != 'secretosMp' && collection != 'geocache' && collection != 'contadores' && collection != 'scannerRelay' && collection != '_usage_daily' && collection != 'paymentNotifications' && collection != 'pagosProcesados') &&
                      ((isOwner(request.resource.data.userId) && isUserActive()) || isAdmin());
     }
   }

@@ -7,7 +7,24 @@ service firebase.storage {
     // - Lectura pública por link (el download URL de Firebase ya trae token).
     // - Límite de 5 MB y solo PDFs.
     match /comprobantes/{userId}/{allPaths=**} {
-      allow read: if true;
+      // **Bajar uno, sí. Ver la lista, no.**
+      //
+      // Estaba como `read: if true`, y en Storage `read` incluye listar: con el
+      // identificador del comercio —que no es secreto— cualquiera podía pedir
+      // el contenido de su carpeta y bajarse TODAS sus facturas, con el nombre,
+      // el CUIT y el domicilio de sus clientes adentro.
+      //
+      // `get` queda abierto a propósito: el comprobante que el comercio le
+      // manda a su cliente por WhatsApp es un enlace que esa persona abre sin
+      // tener cuenta. Cerrarlo sin reemplazarlo por un enlace firmado dejaría a
+      // los clientes sin poder ver su factura.
+      //
+      // Queda pendiente pasar ese envío a enlaces firmados con vencimiento,
+      // generados desde una función: recién ahí se puede cerrar también el
+      // `get`. Hasta entonces, para bajar un comprobante hay que saber su
+      // nombre exacto, que lleva la marca de tiempo en milisegundos.
+      allow get: if true;
+      allow list: if request.auth != null && request.auth.uid == userId;
       allow write: if request.auth != null
         && request.auth.uid == userId
         && request.resource.size < 5 * 1024 * 1024

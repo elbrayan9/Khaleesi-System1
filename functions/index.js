@@ -7,6 +7,11 @@ const {
 const { idsDeCajaQr } = require('./mpIds');
 const geocoding = require('./geocoding');
 const { esDuenoDeSucursal } = require('./tenencia');
+const {
+  referenciaDeSuscripcion,
+  datosDeLaReferencia,
+  diasDelCiclo,
+} = require('./suscripcion');
 const { crearBoveda } = require('./tokenMp');
 const { calcularParaPedido } = require('./rutaTrigger');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
@@ -2095,6 +2100,50 @@ exports.crearPagoMP = onCall({ enforceAppCheck: true }, async (request) => {
 // ===============================================
 // MERCADO PAGO: webhook de notificaciones de pago
 // ===============================================
+/**
+ * ¿Este aviso de pago puede tocar este cobro?
+ *
+ * Dos preguntas, las dos necesarias:
+ *
+ * 1. **¿El cobro es de quien avisa?** El identificador del cobro es el de la
+ *    venta, que lo elige el navegador, y la colección es común a todos los
+ *    comercios. Sin esto, alguien podía crear un cobro propio de un peso
+ *    reusando el identificador de una venta ajena, pagarlo a su cuenta, y la
+ *    pantalla del otro comercio daba esa venta por cobrada.
+ * 2. **¿Alcanza lo que pagaron?** Sin comparar contra el monto registrado, un
+ *    pago de un peso cerraba una venta de cincuenta mil.
+ *
+ * Un cobro que no existe tampoco se acepta: los cobros los crea el comercio
+ * autenticado, nunca el aviso.
+ */
+async function avisoPuedeTocarElCobro(referencia, uid, montoPagado) {
+  if (!referencia) return false;
+  try {
+    const snap = await db.collection('cobros_mp').doc(String(referencia)).get();
+    if (!snap.exists) {
+      console.warn(`[MP webhook] el cobro ${referencia} no existe`);
+      return false;
+    }
+    const d = snap.data();
+    if (d.userId && d.userId !== uid) {
+      console.warn(`[MP webhook] el cobro ${referencia} no es de uid=${uid}`);
+      return false;
+    }
+    const esperado = Number(d.monto) || 0;
+    // El centavo de tolerancia es por el redondeo de Mercado Pago.
+    if (esperado > 0 && Number(montoPagado) + 0.01 < esperado) {
+      console.warn(
+        `[MP webhook] cobro ${referencia}: pagaron ${montoPagado} de ${esperado}`,
+      );
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error('[MP webhook] no se pudo verificar el cobro:', e?.message);
+    return false;
+  }
+}
+
 exports.mpWebhook = onRequest(async (req, res) => {
   try {
     // El uid del comercio viaja en la query (lo pusimos en notification_url).
@@ -2129,7 +2178,10 @@ exports.mpWebhook = onRequest(async (req, res) => {
 
     const extRef = pago.external_reference;
     console.log(`[MP webhook] extRef=${extRef} status=${pago.status}`);
-    if (extRef) {
+    if (
+      extRef &&
+      (await avisoPuedeTocarElCobro(extRef, uid, pago.transaction_amount))
+    ) {
       const estado = pago.status === 'approved' ? 'pagado' : pago.status;
       await db
         .collection('cobros_mp')
@@ -2913,7 +2965,14 @@ exports.mpWebhookQr = onRequest(async (req, res) => {
         orden.status === 'processed' ||
         ['approved', 'accredited'].includes(pagoInterno?.status);
 
-      if (cobrada) {
+      if (
+        cobrada &&
+        (await avisoPuedeTocarElCobro(
+          orden.external_reference,
+          uid,
+          orden.total_amount,
+        ))
+      ) {
         await db
           .collection('cobros_mp')
           .doc(orden.external_reference)
@@ -2938,7 +2997,16 @@ exports.mpWebhookQr = onRequest(async (req, res) => {
         headers: { Authorization: `Bearer ${token}` },
       });
       const pago = await pr.json();
-      if (pr.ok && pago.external_reference && pago.status === 'approved') {
+      if (
+        pr.ok &&
+        pago.external_reference &&
+        pago.status === 'approved' &&
+        (await avisoPuedeTocarElCobro(
+          pago.external_reference,
+          uid,
+          pago.transaction_amount,
+        ))
+      ) {
         await db
           .collection('cobros_mp')
           .doc(pago.external_reference)
@@ -2966,7 +3034,14 @@ exports.mpWebhookQr = onRequest(async (req, res) => {
         const pagado =
           mo.order_status === 'paid' ||
           (mo.total_amount > 0 && (mo.paid_amount || 0) >= mo.total_amount);
-        if (pagado) {
+        if (
+          pagado &&
+          (await avisoPuedeTocarElCobro(
+            mo.external_reference,
+            uid,
+            mo.paid_amount || mo.total_amount,
+          ))
+        ) {
           await db
             .collection('cobros_mp')
             .doc(mo.external_reference)
@@ -3045,7 +3120,9 @@ exports.crearPagoSuscripcion = onCall(
 
     const WEBHOOK_URL =
       'https://us-central1-khaleesy-system.cloudfunctions.net/mpWebhookSuscripcion';
-    const externalReference = `sub_${uid}_${plan}_${Date.now()}`;
+    // Qué se compró viaja adentro de la referencia del pago, que es lo único
+    // que después se puede verificar contra Mercado Pago.
+    const externalReference = referenciaDeSuscripcion(uid, plan, ciclo);
 
     // Origen del frontend (window.location.origin) para volver a la app al
     // terminar el pago. Se valida que sea una URL http(s) para no confiar en
@@ -3133,11 +3210,11 @@ exports.mpWebhookSuscripcion = onRequest(
   { secrets: [MP_PLATFORM_TOKEN] },
   async (req, res) => {
     try {
+      // El uid sirve para saber a quién mirar, pero NO define qué se le da:
+      // eso sale del pago. Antes el plan y el ciclo se leían de esta misma URL,
+      // y alcanzaba con volver a llamar a mano cambiando dos palabras para
+      // pagar un mes del plan barato y darse un año del caro.
       const uid = req.query.uid;
-      const plan = ['basic', 'premium'].includes(req.query.plan)
-        ? req.query.plan
-        : null;
-      const ciclo = req.query.ciclo === 'anual' ? 'anual' : 'mensual';
       const tipo = req.body?.type || req.query.type || req.query.topic;
       const paymentId =
         req.body?.data?.id || req.query['data.id'] || req.query.id;
@@ -3160,26 +3237,46 @@ exports.mpWebhookSuscripcion = onRequest(
       }
 
       console.log(
-        `[MP sub webhook] uid=${uid} plan=${plan} status=${pago.status} extRef=${pago.external_reference}`,
+        `[MP sub webhook] uid=${uid} status=${pago.status} extRef=${pago.external_reference}`,
       );
 
-      // Solo reactivamos si el pago está aprobado y corresponde a este usuario.
-      if (
-        pago.status === 'approved' &&
-        String(pago.external_reference || '').startsWith(`sub_${uid}`)
-      ) {
-        const dias = ciclo === 'anual' ? 365 : 30;
+      // Qué se compró, leído del pago y no de la dirección del aviso.
+      const compra = datosDeLaReferencia(pago.external_reference);
+
+      // Solo reactivamos si el pago está aprobado y es de este usuario.
+      if (pago.status === 'approved' && compra && compra.uid === uid) {
+        // **Un pago sirve una sola vez.** Sin esto, el mismo comprobante se
+        // podía volver a mandar cada once meses y renovar para siempre: se
+        // pagaba una vez y no se pagaba nunca más.
+        const usado = await db.runTransaction(async (tx) => {
+          const ref = db.collection('pagosProcesados').doc(String(paymentId));
+          const snap = await tx.get(ref);
+          if (snap.exists) return true;
+          tx.set(ref, {
+            uid,
+            plan: compra.plan,
+            ciclo: compra.ciclo,
+            monto: pago.transaction_amount ?? null,
+            procesadoEn: admin.firestore.FieldValue.serverTimestamp(),
+          });
+          return false;
+        });
+        if (usado) {
+          console.warn(`[MP sub webhook] pago ${paymentId} ya estaba usado`);
+          return res.status(200).send('duplicado');
+        }
+
+        const dias = diasDelCiclo(compra.ciclo);
         const nuevaFecha = new Date();
         nuevaFecha.setDate(nuevaFecha.getDate() + dias);
-        const updates = {
-          subscriptionStatus: 'active',
-          subscriptionEndDate: nuevaFecha,
-        };
-        if (plan) updates.plan = plan;
-        await db
-          .collection('datosNegocio')
-          .doc(uid)
-          .set(updates, { merge: true });
+        await db.collection('datosNegocio').doc(uid).set(
+          {
+            subscriptionStatus: 'active',
+            subscriptionEndDate: nuevaFecha,
+            plan: compra.plan,
+          },
+          { merge: true },
+        );
         console.log(
           `[MP sub webhook] Suscripción reactivada: ${uid} (+${dias} días)`,
         );

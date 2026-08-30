@@ -5,6 +5,7 @@ const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
 const { execSync } = require('child_process');
+const { esDuenoDeSucursal } = require('./tenencia');
 
 // ==========================================
 // 1. FUNCIÓN PRINCIPAL: CREAR FACTURA (CAE) - VERSIÓN MEJORADA
@@ -438,6 +439,26 @@ const getLastVoucher = async (token, sign, cuit, ptoVta, cbteTipo, url) => {
 const getAfipConfig = async (userId, sucursalId) => {
   try {
     let certContent, keyContent, cuit, production;
+
+    // **De quién es esa sucursal.**
+    //
+    // El `sucursalId` llega desde el navegador y acá se usa para levantar el
+    // certificado y el CUIT con los que se firma ante ARCA. Sin este control,
+    // un comercio podía mandar el id de otro —que es público: está en la URL de
+    // su tienda online— y **emitir facturas electrónicas reales a nombre del
+    // CUIT ajeno**. La víctima se enteraba por las consecuencias impositivas.
+    //
+    // Va acá y no en cada función porque es el único lugar por donde pasan las
+    // tres que tocan AFIP.
+    if (
+      sucursalId &&
+      !(await esDuenoDeSucursal(admin.firestore(), userId, sucursalId))
+    ) {
+      console.warn(
+        `[AFIP] Configuración pedida para una sucursal ajena. uid=${userId} suc=${sucursalId}`,
+      );
+      return { error: true, message: 'Esa sucursal no es tuya.' };
+    }
 
     if (sucursalId) {
       const sucursalDoc = await admin

@@ -157,6 +157,81 @@ test('y nadie escribe en el relay ajeno', async () => {
   );
 });
 
+// --- Lo que decide qué se puede usar y hasta cuándo ---
+//
+// `datosNegocio` guarda el plan y el estado de la suscripción, y el servidor
+// los lee para habilitar la facturación ante ARCA, la IA y la tienda online.
+// Como el dueño escribe su propio documento, sin restricción le alcanzaba una
+// línea en la consola del navegador para usar gratis todo lo que se cobra.
+
+test('el dueño NO puede darse el plan premium', async () => {
+  await assertFails(
+    setDoc(doc(comoDueno, 'datosNegocio', DUENO), { plan: 'premium' }, { merge: true }),
+  );
+});
+
+test('ni cambiarse el estado de la suscripción', async () => {
+  // Con un valor DISTINTO al que ya tiene: reescribir el mismo valor no cambia
+  // nada y la regla lo deja pasar, que es lo correcto.
+  await assertFails(
+    setDoc(
+      doc(comoDueno, 'datosNegocio', DUENO),
+      { subscriptionStatus: 'trial' },
+      { merge: true },
+    ),
+  );
+});
+
+test('ni estirarse el vencimiento hasta 2099', async () => {
+  await assertFails(
+    setDoc(
+      doc(comoDueno, 'datosNegocio', DUENO),
+      { subscriptionEndDate: new Date('2099-01-01') },
+      { merge: true },
+    ),
+  );
+});
+
+test('ni ponerse un precio viejo más barato', async () => {
+  await assertFails(
+    setDoc(
+      doc(comoDueno, 'datosNegocio', DUENO),
+      { precioLegacy: { premium: { mensual: 1 } } },
+      { merge: true },
+    ),
+  );
+});
+
+test('pero sí puede editar sus datos de siempre', async () => {
+  // Lo que no se tiene que romper: el comercio configura su negocio todos los
+  // días.
+  await assertSucceeds(
+    setDoc(
+      doc(comoDueno, 'datosNegocio', DUENO),
+      { nombre: 'Kiosco Nuevo', direccion: 'Av. Colón 100', cuit: '20111111112' },
+      { merge: true },
+    ),
+  );
+});
+
+test('el tope diario de la IA no se puede resetear', async () => {
+  // El identificador es predecible: <uid>_<fecha>. Antes alcanzaba con crearlo
+  // a nombre propio para volverse dueño y ponerlo en cero cuando quisiera.
+  await assertFails(
+    setDoc(doc(comoDueno, '_usage_daily', `${DUENO}_2026-08-30`), {
+      userId: DUENO,
+      count: 0,
+    }),
+  );
+});
+
+test('ni se pueden ver los pagos de suscripción ya usados', async () => {
+  await assertFails(getDoc(doc(comoDueno, 'pagosProcesados', 'pago-123')));
+  await assertFails(
+    setDoc(doc(comoDueno, 'pagosProcesados', 'pago-123'), { userId: DUENO }),
+  );
+});
+
 test('el dueño sigue leyendo la configuración de su sucursal', async () => {
   // Lo que NO tiene que romperse: la app carga leyendo esto.
   const snap = await assertSucceeds(getDoc(doc(comoDueno, 'sucursales', 'suc1')));
