@@ -43,6 +43,7 @@ import ThreeBackground from '../components/ThreeBackground';
 const MockupSistema = lazy(
   () => import('../components/landing/MockupSistema.jsx'),
 );
+const MockupCelu = lazy(() => import('../components/landing/MockupCelu.jsx'));
 // El ticket está muy por debajo del pliegue: baja después, para no pesar en el
 // primer pintado, que es lo que decide si alguien se queda o se va.
 const TicketImprimiendose = lazy(
@@ -52,7 +53,6 @@ const TicketImprimiendose = lazy(
 // 747x1024 (264 KB) para dibujarse en un círculo de 96px: ahora son 192px y
 // 8 KB. Las tres juntas bajaron de 399 KB a 47 KB.
 import profileImage from '../assets/profile.webp';
-import dashboardMobile from '../assets/dashboard-mobile.webp';
 import TypeAnimation from '../components/TypeAnimation';
 import { AnimatedButton } from '../components/AnimatedButton';
 import HoverEffectWrapper from '../components/HoverEffectWrapper';
@@ -769,16 +769,14 @@ const LandingPage = () => {
                       <div className="h-1 w-16 rounded-full bg-zinc-800" />
                     </div>
 
-                    {/* Static App Image */}
+                    {/* El celular, funcionando igual que la computadora de
+                        al lado, pero mostrando lo suyo: la cámara escaneando. */}
                     <div className="h-full w-full overflow-hidden pt-12">
-                      <div className="h-full w-full">
-                        <img
-                          src={dashboardMobile}
-                          alt="El sistema en el celular"
-                          className="h-full w-full object-contain object-top"
-                          loading="lazy"
-                        />
-                      </div>
+                      <Suspense
+                        fallback={<div className="h-full w-full bg-zinc-950" />}
+                      >
+                        <MockupCelu />
+                      </Suspense>
                     </div>
                   </div>
                 </motion.div>
