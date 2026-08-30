@@ -17,6 +17,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const orden = [];
 
 vi.mock('../../services/firestoreService', () => ({
+  addProveedor: vi.fn(async (uid, data) => {
+    orden.push(['addProveedor', data]);
+    return 'prov-nuevo';
+  }),
   addProducto: vi.fn(async (uid, data) => {
     orden.push(['addProducto', data]);
     return 'prod-nuevo';
@@ -241,5 +245,96 @@ describe('de qué formas se puede subir una factura', () => {
     // mira la extensión del nombre.
     await llegarARevisar(new File(['x'], 'remito.csv', { type: '' }));
     expect(enviado[0].texto).toBeTruthy();
+  });
+});
+
+// El aviso del total: tiene que saltar cuando la IA leyó mal un número, y
+// callarse cuando la diferencia es el IVA. Un aviso que salta siempre deja de
+// leerse, y el día que el número está mal de verdad tampoco se lee.
+describe('el aviso de que el total no cierra', () => {
+  beforeEach(() => {
+    orden.length = 0;
+    enviado.length = 0;
+    vi.clearAllMocks();
+  });
+
+  it('no salta en una Factura A, donde el total lleva IVA', async () => {
+    RESPUESTA.data.proveedor = {
+      nombre: 'Proveedor Global S.A.',
+      cuit: '30712345678',
+      total: 5523.65, // subtotal 4565 + 21%
+    };
+    RESPUESTA.data.items = [
+      {
+        nombre: 'Servidor Blade Rack 2U',
+        codigo: '',
+        cantidad: 2,
+        costo: 1450,
+      },
+      { nombre: 'Switch Gigabit', codigo: '', cantidad: 1, costo: 420 },
+      { nombre: 'Licencia anual', codigo: '', cantidad: 5, costo: 180 },
+      { nombre: 'Kit Cableado', codigo: '', cantidad: 3, costo: 115 },
+    ];
+    await llegarARevisar();
+    expect(screen.queryByText(/no es el IVA/i)).toBeNull();
+    expect(screen.queryByText(/Revisá las cantidades/i)).toBeNull();
+  });
+
+  it('sí salta cuando un renglón se leyó mal', async () => {
+    RESPUESTA.data.proveedor = {
+      nombre: 'Proveedor Global S.A.',
+      total: 5523.65,
+    };
+    RESPUESTA.data.items = [
+      {
+        nombre: 'Servidor Blade Rack 2U',
+        codigo: '',
+        cantidad: 2,
+        costo: 1450,
+      },
+      { nombre: 'Switch Gigabit', codigo: '', cantidad: 1, costo: 420 },
+      { nombre: 'Licencia anual', codigo: '', cantidad: 5, costo: 180 },
+      { nombre: 'Kit Cableado', codigo: '', cantidad: 30, costo: 115 }, // eran 3
+    ];
+    await llegarARevisar();
+    expect(await screen.findByText(/Revisá las cantidades/i)).toBeTruthy();
+  });
+});
+
+// Dar de alta al proveedor de la factura sin salir de la pantalla.
+describe('el proveedor que no está en la lista', () => {
+  beforeEach(() => {
+    orden.length = 0;
+    enviado.length = 0;
+    vi.clearAllMocks();
+    RESPUESTA.data.proveedor = {
+      nombre: 'Proveedor Global S.A.',
+      cuit: '30712345678',
+      total: 5523.65,
+    };
+    RESPUESTA.data.items = [
+      {
+        nombre: 'Servidor Blade Rack 2U',
+        codigo: '',
+        cantidad: 2,
+        costo: 1450,
+      },
+      { nombre: 'Switch Gigabit', codigo: '', cantidad: 1, costo: 420 },
+      { nombre: 'Licencia anual', codigo: '', cantidad: 5, costo: 180 },
+      { nombre: 'Kit Cableado', codigo: '', cantidad: 3, costo: 115 },
+    ];
+  });
+
+  it('se puede agregar desde el mismo aviso, con el CUIT ya leído', async () => {
+    // Sin esto había que cerrar todo, ir a Proveedores, copiar el CUIT a mano y
+    // volver a subir la factura.
+    await llegarARevisar();
+    fireEvent.click(await screen.findByText(/Agregar a Proveedor Global/i));
+    await waitFor(() =>
+      expect(orden.some(([q]) => q === 'addProveedor')).toBe(true),
+    );
+    const [, prov] = orden.find(([q]) => q === 'addProveedor');
+    expect(prov.nombre).toBe('Proveedor Global S.A.');
+    expect(prov.cuit).toBe('30712345678');
   });
 });

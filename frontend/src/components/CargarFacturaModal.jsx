@@ -12,9 +12,11 @@ import { resizeImage } from '../utils/image.js';
 import {
   addProducto,
   addPedido,
+  addProveedor,
   updateProducto,
   recibirPedidoYActualizarStock,
 } from '../services/firestoreService';
+import { cuadraFactura } from '../utils/cuadraFactura.js';
 
 function CargarFacturaModal({ onClose }) {
   const {
@@ -78,13 +80,45 @@ function CargarFacturaModal({ onClose }) {
     );
   }, [cabecera, proveedores]);
 
+  const [guardandoProveedor, setGuardandoProveedor] = useState(false);
+
+  /**
+   * Da de alta al proveedor que la factura trae en la cabecera.
+   *
+   * Sin esto, el aviso decía que la compra no quedaba asociada a nadie y no
+   * ofrecía ninguna salida: había que cerrar todo, ir a Proveedores, cargarlo a
+   * mano copiando el CUIT, y volver a subir la factura. El nombre y el CUIT ya
+   * están leídos acá.
+   */
+  const agregarProveedor = async () => {
+    const nombre = String(cabecera?.nombre || '').trim();
+    if (!nombre) return;
+    setGuardandoProveedor(true);
+    try {
+      await addProveedor(
+        currentUser?.uid,
+        { nombre, cuit: cabecera?.cuit || null },
+        sucursalActual?.id,
+      );
+      // La lista de proveedores llega por el contexto y se actualiza sola, así
+      // que el aviso pasa a "se va a registrar como una compra a…" sin que
+      // haya que tocar nada más.
+      mostrarMensaje?.(`${nombre} agregado a tus proveedores.`, 'success');
+    } catch (e) {
+      mostrarMensaje?.(
+        e?.message || 'No se pudo agregar el proveedor.',
+        'error',
+      );
+    } finally {
+      setGuardandoProveedor(false);
+    }
+  };
+
   const totalDetectado = Number(cabecera?.total) || 0;
-  const sumaRenglones = items
-    .filter((it) => it.incluir)
-    .reduce(
-      (s, it) => s + (Number(it.costo) || 0) * (Number(it.cantidad) || 0),
-      0,
-    );
+  const revision = useMemo(
+    () => cuadraFactura(items, totalDetectado),
+    [items, totalDetectado],
+  );
 
   /** Convierte una planilla a texto plano para que la lea el modelo. */
   const planillaATexto = async (file) => {
@@ -446,21 +480,37 @@ function CargarFacturaModal({ onClose }) {
                       <span className="text-amber-400">
                         Este proveedor no está en tu lista: el stock se carga
                         igual, pero la compra no queda asociada a nadie.
+                        {cabecera?.nombre && (
+                          <button
+                            type="button"
+                            onClick={agregarProveedor}
+                            disabled={guardandoProveedor}
+                            className="ml-1 font-semibold text-amber-200 underline hover:text-white disabled:opacity-50"
+                          >
+                            {guardandoProveedor
+                              ? 'Agregando…'
+                              : `Agregar a ${cabecera.nombre}`}
+                          </button>
+                        )}
                       </span>
                     )}
                   </p>
 
-                  {/* El total de la factura contra la suma de los renglones: si
-                      no coinciden, la IA leyó mal algún número. */}
-                  {totalDetectado > 0 &&
-                    Math.abs(totalDetectado - sumaRenglones) >
-                      totalDetectado * 0.15 && (
-                      <p className="mt-1.5 rounded bg-amber-500/10 px-2 py-1 text-xs text-amber-300">
-                        Los renglones suman ${formatCurrency(sumaRenglones)} y
-                        la factura dice ${formatCurrency(totalDetectado)}.
-                        Revisá las cantidades y los costos antes de aplicar.
-                      </p>
-                    )}
+                  {/* El total de la factura contra la suma de los renglones.
+                      Solo avisa si no cierra de ninguna de las formas en que
+                      puede cerrar una factura argentina: sin IVA discriminado,
+                      con el IVA de cada renglón, o con las alícuotas generales.
+                      Antes comparaba contra el total pelado con 15% de margen,
+                      así que saltaba en TODAS las facturas A —el IVA son 21
+                      puntos— y el aviso se volvía ruido. */}
+                  {totalDetectado > 0 && !revision.cuadra && (
+                    <p className="mt-1.5 rounded bg-amber-500/10 px-2 py-1 text-xs text-amber-300">
+                      Los renglones suman ${formatCurrency(revision.suma)} y la
+                      factura dice ${formatCurrency(totalDetectado)}, y la
+                      diferencia no es el IVA. Revisá las cantidades y los
+                      costos antes de aplicar.
+                    </p>
+                  )}
                 </div>
               )}
 
