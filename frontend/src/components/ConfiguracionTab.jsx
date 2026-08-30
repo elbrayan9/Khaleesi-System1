@@ -823,6 +823,10 @@ function ConfiguracionTab() {
               <SelectorUbicacion
                 valor={geo}
                 direccion={direccion}
+                /* Si ya hay un punto puesto, las búsquedas siguientes se
+                   inclinan hacia esa zona: es lo que evita que una calle
+                   homónima de otra localidad gane. */
+                cerca={geo}
                 onCambio={(p) => setGeo(p)}
                 alto={260}
               />

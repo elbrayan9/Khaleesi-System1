@@ -113,10 +113,81 @@ async function buscarEnNominatim(texto, cerca) {
   return { lat, lng, label: String(primero.display_name || '').slice(0, 200) };
 }
 
+/**
+ * Busca la dirección con OpenRouteService (motor Pelias).
+ *
+ * Es el buscador preferido cuando hay clave: entiende mejor las direcciones
+ * argentinas que Nominatim, sobre todo la numeración de calles, que es
+ * justamente donde el otro falla. Nominatim queda de respaldo.
+ *
+ * `cerca` acá pesa de verdad: Pelias lo usa para ordenar los resultados por
+ * cercanía, así que una calle homónima en otra localidad deja de ganar.
+ */
+async function buscarEnOrs(texto, cerca, apiKey) {
+  const params = new URLSearchParams({
+    api_key: apiKey,
+    text: texto,
+    'boundary.country': 'AR',
+    size: '1',
+  });
+  if (cerca && Number.isFinite(cerca.lat) && Number.isFinite(cerca.lng)) {
+    params.set('focus.point.lat', String(cerca.lat));
+    params.set('focus.point.lon', String(cerca.lng));
+  }
+
+  const r = await fetch(
+    `https://api.openrouteservice.org/geocode/search?${params.toString()}`,
+    { headers: { Accept: 'application/json' } },
+  );
+  if (!r.ok) throw new Error(`OpenRouteService respondió ${r.status}`);
+
+  const datos = await r.json();
+  const f = datos?.features?.[0];
+  if (!f) return null;
+
+  // GeoJSON viene al revés de lo que uno espera: [longitud, latitud].
+  const lng = Number(f.geometry?.coordinates?.[0]);
+  const lat = Number(f.geometry?.coordinates?.[1]);
+  if (!coordenadaValida(lat, lng)) return null;
+
+  return { lat, lng, label: String(f.properties?.label || '').slice(0, 200) };
+}
+
+/**
+ * Busca una dirección, con el mejor buscador disponible.
+ *
+ * Devuelve `{ lat, lng, label, proveedor }` o `null` si ninguno la encontró.
+ * Si el preferido se cae, se prueba con el otro antes de darse por vencido: que
+ * un servicio esté caído no tiene por qué dejar al comercio sin poder ubicar su
+ * local.
+ */
+async function buscarDireccion(
+  texto,
+  cerca,
+  apiKeyOrs,
+  // Los buscadores entran por parámetro para poder probarlos sin salir a
+  // internet: una prueba que depende de que un servicio externo conteste no
+  // prueba nada, falla sola un martes.
+  buscadores = { ors: buscarEnOrs, osm: buscarEnNominatim },
+) {
+  if (apiKeyOrs) {
+    try {
+      const r = await buscadores.ors(texto, cerca, apiKeyOrs);
+      if (r) return { ...r, proveedor: 'ors' };
+    } catch (e) {
+      console.warn('[geocoding] ORS falló, se prueba con OSM:', e?.message);
+    }
+  }
+  const r = await buscadores.osm(texto, cerca);
+  return r ? { ...r, proveedor: 'nominatim' } : null;
+}
+
 module.exports = {
   normalizarDireccion,
   claveCache,
   recuadroAlrededor,
   coordenadaValida,
   buscarEnNominatim,
+  buscarEnOrs,
+  buscarDireccion,
 };

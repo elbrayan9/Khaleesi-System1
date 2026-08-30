@@ -9,12 +9,14 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
+const geocoding = require('./geocoding');
 const {
   normalizarDireccion,
   claveCache,
   recuadroAlrededor,
   coordenadaValida,
-} = require('./geocoding');
+  buscarDireccion,
+} = geocoding;
 
 test('normalizar saca tildes, mayúsculas y puntuación', () => {
   assert.strictEqual(normalizarDireccion('Av. CÓRDOBA 1234'), 'av cordoba 1234');
@@ -71,4 +73,66 @@ test('coordenadaValida acepta lo terrestre y rechaza el resto', () => {
   assert.ok(!coordenadaValida(0, 181));
   assert.ok(!coordenadaValida(NaN, 0));
   assert.ok(!coordenadaValida('-34.6', '-58.4'));
+});
+
+// --- Cuál de los dos buscadores se usa ---
+//
+// Importa porque uno es claramente mejor para direcciones argentinas y el otro
+// no necesita clave. La regla es: el mejor si está disponible, y el otro si el
+// mejor se cae — que un servicio no conteste no puede dejar al comercio sin
+// poder ubicar su local.
+
+const PUNTO_ORS = { lat: -31.42, lng: -64.18, label: 'desde ORS' };
+const PUNTO_OSM = { lat: -34.6, lng: -58.4, label: 'desde OSM' };
+
+test('sin clave va directo al buscador libre', async () => {
+  let usoOrs = false;
+  const buscadores = {
+    ors: async () => {
+      usoOrs = true;
+      return PUNTO_ORS;
+    },
+    osm: async () => PUNTO_OSM,
+  };
+  const r = await buscarDireccion('Av. Colón 100', null, null, buscadores);
+  assert.strictEqual(usoOrs, false, 'no debería intentar con ORS sin clave');
+  assert.strictEqual(r.proveedor, 'nominatim');
+  assert.strictEqual(r.label, 'desde OSM');
+});
+
+test('con clave prefiere el buscador bueno', async () => {
+  const r = await buscarDireccion('Av. Colón 100', null, 'una-clave', {
+    ors: async () => PUNTO_ORS,
+    osm: async () => PUNTO_OSM,
+  });
+  assert.strictEqual(r.proveedor, 'ors');
+  assert.strictEqual(r.lat, PUNTO_ORS.lat);
+});
+
+test('si el buscador bueno se cae, sigue con el otro', async () => {
+  const r = await buscarDireccion('Av. Colón 100', null, 'una-clave', {
+    ors: async () => {
+      throw new Error('503');
+    },
+    osm: async () => PUNTO_OSM,
+  });
+  assert.strictEqual(r.proveedor, 'nominatim', 'tiene que caer al respaldo');
+});
+
+test('si el bueno no encuentra nada, igual se prueba con el otro', async () => {
+  const r = await buscarDireccion('Calle inventada 1', null, 'una-clave', {
+    ors: async () => null,
+    osm: async () => PUNTO_OSM,
+  });
+  assert.strictEqual(r.proveedor, 'nominatim');
+});
+
+test('si ninguno la encuentra, devuelve null y no rompe', async () => {
+  assert.strictEqual(
+    await buscarDireccion('Calle inventada 1', null, 'una-clave', {
+      ors: async () => null,
+      osm: async () => null,
+    }),
+    null,
+  );
 });

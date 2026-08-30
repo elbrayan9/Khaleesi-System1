@@ -39,6 +39,15 @@ function SelectorUbicacion({
   const mapa = useRef(null);
   const pin = useRef(null);
 
+  // El texto que se busca arranca en la dirección guardada pero se puede
+  // editar. Importa: la dirección de la factura suele venir corta —sin ciudad,
+  // sin provincia— y así no la encuentra. Retocarla acá no cambia el dato
+  // fiscal, que es otra cosa.
+  const [texto, setTexto] = useState(direccion || '');
+  useEffect(() => {
+    setTexto((t) => t || direccion || '');
+  }, [direccion]);
+
   const [buscando, setBuscando] = useState(false);
   const [aviso, setAviso] = useState('');
   const [etiqueta, setEtiqueta] = useState('');
@@ -109,8 +118,8 @@ function SelectorUbicacion({
   }
 
   async function buscarDireccion() {
-    const texto = String(direccion || '').trim();
-    if (texto.length < 5) {
+    const consulta = String(texto || '').trim();
+    if (consulta.length < 5) {
       setAviso('Escribí la dirección completa para poder buscarla.');
       return;
     }
@@ -121,7 +130,7 @@ function SelectorUbicacion({
         await import('firebase/functions');
       const fn = httpsCallable(getFunctions(), 'geocodificarDireccion');
       const { data } = await fn({
-        texto,
+        texto: consulta,
         cerca: esPunto(cerca) ? cerca : null,
       });
 
@@ -187,7 +196,20 @@ function SelectorUbicacion({
 
   return (
     <div>
-      <div className="mb-2 flex flex-wrap gap-2">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <input
+          type="text"
+          value={texto}
+          onChange={(e) => setTexto(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              buscarDireccion();
+            }
+          }}
+          placeholder="Calle y número, ciudad, provincia"
+          className="min-w-[200px] flex-1 rounded-md border border-zinc-600 bg-zinc-700 px-3 py-1.5 text-sm text-zinc-100 placeholder-zinc-500"
+        />
         <button
           type="button"
           onClick={buscarDireccion}
@@ -221,7 +243,8 @@ function SelectorUbicacion({
       />
 
       <p className="mt-1.5 text-xs text-zinc-400">
-        Arrastrá el pin o tocá el mapa para marcar el punto exacto.
+        Arrastrá el pin o tocá el mapa para marcar el punto exacto. Si la
+        búsqueda no acierta, agregale la ciudad y la provincia y probá de nuevo.
       </p>
       {etiqueta && (
         <p className="mt-1 truncate text-xs text-emerald-400" title={etiqueta}>

@@ -25,6 +25,9 @@ const GEMINI_KEY = defineSecret('GEMINI_KEY');
 // Access Token de Mercado Pago de la PLATAFORMA (tu cuenta) para cobrar las
 // suscripciones. Se setea con: firebase functions:secrets:set MP_PLATFORM_TOKEN
 const MP_PLATFORM_TOKEN = defineSecret('MP_PLATFORM_TOKEN');
+// Clave de OpenRouteService, para buscar direcciones y calcular recorridos.
+// Se setea con: firebase functions:secrets:set ORS_API_KEY
+const ORS_API_KEY = defineSecret('ORS_API_KEY');
 
 // =======================
 // Funciones de administración
@@ -1207,7 +1210,7 @@ async function hayCuotaGeocoding() {
 }
 
 exports.geocodificarDireccion = onCall(
-  { enforceAppCheck: true },
+  { enforceAppCheck: true, secrets: [ORS_API_KEY] },
   async (request) => {
     const texto = String(request.data?.texto || '')
       .trim()
@@ -1224,14 +1227,22 @@ exports.geocodificarDireccion = onCall(
       const cacheado = await ref.get();
       if (cacheado.exists) {
         const d = cacheado.data();
-        ref.set({ hits: (d.hits || 0) + 1 }, { merge: true }).catch(() => {});
-        return {
-          ok: true,
-          lat: d.lat,
-          lng: d.lng,
-          label: d.label,
-          cache: true,
-        };
+        // Un resultado guardado por un buscador peor que el que hay ahora
+        // disponible se descarta y se busca de nuevo. Si no, una dirección que
+        // se resolvió mal antes de tener la clave de OpenRouteService seguiría
+        // devolviendo el punto equivocado durante noventa días.
+        const mejorDisponible = ORS_API_KEY.value() ? 'ors' : 'nominatim';
+        const sirve = d.proveedor === mejorDisponible || !ORS_API_KEY.value();
+        if (sirve) {
+          ref.set({ hits: (d.hits || 0) + 1 }, { merge: true }).catch(() => {});
+          return {
+            ok: true,
+            lat: d.lat,
+            lng: d.lng,
+            label: d.label,
+            cache: true,
+          };
+        }
       }
     } catch (e) {
       console.warn('[geocoding] no se pudo leer el cache:', e?.message);
@@ -1243,7 +1254,11 @@ exports.geocodificarDireccion = onCall(
     }
 
     try {
-      const r = await geocoding.buscarEnNominatim(texto, cerca);
+      const r = await geocoding.buscarDireccion(
+        texto,
+        cerca,
+        ORS_API_KEY.value(),
+      );
       if (!r) return { ok: false, motivo: 'sin-resultados' };
 
       // Noventa dias: una calle no se muda, pero la numeracion se corrige.
@@ -1254,7 +1269,7 @@ exports.geocodificarDireccion = onCall(
           lat: r.lat,
           lng: r.lng,
           label: r.label,
-          proveedor: 'nominatim',
+          proveedor: r.proveedor,
           hits: 1,
           creadoEn: admin.firestore.FieldValue.serverTimestamp(),
           expiraEn: admin.firestore.Timestamp.fromMillis(noventaDias),
