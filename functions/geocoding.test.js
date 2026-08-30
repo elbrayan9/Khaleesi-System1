@@ -182,3 +182,59 @@ test('si ninguno la encuentra, devuelve null y no rompe', async () => {
     null,
   );
 });
+
+// --- El punto que marca el cliente ---
+
+const { validarGeoCliente } = geocoding;
+const LOCAL_CBA = { lat: -31.42, lng: -64.18 };
+
+test('acepta un domicilio en la misma ciudad', () => {
+  const r = validarGeoCliente(
+    { lat: -31.43, lng: -64.19, fuente: 'gps', accuracy: 22.7 },
+    LOCAL_CBA,
+  );
+  assert.deepStrictEqual(r, {
+    lat: -31.43,
+    lng: -64.19,
+    fuente: 'gps',
+    accuracy: 23,
+  });
+});
+
+test('rechaza un pin del otro lado del mundo', () => {
+  // Madrid: un error de la pantalla o alguien jugando, nunca un delivery.
+  assert.strictEqual(
+    validarGeoCliente({ lat: 40.4, lng: -3.7 }, LOCAL_CBA),
+    null,
+  );
+});
+
+test('rechaza coordenadas que no son coordenadas', () => {
+  assert.strictEqual(validarGeoCliente(null, LOCAL_CBA), null);
+  assert.strictEqual(validarGeoCliente({}, LOCAL_CBA), null);
+  assert.strictEqual(
+    validarGeoCliente({ lat: 'ahi nomas', lng: -64 }, LOCAL_CBA),
+    null,
+  );
+  assert.strictEqual(validarGeoCliente({ lat: 999, lng: 0 }, LOCAL_CBA), null);
+});
+
+test('sin ubicacion del local no se puede controlar la distancia, pero el punto sirve igual', () => {
+  const r = validarGeoCliente({ lat: 40.4, lng: -3.7 }, null);
+  assert.ok(r, 'no hay contra que compararlo, asi que se acepta');
+  assert.strictEqual(r.fuente, 'manual');
+});
+
+test('una fuente inventada se guarda como manual', () => {
+  const r = validarGeoCliente(
+    { lat: -31.43, lng: -64.19, fuente: 'telepatia' },
+    LOCAL_CBA,
+  );
+  assert.strictEqual(r.fuente, 'manual');
+});
+
+test('sin precision declarada queda en null y no en cero', () => {
+  // Cero significaria "exacto al metro", que es justo lo contrario.
+  const r = validarGeoCliente({ lat: -31.43, lng: -64.19 }, LOCAL_CBA);
+  assert.strictEqual(r.accuracy, null);
+});

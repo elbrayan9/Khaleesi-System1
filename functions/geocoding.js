@@ -217,6 +217,43 @@ async function buscarDireccion(
     : conOrs;
 }
 
+/**
+ * Limpia y valida el punto que marcó el cliente al hacer un pedido.
+ *
+ * Devuelve `{ lat, lng, fuente, accuracy }` o `null` si no sirve.
+ *
+ * El control de distancia contra el local no es paranoia: un pin en Madrid es
+ * un error de la pantalla o alguien jugando, nunca un delivery. Guardarlo haría
+ * que el recorrido y el tiempo estimado salieran disparatados, y el repartidor
+ * se enteraría en la calle.
+ *
+ * @param {object} geo       lo que llegó del navegador
+ * @param {object} geoLocal  dónde está el local, si se sabe
+ * @param {number} maxKm     hasta dónde se acepta un domicilio
+ */
+function validarGeoCliente(geo, geoLocal, maxKm = 100) {
+  if (!geo) return null;
+  const lat = Number(geo.lat);
+  const lng = Number(geo.lng);
+  if (!coordenadaValida(lat, lng)) return null;
+
+  if (geoLocal && coordenadaValida(geoLocal.lat, geoLocal.lng)) {
+    if (kmAproximados({ lat, lng }, geoLocal) > maxKm) return null;
+  }
+
+  const fuente = ['gps', 'geocoding', 'manual'].includes(geo.fuente)
+    ? geo.fuente
+    : 'manual';
+  const accuracy = Number(geo.accuracy);
+
+  return {
+    lat,
+    lng,
+    fuente,
+    accuracy: Number.isFinite(accuracy) ? Math.round(accuracy) : null,
+  };
+}
+
 module.exports = {
   normalizarDireccion,
   claveCache,
@@ -226,4 +263,5 @@ module.exports = {
   buscarEnOrs,
   buscarDireccion,
   kmAproximados,
+  validarGeoCliente,
 };

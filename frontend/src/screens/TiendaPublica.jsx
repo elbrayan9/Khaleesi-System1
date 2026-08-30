@@ -60,9 +60,8 @@ function TiendaPublica() {
     let cancelado = false;
     (async () => {
       try {
-        const { getFunctions, httpsCallable } = await import(
-          'firebase/functions'
-        );
+        const { getFunctions, httpsCallable } =
+          await import('firebase/functions');
         const fn = httpsCallable(getFunctions(), 'getTiendaPublica');
         const res = await fn({ sucursalId });
         if (cancelado) return;
@@ -116,7 +115,10 @@ function TiendaPublica() {
     let tel = String(tienda?.whatsapp || '').replace(/\D/g, '');
     if (tel && !tel.startsWith('54')) tel = `549${tel}`;
     const detalle = items
-      .map((it) => `• ${it.cantidad}x ${it.nombre} — $${formatCurrency(it.precio * it.cantidad)}`)
+      .map(
+        (it) =>
+          `• ${it.cantidad}x ${it.nombre} — $${formatCurrency(it.precio * it.cantidad)}`,
+      )
       .join('\n');
     const texto =
       `¡Hola! Quiero hacer un pedido${nombreCliente ? ` (soy ${nombreCliente})` : ''}:\n\n` +
@@ -144,19 +146,15 @@ function TiendaPublica() {
             Esta tienda no está disponible.
           </p>
           <p className="mt-1 text-sm text-zinc-400">
-            {
-              {
-                sucursal_inexistente:
-                  'El enlace apunta a un local que ya no existe. Pedile al comercio el link actualizado.',
-                tienda_desactivada:
-                  'El comercio todavía no publicó su tienda.',
-                suscripcion_vencida:
-                  'La tienda está pausada por el comercio.',
-                plan_basico: 'La tienda está pausada por el comercio.',
-                sucursal_sin_duenio:
-                  'El enlace no es correcto. Pedile al comercio el link actualizado.',
-              }[motivo] || 'Puede estar desactivada o el enlace no es correcto.'
-            }
+            {{
+              sucursal_inexistente:
+                'El enlace apunta a un local que ya no existe. Pedile al comercio el link actualizado.',
+              tienda_desactivada: 'El comercio todavía no publicó su tienda.',
+              suscripcion_vencida: 'La tienda está pausada por el comercio.',
+              plan_basico: 'La tienda está pausada por el comercio.',
+              sucursal_sin_duenio:
+                'El enlace no es correcto. Pedile al comercio el link actualizado.',
+            }[motivo] || 'Puede estar desactivada o el enlace no es correcto.'}
           </p>
           {motivo === 'sucursal_inexistente' && (
             <p className="mx-auto mt-4 max-w-sm rounded-md bg-zinc-800 px-3 py-2 text-xs text-zinc-500">
@@ -319,6 +317,7 @@ function TiendaPublica() {
           sucursalId={sucursalId}
           items={items}
           total={total}
+          localGeo={tienda?.geo || null}
           onCreado={onPedidoCreado}
           onClose={() => setShowCheckout(false)}
         />

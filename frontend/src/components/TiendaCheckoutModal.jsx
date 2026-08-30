@@ -8,13 +8,26 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Send } from 'lucide-react';
 import { formatCurrency } from '../utils/helpers';
+import SelectorUbicacion from './SelectorUbicacion.jsx';
 
-function TiendaCheckoutModal({ sucursalId, items, total, onCreado, onClose }) {
+function TiendaCheckoutModal({
+  sucursalId,
+  items,
+  total,
+  onCreado,
+  onClose,
+  // Dónde está el local, para centrar el mapa y para inclinar la búsqueda
+  // hacia el barrio en vez de a otra localidad con la misma calle.
+  localGeo = null,
+}) {
   const [nombre, setNombre] = useState('');
   const [telefono, setTelefono] = useState('');
   const [tipo, setTipo] = useState('retiro'); // retiro | delivery
   const [direccion, setDireccion] = useState('');
   const [metodoPago, setMetodoPago] = useState('efectivo');
+  // Dónde queda la casa. Es opcional: sin esto el pedido entra igual, solo que
+  // el seguimiento no puede mostrar el recorrido ni cuánto falta.
+  const [geo, setGeo] = useState(null);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState('');
 
@@ -29,9 +42,8 @@ function TiendaCheckoutModal({ sucursalId, items, total, onCreado, onClose }) {
     }
     setEnviando(true);
     try {
-      const { getFunctions, httpsCallable } = await import(
-        'firebase/functions'
-      );
+      const { getFunctions, httpsCallable } =
+        await import('firebase/functions');
       const fn = httpsCallable(getFunctions(), 'crearPedidoTienda');
       const res = await fn({
         sucursalId,
@@ -40,7 +52,7 @@ function TiendaCheckoutModal({ sucursalId, items, total, onCreado, onClose }) {
           productoId: it.id,
           cantidad: it.cantidad,
         })),
-        cliente: { nombre, telefono, direccion },
+        cliente: { nombre, telefono, direccion, geo },
         tipo,
         metodoPago,
       });
@@ -94,7 +106,9 @@ function TiendaCheckoutModal({ sucursalId, items, total, onCreado, onClose }) {
           </div>
 
           <div>
-            <label className="mb-1 block text-xs text-zinc-400">Tu nombre</label>
+            <label className="mb-1 block text-xs text-zinc-400">
+              Tu nombre
+            </label>
             <input
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
@@ -150,6 +164,26 @@ function TiendaCheckoutModal({ sucursalId, items, total, onCreado, onClose }) {
                 className={inputCls}
                 placeholder="Calle, número, piso/depto"
               />
+
+              <div className="mt-3">
+                <label className="mb-1 block text-xs text-zinc-400">
+                  Marcá dónde entregarlo
+                </label>
+                <SelectorUbicacion
+                  valor={geo}
+                  direccion={direccion}
+                  cerca={localGeo}
+                  onCambio={(p) => setGeo(p)}
+                  alto={200}
+                  conBotonGps
+                />
+                {!geo && (
+                  <p className="mt-1 text-xs text-zinc-500">
+                    Es opcional, pero con el punto marcado vas a poder ver al
+                    repartidor acercándose y cuánto falta.
+                  </p>
+                )}
+              </div>
             </div>
           )}
 

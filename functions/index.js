@@ -960,6 +960,10 @@ exports.getTiendaPublica = onCall(
         direccion: dato('direccion'),
         whatsapp: dato('whatsappDueño'),
         logoUrl: dato('logoUrl'),
+        // Dónde queda el local: centra el mapa del checkout e inclina la
+        // búsqueda de la dirección hacia el barrio, en vez de a otra localidad
+        // que tenga una calle con el mismo nombre.
+        geo: geocoding.validarGeoCliente(cfg.geo || neg?.geo || null, null),
       };
     } catch (error) {
       console.error('[getTiendaPublica] error:', error);
@@ -1409,11 +1413,30 @@ exports.crearPedidoTienda = onCall(
       const codigo = await siguienteCodigoPedido(sucursalId);
       const trackingToken = require('crypto').randomUUID();
 
+      // El punto del local se copia dentro del pedido a proposito. El
+      // seguimiento se consulta cada ocho segundos, y leer la sucursal en cada
+      // una de esas consultas seria una lectura de mas por segundo y medio para
+      // un dato que no cambia en toda la vida del pedido.
+      const localGeo = geocoding.validarGeoCliente(
+        suc.configuracion?.geo || null,
+        null,
+      );
+      const clienteGeo =
+        tipo === 'delivery'
+          ? geocoding.validarGeoCliente(request.data?.cliente?.geo, localGeo)
+          : null;
+
       const ref = await db.collection('pedidos_online').add({
         userId: suc.userId,
         sucursalId,
         codigo,
-        cliente: { nombre: nombreCliente, telefono, direccion },
+        cliente: {
+          nombre: nombreCliente,
+          telefono,
+          direccion,
+          geo: clienteGeo,
+        },
+        localGeo,
         tipo,
         items: detalle,
         total,
@@ -1663,6 +1686,15 @@ exports.getEstadoPedido = onCall({ enforceAppCheck: true }, async (request) => {
       }
     }
 
+    // Los dos extremos del recorrido, solo si hay envio: en un retiro por el
+    // local no aportan nada. Del punto del cliente van lat y lng nada mas; la
+    // precision y de donde salio son para el sistema, no para la pantalla.
+    const esDelivery = d.tipo === 'delivery';
+    const punto = (g) =>
+      g && Number.isFinite(g.lat) && Number.isFinite(g.lng)
+        ? { lat: g.lat, lng: g.lng }
+        : null;
+
     return {
       codigo: d.codigo,
       estado: d.estado,
@@ -1670,6 +1702,8 @@ exports.getEstadoPedido = onCall({ enforceAppCheck: true }, async (request) => {
       total: d.total,
       tipo: d.tipo,
       repartidor,
+      local: esDelivery ? punto(d.localGeo) : null,
+      destino: esDelivery ? punto(d.cliente?.geo) : null,
     };
   } catch (error) {
     if (error.code) throw error;

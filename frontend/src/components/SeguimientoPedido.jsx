@@ -64,6 +64,9 @@ function SeguimientoPedido({ pedidoId, trackingToken, onNuevoPedido }) {
 
   const rechazado = datos.estado === 'rechazado';
   const indiceActual = PASOS.findIndex((p) => p.estado === datos.estado);
+  const hayRepartidor =
+    Number.isFinite(datos?.repartidor?.lat) &&
+    Number.isFinite(datos?.repartidor?.lng);
 
   return (
     <div className="mx-auto max-w-md px-4 py-6">
@@ -98,24 +101,38 @@ function SeguimientoPedido({ pedidoId, trackingToken, onNuevoPedido }) {
                 <p className="text-sm text-white">
                   🛵 <strong>{datos.repartidor.nombre}</strong> lleva tu pedido
                 </p>
-                {Number.isFinite(datos.repartidor.lat) &&
-                  Number.isFinite(datos.repartidor.lng) && (
-                    <div className="mt-2">
-                      <Suspense
-                        fallback={
-                          <div className="h-[220px] w-full animate-pulse rounded-xl bg-zinc-800" />
+                {/* El mapa aparece con el repartidor, y también sin él si se
+                    sabe de dónde sale y a dónde va: que tenga el GPS apagado no
+                    es motivo para dejar la pantalla vacía. */}
+                {(hayRepartidor || (datos.local && datos.destino)) && (
+                  <div className="mt-2">
+                    <Suspense
+                      fallback={
+                        <div className="h-[220px] w-full animate-pulse rounded-xl bg-zinc-800" />
+                      }
+                    >
+                      <MapaEnVivo
+                        repartidor={
+                          hayRepartidor
+                            ? {
+                                lat: datos.repartidor.lat,
+                                lng: datos.repartidor.lng,
+                              }
+                            : null
                         }
-                      >
-                        <MapaEnVivo
-                          repartidor={{
-                            lat: datos.repartidor.lat,
-                            lng: datos.repartidor.lng,
-                          }}
-                          etiqueta={datos.repartidor.nombre}
-                        />
-                      </Suspense>
-                    </div>
-                  )}
+                        local={datos.local}
+                        destino={datos.destino}
+                        etiqueta={datos.repartidor.nombre}
+                      />
+                    </Suspense>
+                    {!hayRepartidor && (
+                      <p className="mt-1 text-xs text-zinc-500">
+                        Todavía no llega su ubicación. Mientras tanto, este es
+                        el camino que tiene que hacer.
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
