@@ -6,7 +6,9 @@ const {
 } = require('firebase-functions/v2/https');
 const { idsDeCajaQr } = require('./mpIds');
 const geocoding = require('./geocoding');
+const { calcularParaPedido } = require('./rutaTrigger');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
+const { onDocumentUpdated } = require('firebase-functions/v2/firestore');
 const functions = require('firebase-functions');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { defineSecret } = require('firebase-functions/params'); // <-- necesario para secrets
@@ -1704,6 +1706,16 @@ exports.getEstadoPedido = onCall({ enforceAppCheck: true }, async (request) => {
       repartidor,
       local: esDelivery ? punto(d.localGeo) : null,
       destino: esDelivery ? punto(d.cliente?.geo) : null,
+      // La geometria va codificada, tal como la devolvio el servicio: son unos
+      // pocos cientos de bytes, contra los varios kilobytes que ocuparia la
+      // misma linea como lista de coordenadas. La pantalla la decodifica.
+      ruta: d.ruta?.polilinea
+        ? { polilinea: d.ruta.polilinea, distanciaM: d.ruta.distanciaM || null }
+        : null,
+      // El momento estimado de llegada, no los minutos que faltan: asi el
+      // contador de la pantalla baja solo entre calculo y calculo, en vez de
+      // quedarse clavado noventa segundos y despues pegar un salto.
+      llegadaTs: d.eta?.llegadaTs ?? null,
     };
   } catch (error) {
     if (error.code) throw error;
@@ -3387,5 +3399,54 @@ exports.enviarReporteDiario = onSchedule(
     await Promise.all(reportPromises);
     console.log('Proceso de reportes diarios finalizado.');
     return null;
+  },
+);
+
+// ---------------------------------------------------------------------------
+// El recorrido del repartidor, recalculado cuando se mueve
+//
+// Se dispara con la posicion del repartidor y NO con la consulta del cliente,
+// que ocurre cada ocho segundos por pedido: atarlo ahi serian mas de mil
+// llamadas por hora con tres pedidos en paralelo.
+// ---------------------------------------------------------------------------
+
+exports.rutearPedido = onDocumentUpdated(
+  { document: 'repartidores/{repartidorId}', secrets: [ORS_API_KEY] },
+  async (event) => {
+    const antes = event.data?.before?.data() || {};
+    const despues = event.data?.after?.data() || {};
+
+    // Este documento tambien cambia cuando el repartidor toca el interruptor de
+    // "en linea", cuando se le edita el nombre o el vehiculo. Sin esta guarda,
+    // cada uno de esos toques gastaria una consulta del servicio de rutas.
+    if (antes.ubicacion?.ts === despues.ubicacion?.ts) return;
+
+    const posicion = despues.ubicacion;
+    if (!posicion || !Number.isFinite(posicion.lat)) return;
+
+    const apiKey = ORS_API_KEY.value();
+    if (!apiKey) return; // sin clave no hay recorrido; el mapa igual funciona
+
+    const repartidorId = event.params.repartidorId;
+    try {
+      const pedidos = await db
+        .collection('pedidos_online')
+        .where('repartidorId', '==', repartidorId)
+        .where('estado', '==', 'en_camino')
+        .limit(5)
+        .get();
+
+      for (const doc of pedidos.docs) {
+        const cambios = await calcularParaPedido(doc.data(), posicion, apiKey);
+        if (cambios) {
+          await doc.ref.set(cambios, { merge: true });
+          console.log(
+            `[ruta] pedido ${doc.id}: ${cambios.ruta ? cambios.ruta.distanciaM + ' m' : 'sin ruta, eta aproximada'}`,
+          );
+        }
+      }
+    } catch (e) {
+      console.error('[ruta] error:', e?.message || e);
+    }
   },
 );

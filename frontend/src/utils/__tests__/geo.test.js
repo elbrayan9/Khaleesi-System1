@@ -150,3 +150,61 @@ describe('esPunto', () => {
     expect(esPunto({ lat: '-34.6', lng: '-58.4' })).toBe(false);
   });
 });
+
+// --- Moverse por la ruta y no por el aire ---
+
+import { puntoSobreRuta, indiceMasCercano } from '../geo.js';
+
+// Una ele: un tramo largo al este y otro corto al norte.
+const ELE = [
+  { lat: 0, lng: 0 },
+  { lat: 0, lng: 1 },
+  { lat: 0.2, lng: 1 },
+];
+
+describe('puntoSobreRuta', () => {
+  it('en 0 arranca en el principio y en 1 termina en el final', () => {
+    expect(puntoSobreRuta(ELE, 0)).toEqual(ELE[0]);
+    expect(puntoSobreRuta(ELE, 1)).toEqual(ELE[2]);
+  });
+
+  it('reparte el avance por distancia y no por cantidad de vértices', () => {
+    // El primer tramo mide ~111 km y el segundo ~22 km, o sea el 83% del total.
+    // A la mitad del recorrido todavía tiene que estar sobre el primer tramo.
+    const medio = puntoSobreRuta(ELE, 0.5);
+    expect(medio.lat).toBeCloseTo(0, 3);
+    expect(medio.lng).toBeGreaterThan(0.4);
+    expect(medio.lng).toBeLessThan(0.7);
+  });
+
+  it('dobla: pasado el codo, avanza por el segundo tramo', () => {
+    const casiAlFinal = puntoSobreRuta(ELE, 0.95);
+    expect(casiAlFinal.lng).toBeCloseTo(1, 3);
+    expect(casiAlFinal.lat).toBeGreaterThan(0);
+  });
+
+  it('no se rompe con rutas degeneradas', () => {
+    expect(puntoSobreRuta([], 0.5)).toBeNull();
+    expect(puntoSobreRuta(null, 0.5)).toBeNull();
+    const unico = [{ lat: 1, lng: 2 }];
+    expect(puntoSobreRuta(unico, 0.5)).toEqual(unico[0]);
+    // Todos los puntos iguales: largo total cero, no puede dividir por cero.
+    expect(puntoSobreRuta([{ lat: 1, lng: 2 }, { lat: 1, lng: 2 }], 0.5)).toEqual({
+      lat: 1,
+      lng: 2,
+    });
+  });
+});
+
+describe('indiceMasCercano', () => {
+  it('encuentra el vértice más próximo', () => {
+    expect(indiceMasCercano(ELE, { lat: 0, lng: 0.9 })).toBe(1);
+    expect(indiceMasCercano(ELE, { lat: 0.19, lng: 1 })).toBe(2);
+    expect(indiceMasCercano(ELE, { lat: 0, lng: 0.01 })).toBe(0);
+  });
+
+  it('sin datos devuelve el principio', () => {
+    expect(indiceMasCercano([], { lat: 0, lng: 0 })).toBe(0);
+    expect(indiceMasCercano(ELE, null)).toBe(0);
+  });
+});

@@ -28,7 +28,10 @@ import {
   interpolar,
   estimarIntervalo,
   esPunto,
+  puntoSobreRuta,
+  indiceMasCercano,
 } from '../utils/geo.js';
+import { decodificarPolilinea } from '../utils/polilinea.js';
 
 // Más que esto no es un movimiento: es un rebote del GPS o la app que se
 // reabrió después de un rato. Animar tres kilómetros en veinte segundos daría
@@ -51,15 +54,26 @@ function MapaEnVivo({
   repartidor = null, // { lat, lng } — se mueve
   local = null, // { lat, lng } — de dónde salió
   destino = null, // { lat, lng } — a dónde va
+  ruta = null, // polilínea codificada del recorrido
   etiqueta = 'Repartidor',
   alto = 240,
 }) {
   const contenedor = useRef(null);
   const mapa = useRef(null);
-  const capas = useRef({ repartidor: null, local: null, destino: null });
+  const capas = useRef({
+    repartidor: null,
+    local: null,
+    destino: null,
+    hecho: null,
+    falta: null,
+  });
+  // La ruta decodificada, para no rehacer la cuenta en cada cuadro.
+  const puntosRuta = useRef([]);
 
   // El tramo que se está animando y el ritmo al que vienen las posiciones.
   const tween = useRef({ desde: null, hasta: null, t0: 0, duracion: 0 });
+  // El pedacito de ruta que se está recorriendo en este tramo, si la hay.
+  const tramoDeRuta = useRef(null);
   const historial = useRef({ ultimoTs: 0, gaps: [] });
   const raf = useRef(null);
 
@@ -132,6 +146,49 @@ function MapaEnVivo({
     fijo('destino', destino, '#dc2626', '📍', 'Tu dirección');
   }, [local, destino]);
 
+  // --- El recorrido por las calles ---
+  useEffect(() => {
+    if (!mapa.current) return;
+    puntosRuta.current = decodificarPolilinea(ruta);
+
+    ['hecho', 'falta'].forEach((k) => {
+      if (capas.current[k]) {
+        capas.current[k].remove();
+        capas.current[k] = null;
+      }
+    });
+    if (puntosRuta.current.length < 2) return;
+
+    // Dos líneas y no una: lo ya recorrido va tenue y lo que falta resaltado.
+    // Es un detalle chico que cambia mucho la lectura, porque se ve de un
+    // vistazo cuánto del viaje queda.
+    const coords = puntosRuta.current.map((p) => [p.lat, p.lng]);
+    capas.current.hecho = L.polyline(coords, {
+      color: '#71717a',
+      weight: 4,
+      opacity: 0.5,
+    }).addTo(mapa.current);
+    capas.current.falta = L.polyline(coords, {
+      color: '#2563eb',
+      weight: 5,
+      opacity: 0.85,
+    }).addTo(mapa.current);
+    partirRuta();
+    encuadrar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ruta]);
+
+  /** Corta la línea a la altura del repartidor. */
+  function partirRuta() {
+    const puntos = puntosRuta.current;
+    if (!capas.current.falta || puntos.length < 2) return;
+    const marca = capas.current.repartidor;
+    if (!marca) return;
+    const p = marca.getLatLng();
+    const i = indiceMasCercano(puntos, { lat: p.lat, lng: p.lng });
+    capas.current.falta.setLatLngs(puntos.slice(i).map((q) => [q.lat, q.lng]));
+  }
+
   // --- El repartidor, que es el que se mueve ---
   useEffect(() => {
     if (!mapa.current || !esPunto(repartidor)) return;
@@ -179,6 +236,7 @@ function MapaEnVivo({
       return;
     }
 
+    tramoDeRuta.current = tramoEntre(actual, repartidor);
     orientarIcono(actual, repartidor);
     // No se cancela la animación en curso: se le reescribe el destino desde
     // donde está ahora, así el marcador no pega un tirón al empalmar tramos.
@@ -191,6 +249,21 @@ function MapaEnVivo({
     arrancarAnimacion();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repartidor?.lat, repartidor?.lng]);
+
+  /**
+   * El pedazo de ruta que va de un punto al otro.
+   *
+   * Devuelve null si no hay ruta o si los dos puntos caen en el mismo vértice:
+   * ahí no hay nada que seguir y conviene la línea derecha de siempre.
+   */
+  function tramoEntre(desde, hasta) {
+    const puntos = puntosRuta.current;
+    if (puntos.length < 2) return null;
+    const i = indiceMasCercano(puntos, desde);
+    const j = indiceMasCercano(puntos, hasta);
+    if (j <= i) return null;
+    return [desde, ...puntos.slice(i + 1, j + 1), hasta];
+  }
 
   function posicionActual() {
     const m = capas.current.repartidor;
@@ -220,8 +293,18 @@ function MapaEnVivo({
       // Avance lineal a propósito: un repartidor no acelera y frena en cada
       // tramo de veinte segundos, y el ease-in-out se lee como falso.
       const t = Math.min(1, (performance.now() - t0) / duracion);
-      const p = interpolar(desde, hasta, t);
+      // Con la ruta cargada, el marcador recorre las calles en vez de cortar en
+      // diagonal por las manzanas. Es la mejora que más se nota, y sale gratis
+      // porque la ruta ya está dibujada.
+      const p = tramoDeRuta.current
+        ? puntoSobreRuta(tramoDeRuta.current, t)
+        : interpolar(desde, hasta, t);
+      if (!p) {
+        raf.current = null;
+        return;
+      }
       marca.setLatLng([p.lat, p.lng]);
+      partirRuta();
       seguirCamara(p);
 
       if (t < 1) {
@@ -247,6 +330,9 @@ function MapaEnVivo({
     const puntos = [repartidor, local, destino]
       .filter(esPunto)
       .map((p) => [p.lat, p.lng]);
+    // Con recorrido dibujado, el encuadre lo abarca entero: si no, una ruta que
+    // rodea puede salirse de la pantalla.
+    puntosRuta.current.forEach((p) => puntos.push([p.lat, p.lng]));
     if (puntos.length === 0) return;
 
     // Sin animación: así Leaflet emite sus eventos dentro de esta misma

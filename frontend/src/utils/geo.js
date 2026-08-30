@@ -101,6 +101,63 @@ export function estimarIntervalo(gaps) {
   return Math.max(INTERVALO_MIN, Math.min(INTERVALO_MAX, mediana));
 }
 
+/**
+ * Recorre una polilínea y devuelve el punto que está a la fracción `t`.
+ *
+ * Sirve para que el marcador vaya POR la calle en vez de cortar en diagonal
+ * por las manzanas. Es la diferencia visual más grande entre un mapa que
+ * parece de verdad y uno que parece una animación.
+ *
+ * El avance se reparte proporcional al largo de cada tramo, no al número de
+ * vértices: si no, el marcador correría en las curvas —donde los puntos están
+ * juntos— y se arrastraría en las rectas.
+ */
+export function puntoSobreRuta(puntos, t) {
+  if (!Array.isArray(puntos) || puntos.length === 0) return null;
+  if (puntos.length === 1) return puntos[0];
+
+  const largos = [];
+  let total = 0;
+  for (let i = 0; i < puntos.length - 1; i += 1) {
+    const d = distanciaMetros(puntos[i], puntos[i + 1]);
+    largos.push(d);
+    total += d;
+  }
+  if (total === 0) return puntos[0];
+
+  const objetivo = Math.max(0, Math.min(1, Number(t) || 0)) * total;
+  let acumulado = 0;
+  for (let i = 0; i < largos.length; i += 1) {
+    if (acumulado + largos[i] >= objetivo) {
+      const dentro = largos[i] === 0 ? 0 : (objetivo - acumulado) / largos[i];
+      return interpolar(puntos[i], puntos[i + 1], dentro);
+    }
+    acumulado += largos[i];
+  }
+  return puntos[puntos.length - 1];
+}
+
+/**
+ * El vértice de la ruta más cercano a un punto.
+ *
+ * Con eso se parte la línea en dos: lo ya recorrido se dibuja apagado y lo que
+ * falta, resaltado.
+ */
+export function indiceMasCercano(puntos, punto) {
+  if (!Array.isArray(puntos) || puntos.length === 0 || !esPunto(punto))
+    return 0;
+  let mejor = 0;
+  let menor = Infinity;
+  for (let i = 0; i < puntos.length; i += 1) {
+    const d = distanciaMetros(puntos[i], punto);
+    if (d < menor) {
+      menor = d;
+      mejor = i;
+    }
+  }
+  return mejor;
+}
+
 /** ¿Es un {lat, lng} usable? */
 export function esPunto(p) {
   return Boolean(p) && Number.isFinite(p.lat) && Number.isFinite(p.lng);

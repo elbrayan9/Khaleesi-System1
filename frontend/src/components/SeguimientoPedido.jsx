@@ -64,6 +64,21 @@ function SeguimientoPedido({ pedidoId, trackingToken, onNuevoPedido }) {
 
   const rechazado = datos.estado === 'rechazado';
   const indiceActual = PASOS.findIndex((p) => p.estado === datos.estado);
+  // El contador de llegada corre contra el reloj y no contra lo que trae el
+  // servidor. El servidor manda el MOMENTO de llegada, así que restando acá el
+  // número baja solo, segundo a segundo, en vez de quedarse clavado hasta el
+  // próximo cálculo y después pegar un salto.
+  const [ahora, setAhora] = useState(Date.now());
+  useEffect(() => {
+    if (!datos?.llegadaTs) return undefined;
+    const t = setInterval(() => setAhora(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [datos?.llegadaTs]);
+
+  const faltanMin = datos?.llegadaTs
+    ? Math.ceil((datos.llegadaTs - ahora) / 60000)
+    : null;
+
   const hayRepartidor =
     Number.isFinite(datos?.repartidor?.lat) &&
     Number.isFinite(datos?.repartidor?.lng);
@@ -104,6 +119,15 @@ function SeguimientoPedido({ pedidoId, trackingToken, onNuevoPedido }) {
                 {/* El mapa aparece con el repartidor, y también sin él si se
                     sabe de dónde sale y a dónde va: que tenga el GPS apagado no
                     es motivo para dejar la pantalla vacía. */}
+                {faltanMin !== null && (
+                  <p className="mt-1 text-lg font-semibold text-emerald-400">
+                    {faltanMin > 3
+                      ? `Llega en ~${faltanMin} min`
+                      : faltanMin > 0
+                        ? 'Está llegando'
+                        : 'Ya debería estar ahí'}
+                  </p>
+                )}
                 {(hayRepartidor || (datos.local && datos.destino)) && (
                   <div className="mt-2">
                     <Suspense
@@ -122,6 +146,7 @@ function SeguimientoPedido({ pedidoId, trackingToken, onNuevoPedido }) {
                         }
                         local={datos.local}
                         destino={datos.destino}
+                        ruta={datos.ruta?.polilinea || null}
                         etiqueta={datos.repartidor.nombre}
                       />
                     </Suspense>
