@@ -15,6 +15,23 @@ import { db } from '../firebaseConfig';
 import { useAppContext } from '../context/AppContext.jsx';
 import { ScanLine, Wifi } from 'lucide-react';
 
+/**
+ * Qué mostrar del último código escaneado.
+ *
+ * Un QR del sistema es una URL entera —`https://khaleesisystem.com.ar/product/
+ * <id>`— que no entra en el ancho del celular y, peor, no le dice nada a quien
+ * está atendiendo: lo único que le importa es que ese disparo salió. De la URL
+ * se muestra el id, que es lo que la PC usa para encontrar el producto.
+ *
+ * Un código de barras común se muestra tal cual: ahí el número sí es el dato.
+ */
+function paraMostrar(codigo) {
+  if (!codigo) return '—';
+  const esProducto = codigo.match(/\/product\/([^/?#\s]+)/);
+  if (esProducto) return `Producto ${esProducto[1]}`;
+  return codigo;
+}
+
 function ScannerPistola() {
   const { sucursalActual, currentUser } = useAppContext();
   const videoRef = useRef(null);
@@ -107,7 +124,9 @@ function ScannerPistola() {
             <p className="text-xs uppercase tracking-wider text-zinc-500">
               Último enviado
             </p>
-            <p className="font-mono text-lg text-white">{ultimo || '—'}</p>
+            <p className="break-all font-mono text-base leading-snug text-white">
+              {paraMostrar(ultimo)}
+            </p>
             <p className="mt-1 text-xs text-zinc-400">
               {count} código{count === 1 ? '' : 's'} enviados
             </p>
