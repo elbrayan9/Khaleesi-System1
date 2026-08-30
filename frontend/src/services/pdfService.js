@@ -6,9 +6,31 @@ import QRCode from 'qrcode';
 import { formatCurrency, construirMensajeComprobante } from '../utils/helpers';
 import { subirComprobantePdf } from './storageService';
 
-// Carga una imagen (logo) desde una URL y la devuelve lista para jsPDF.
-const cargarLogoParaPdf = async (url) => {
-  const resp = await fetch(url);
+// El logo del negocio, listo para jsPDF.
+//
+// Primero se usa la copia incrustada en la configuración, que no necesita red:
+// es lo que hace que el comprobante salga con el logo siempre, y al instante.
+//
+// Si el negocio cargó el logo antes de que existiera esa copia, se cae al
+// camino viejo de bajarlo de Storage. Ese camino puede fallar por cosas ajenas
+// al sistema —la descarga cruzada bloqueada por el navegador, App Check, o
+// simplemente que no haya conexión— y por eso lleva un límite de tiempo: sin
+// él, un pedido que nunca contesta deja el comprobante colgado sin imprimir.
+const cargarLogoParaPdf = async (datosNegocio) => {
+  const incrustado = datosNegocio?.logoDataUrl;
+  if (incrustado) {
+    const dims = await medirImagen(incrustado);
+    return { dataUrl: incrustado, format: 'JPEG', ...dims };
+  }
+
+  const url = datosNegocio?.logoUrl;
+  if (!url) return null;
+
+  const corte = AbortSignal.timeout ? AbortSignal.timeout(6000) : undefined;
+  const resp = await fetch(url, { signal: corte });
+  if (!resp.ok) {
+    throw new Error(`Storage respondió ${resp.status} al pedir el logo`);
+  }
   const blob = await resp.blob();
   const dataUrl = await new Promise((res, rej) => {
     const fr = new FileReader();
@@ -16,16 +38,24 @@ const cargarLogoParaPdf = async (url) => {
     fr.onerror = rej;
     fr.readAsDataURL(blob);
   });
-  const dims = await new Promise((res) => {
+  const dims = await medirImagen(dataUrl);
+  const format = blob.type.includes('png') ? 'PNG' : 'JPEG';
+  return { dataUrl, format, ...dims };
+};
+
+// Se expone solo para las pruebas: es la pieza donde estuvo el problema.
+export const __cargarLogoParaPdf = (datosNegocio) =>
+  cargarLogoParaPdf(datosNegocio);
+
+// El alto y el ancho reales, para respetar la proporción del logo.
+const medirImagen = (dataUrl) =>
+  new Promise((res) => {
     const im = new Image();
     im.onload = () =>
       res({ w: im.naturalWidth || 1, h: im.naturalHeight || 1 });
     im.onerror = () => res({ w: 1, h: 1 });
     im.src = dataUrl;
   });
-  const format = blob.type.includes('png') ? 'PNG' : 'JPEG';
-  return { dataUrl, format, ...dims };
-};
 
 /**
  * Genera un recibo de venta en formato PDF con diseño oficial de AFIP.
@@ -215,18 +245,25 @@ export const generarPdfVenta = async (
 
   // Logo del negocio (opcional), a la izquierda del nombre.
   let nameX = leftColX;
-  if (datosNegocio?.logoUrl) {
+  if (datosNegocio?.logoDataUrl || datosNegocio?.logoUrl) {
     try {
-      const logo = await cargarLogoParaPdf(datosNegocio.logoUrl);
-      const maxW = 16;
-      const maxH = 14;
-      const ratio = Math.min(maxW / logo.w, maxH / logo.h);
-      const lw = logo.w * ratio;
-      const lh = logo.h * ratio;
-      doc.addImage(logo.dataUrl, logo.format, margin + 2, margin + 2, lw, lh);
-      nameX = margin + 2 + lw + 3;
+      const logo = await cargarLogoParaPdf(datosNegocio);
+      if (logo) {
+        const maxW = 16;
+        const maxH = 14;
+        const ratio = Math.min(maxW / logo.w, maxH / logo.h);
+        const lw = logo.w * ratio;
+        const lh = logo.h * ratio;
+        doc.addImage(logo.dataUrl, logo.format, margin + 2, margin + 2, lw, lh);
+        nameX = margin + 2 + lw + 3;
+      }
     } catch (e) {
-      console.warn('No se pudo cargar el logo para el PDF:', e);
+      // El comprobante sale igual, sin logo: es preferible a no emitirlo.
+      console.warn(
+        'No se pudo poner el logo en el comprobante. Volvé a subirlo desde ' +
+          'Configuración para que quede guardado con la factura. Motivo:',
+        e,
+      );
     }
   }
 
@@ -848,12 +885,14 @@ export const generarPdfCaja = async (datos, datosNegocio, accion = 'print') => {
   let y = margen;
 
   // --- Encabezado: logo y datos del negocio ---
-  if (datosNegocio?.logoUrl) {
+  if (datosNegocio?.logoDataUrl || datosNegocio?.logoUrl) {
     try {
-      const logo = await cargarLogoParaPdf(datosNegocio.logoUrl);
-      const alto = 16;
-      const ancho = Math.min(38, (logo.w / logo.h) * alto);
-      doc.addImage(logo.dataUrl, logo.format, margen, y, ancho, alto);
+      const logo = await cargarLogoParaPdf(datosNegocio);
+      if (logo) {
+        const alto = 16;
+        const ancho = Math.min(38, (logo.w / logo.h) * alto);
+        doc.addImage(logo.dataUrl, logo.format, margen, y, ancho, alto);
+      }
     } catch (_) {
       /* si el logo no carga, el reporte sale igual */
     }

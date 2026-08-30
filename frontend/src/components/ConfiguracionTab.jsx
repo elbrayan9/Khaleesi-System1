@@ -13,7 +13,7 @@ import {
   X,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import { resizeImage } from '../utils/image.js';
+import { resizeImage, imagenADataUrl } from '../utils/image.js';
 import { subirLogoNegocio } from '../services/storageService';
 import ImportDataTab from './ImportDataTab';
 import ImpresoraTermicaConfig from './ImpresoraTermicaConfig';
@@ -47,8 +47,7 @@ function ConfiguracionTab() {
   const [direccion, setDireccion] = useState('');
   const [cuit, setCuit] = useState('');
   const [ventaRapidaHabilitada, setVentaRapidaHabilitada] = useState(false);
-  const [balanzaEnVivoHabilitada, setBalanzaEnVivoHabilitada] =
-    useState(false);
+  const [balanzaEnVivoHabilitada, setBalanzaEnVivoHabilitada] = useState(false);
   const [tiendaActiva, setTiendaActiva] = useState(false);
   // El QR y el link aparecen apenas se prende el interruptor, pero la tienda
   // recien queda publicada al guardar: sin esto el link tira "tienda no disponible".
@@ -64,7 +63,11 @@ function ConfiguracionTab() {
     const legacy = datosNegocio?.precioLegacy?.[quePlan];
     if (legacy?.mensual > 0) {
       const hasta = datosNegocio?.precioLegacyHasta;
-      const fin = hasta?.toDate ? hasta.toDate() : hasta ? new Date(hasta) : null;
+      const fin = hasta?.toDate
+        ? hasta.toDate()
+        : hasta
+          ? new Date(hasta)
+          : null;
       if (!fin || fin.getTime() > Date.now()) {
         return { monto: Number(legacy.mensual), congelado: true, hasta: fin };
       }
@@ -89,9 +92,11 @@ function ConfiguracionTab() {
   const [mpAccessToken, setMpAccessToken] = useState('');
   // Logo del negocio (para la factura).
   const [logoUrl, setLogoUrl] = useState('');
+  const [logoDataUrl, setLogoDataUrl] = useState('');
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState('');
   const [subiendoLogo, setSubiendoLogo] = useState(false);
+  const [logoSinCopia, setLogoSinCopia] = useState(false);
   // Config de códigos de balanza (con defaults = comportamiento clásico).
   const [balanzaConfig, setBalanzaConfig] = useState({
     prefijo: '20',
@@ -125,6 +130,7 @@ function ConfiguracionTab() {
       setInicioActividades(datosNegocio.inicioActividades || '');
       setMpAccessToken(datosNegocio.mpAccessToken || '');
       setLogoUrl(datosNegocio.logoUrl || '');
+      setLogoDataUrl(datosNegocio.logoDataUrl || '');
       setLogoPreview(datosNegocio.logoUrl || '');
       setLogoFile(null);
       const bc = datosNegocio.balanzaConfig || {};
@@ -290,6 +296,35 @@ function ConfiguracionTab() {
     }
   };
 
+  // Los negocios que ya tenían el logo cargado lo tienen solo en Storage, sin
+  // la copia que usa el PDF. Se intenta traerlo una vez y guardarlo, para que
+  // no haya que volver a subirlo a mano. Si el navegador no deja bajarlo —que
+  // es justamente lo que rompía la factura— se avisa en pantalla.
+  useEffect(() => {
+    const url = datosNegocio?.logoUrl;
+    if (!url || datosNegocio?.logoDataUrl) {
+      setLogoSinCopia(false);
+      return undefined;
+    }
+    let vigente = true;
+    (async () => {
+      try {
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error(String(resp.status));
+        const copia = await imagenADataUrl(await resp.blob(), 320, 0.85);
+        if (!vigente || !copia) throw new Error('no se pudo convertir');
+        setLogoDataUrl(copia);
+        // Se guarda solo: el dueño no tiene por qué enterarse de esto.
+        await handleGuardarDatosNegocio({ logoDataUrl: copia });
+      } catch (e) {
+        if (vigente) setLogoSinCopia(true);
+      }
+    })();
+    return () => {
+      vigente = false;
+    };
+  }, [datosNegocio?.logoUrl, datosNegocio?.logoDataUrl]);
+
   const handleLogoChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -304,12 +339,19 @@ function ConfiguracionTab() {
   const handleQuitarLogo = () => {
     setLogoFile(null);
     setLogoUrl('');
+    setLogoDataUrl('');
     setLogoPreview('');
   };
 
   const handleLocalGuardar = async () => {
     // Si eligió un logo nuevo, lo redimensionamos y subimos.
+    //
+    // Se guardan dos cosas del mismo logo: la URL de Storage, que usan las
+    // vistas HTML, y una copia chica incrustada. La copia es la que va al PDF:
+    // el comprobante se arma sin pedirle nada a la red, así que sale con el
+    // logo aunque Storage no conteste o el navegador bloquee la descarga.
     let finalLogoUrl = logoUrl || null;
+    let finalLogoDataUrl = logoDataUrl || null;
     if (logoFile) {
       if (!currentUser?.uid) {
         mostrarMensaje?.('Sesión no válida para subir el logo.', 'error');
@@ -319,6 +361,8 @@ function ConfiguracionTab() {
       try {
         const blob = await resizeImage(logoFile, 400, 0.85);
         finalLogoUrl = await subirLogoNegocio(currentUser.uid, blob);
+        // 320px alcanza y sobra: en la factura el logo se dibuja a 16 mm.
+        finalLogoDataUrl = await imagenADataUrl(logoFile, 320, 0.85);
       } catch (err) {
         console.error('Error subiendo logo:', err);
         mostrarMensaje?.('No se pudo subir el logo. Probá de nuevo.', 'error');
@@ -349,6 +393,7 @@ function ConfiguracionTab() {
       inicioActividades: inicioActividades.trim(),
       mpAccessToken: mpAccessToken.trim() || null,
       logoUrl: finalLogoUrl,
+      logoDataUrl: finalLogoDataUrl,
       balanzaConfig: {
         prefijo: String(balanzaConfig.prefijo || '20').trim(),
         modo: balanzaConfig.modo === 'peso' ? 'peso' : 'precio',
@@ -431,8 +476,8 @@ function ConfiguracionTab() {
                 </p>
                 <p className="mb-2 text-xs text-yellow-100/80">
                   Congela el precio anterior a los aumentos: Básico $15.000 y
-                  Completo $25.000 (con sus anuales). No pisa a quien ya tenga un
-                  precio preferencial, así que podés apretarlo tranquilo.
+                  Completo $25.000 (con sus anuales). No pisa a quien ya tenga
+                  un precio preferencial, así que podés apretarlo tranquilo.
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <button
@@ -671,7 +716,9 @@ function ConfiguracionTab() {
                 className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100 placeholder-zinc-400"
               />
               <p className="mt-1 text-xs text-zinc-400">
-                Si configuras este número (con + y código de país), el reporte de Cierre de Caja armará un link listo para enviar a este contacto.
+                Si configuras este número (con + y código de país), el reporte
+                de Cierre de Caja armará un link listo para enviar a este
+                contacto.
               </p>
             </div>
 
@@ -711,12 +758,19 @@ function ConfiguracionTab() {
                     onChange={handleLogoChange}
                   />
                 </label>
+                {logoSinCopia && (
+                  <p className="text-xs text-amber-400">
+                    No se pudo leer este logo para la factura. Volvé a subirlo
+                    para que salga impreso.
+                  </p>
+                )}
                 {subiendoLogo && (
                   <span className="text-sm text-zinc-400">Subiendo…</span>
                 )}
               </div>
               <p className="mt-1 text-xs text-zinc-400">
-                Se guarda al tocar “Guardar Cambios”. Ideal cuadrado (ej. 400×400).
+                Se guarda al tocar “Guardar Cambios”. Ideal cuadrado (ej.
+                400×400).
               </p>
             </div>
 
@@ -751,8 +805,8 @@ function ConfiguracionTab() {
               </label>
               <p className="mb-2 text-xs text-zinc-400">
                 Para etiquetas que imprime la balanza. Los valores por defecto
-                sirven para la mayoría (prefijo 20, precio en el código). Cambialo
-                solo si tu balanza usa otro formato.
+                sirven para la mayoría (prefijo 20, precio en el código).
+                Cambialo solo si tu balanza usa otro formato.
               </p>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <div>
@@ -763,7 +817,10 @@ function ConfiguracionTab() {
                     type="text"
                     value={balanzaConfig.prefijo}
                     onChange={(e) =>
-                      setBalanzaConfig((c) => ({ ...c, prefijo: e.target.value }))
+                      setBalanzaConfig((c) => ({
+                        ...c,
+                        prefijo: e.target.value,
+                      }))
                     }
                     className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100"
                   />
@@ -864,8 +921,9 @@ function ConfiguracionTab() {
                 </div>
               </div>
               <p className="mt-2 text-xs text-zinc-400">
-                Si elegís <strong>Peso</strong>, el sistema calcula el precio con
-                el precio por Kg del producto y descuenta el peso real del stock.
+                Si elegís <strong>Peso</strong>, el sistema calcula el precio
+                con el precio por Kg del producto y descuenta el peso real del
+                stock.
               </p>
             </div>
           </div>
@@ -1333,97 +1391,97 @@ function ConfiguracionTab() {
               </p>
             </div>
           ) : (
-          <div className="mt-3 rounded-md bg-zinc-700/50 p-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <label
-                  htmlFor="toggle-tienda"
-                  className="font-medium text-zinc-100"
-                >
-                  Tienda online (catálogo + pedidos por WhatsApp)
-                </label>
-                <p className="text-xs text-zinc-400">
-                  Publica tus productos con foto y precio. Tus clientes arman el
-                  pedido y te llega por WhatsApp. Pegá el QR en el local.
-                </p>
-              </div>
-              <label className="relative inline-flex cursor-pointer items-center">
-                <input
-                  type="checkbox"
-                  id="toggle-tienda"
-                  checked={tiendaActiva}
-                  onChange={(e) => setTiendaActiva(e.target.checked)}
-                  className="peer sr-only"
-                />
-                <div className="peer h-6 w-11 rounded-full bg-zinc-600 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:border after:bg-white after:transition-all after:content-[''] peer-checked:bg-blue-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:ring-2 peer-focus:ring-blue-500"></div>
-              </label>
-            </div>
-
-            {tiendaActiva && sucursalActual?.id && (
-              <div className="mt-3 flex flex-col items-center gap-3 border-t border-zinc-600 pt-3 sm:flex-row">
-                <div className="rounded-lg bg-white p-2">
-                  <QRCodeSVG
-                    value={`${window.location.origin}/tienda/${sucursalActual.id}`}
-                    size={110}
+            <div className="mt-3 rounded-md bg-zinc-700/50 p-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label
+                    htmlFor="toggle-tienda"
+                    className="font-medium text-zinc-100"
+                  >
+                    Tienda online (catálogo + pedidos por WhatsApp)
+                  </label>
+                  <p className="text-xs text-zinc-400">
+                    Publica tus productos con foto y precio. Tus clientes arman
+                    el pedido y te llega por WhatsApp. Pegá el QR en el local.
+                  </p>
+                </div>
+                <label className="relative inline-flex cursor-pointer items-center">
+                  <input
+                    type="checkbox"
+                    id="toggle-tienda"
+                    checked={tiendaActiva}
+                    onChange={(e) => setTiendaActiva(e.target.checked)}
+                    className="peer sr-only"
                   />
-                </div>
-                <div className="min-w-0 flex-1 text-center sm:text-left">
-                  <p className="mb-1 text-xs text-zinc-400">
-                    Link de tu tienda:
-                  </p>
-                  <p className="break-all font-mono text-xs text-zinc-200">
-                    {`${window.location.origin}/tienda/${sucursalActual.id}`}
-                  </p>
-                  <div className="mt-2 flex flex-wrap justify-center gap-2 sm:justify-start">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        navigator.clipboard
-                          ?.writeText(
-                            `${window.location.origin}/tienda/${sucursalActual.id}`,
-                          )
-                          .then(() =>
-                            mostrarMensaje?.('Link copiado.', 'success'),
-                          )
-                          .catch(() => {})
-                      }
-                      className="rounded-md bg-zinc-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-zinc-500"
-                    >
-                      Copiar link
-                    </button>
-                    {tiendaSinGuardar ? (
-                      <span
-                        title="Guardá los cambios para poder abrir la tienda"
-                        className="cursor-not-allowed rounded-md bg-zinc-700 px-3 py-1.5 text-xs font-semibold text-zinc-400"
-                      >
-                        Ver tienda
-                      </span>
-                    ) : (
-                      <a
-                        href={`${window.location.origin}/tienda/${sucursalActual.id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-500"
-                      >
-                        Ver tienda
-                      </a>
-                    )}
-                  </div>
-                  {tiendaSinGuardar && (
-                    <p className="mt-2 rounded-md bg-amber-900/40 px-2 py-1.5 text-xs font-semibold text-amber-200">
-                      Falta guardar: tocá <strong>Guardar Cambios</strong> abajo
-                      para publicar la tienda. Hasta entonces el link no
-                      funciona.
-                    </p>
-                  )}
-                  <p className="mt-2 text-[11px] text-zinc-500">
-                    Necesitás tu WhatsApp cargado arriba para recibir los
-                    pedidos.
-                  </p>
-                </div>
+                  <div className="peer h-6 w-11 rounded-full bg-zinc-600 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:border after:bg-white after:transition-all after:content-[''] peer-checked:bg-blue-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:ring-2 peer-focus:ring-blue-500"></div>
+                </label>
               </div>
-            )}
-          </div>
+
+              {tiendaActiva && sucursalActual?.id && (
+                <div className="mt-3 flex flex-col items-center gap-3 border-t border-zinc-600 pt-3 sm:flex-row">
+                  <div className="rounded-lg bg-white p-2">
+                    <QRCodeSVG
+                      value={`${window.location.origin}/tienda/${sucursalActual.id}`}
+                      size={110}
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1 text-center sm:text-left">
+                    <p className="mb-1 text-xs text-zinc-400">
+                      Link de tu tienda:
+                    </p>
+                    <p className="break-all font-mono text-xs text-zinc-200">
+                      {`${window.location.origin}/tienda/${sucursalActual.id}`}
+                    </p>
+                    <div className="mt-2 flex flex-wrap justify-center gap-2 sm:justify-start">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          navigator.clipboard
+                            ?.writeText(
+                              `${window.location.origin}/tienda/${sucursalActual.id}`,
+                            )
+                            .then(() =>
+                              mostrarMensaje?.('Link copiado.', 'success'),
+                            )
+                            .catch(() => {})
+                        }
+                        className="rounded-md bg-zinc-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-zinc-500"
+                      >
+                        Copiar link
+                      </button>
+                      {tiendaSinGuardar ? (
+                        <span
+                          title="Guardá los cambios para poder abrir la tienda"
+                          className="cursor-not-allowed rounded-md bg-zinc-700 px-3 py-1.5 text-xs font-semibold text-zinc-400"
+                        >
+                          Ver tienda
+                        </span>
+                      ) : (
+                        <a
+                          href={`${window.location.origin}/tienda/${sucursalActual.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-500"
+                        >
+                          Ver tienda
+                        </a>
+                      )}
+                    </div>
+                    {tiendaSinGuardar && (
+                      <p className="mt-2 rounded-md bg-amber-900/40 px-2 py-1.5 text-xs font-semibold text-amber-200">
+                        Falta guardar: tocá <strong>Guardar Cambios</strong>{' '}
+                        abajo para publicar la tienda. Hasta entonces el link no
+                        funciona.
+                      </p>
+                    )}
+                    <p className="mt-2 text-[11px] text-zinc-500">
+                      Necesitás tu WhatsApp cargado arriba para recibir los
+                      pedidos.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
           <ImpresoraTermicaConfig />
