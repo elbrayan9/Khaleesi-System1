@@ -710,9 +710,36 @@ exports.leerFacturaProveedor = onCall(
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
     }
-    const { imageBase64, mimeType = 'image/jpeg' } = request.data || {};
-    if (!imageBase64 || typeof imageBase64 !== 'string') {
-      throw new HttpsError('invalid-argument', 'Falta la imagen.');
+    // Una factura llega de tres formas, y ninguna es "una foto" nada más: el
+    // proveedor manda un PDF por mail, manda una planilla, o el comercio le
+    // saca una foto al papel. Las tres entran por acá.
+    //
+    // La foto y el PDF viajan igual: el modelo los mira. La planilla no —ahí no
+    // hay nada que mirar, son celdas—, así que el navegador la convierte a
+    // texto y llega por `texto`.
+    const { imageBase64, mimeType = 'image/jpeg', texto } = request.data || {};
+
+    const hayArchivo = imageBase64 && typeof imageBase64 === 'string';
+    const hayTexto = texto && typeof texto === 'string' && texto.trim();
+    if (!hayArchivo && !hayTexto) {
+      throw new HttpsError('invalid-argument', 'Falta la factura.');
+    }
+
+    // Lista blanca de formatos: sin esto, un mimeType cualquiera viaja tal cual
+    // a Gemini y el error que vuelve no le dice nada a nadie.
+    const FORMATOS = [
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+      'image/heic',
+      'image/heif',
+      'application/pdf',
+    ];
+    if (hayArchivo && !FORMATOS.includes(mimeType)) {
+      throw new HttpsError(
+        'invalid-argument',
+        'Formato no soportado. Mandá una imagen, un PDF o una planilla.',
+      );
     }
     await enforcePremium(request);
     await enforceDailyLimit(request.auth.uid, 25);
@@ -725,8 +752,13 @@ exports.leerFacturaProveedor = onCall(
       // no solo qué y cuánto. Antes decía literalmente "ignorá totales,
       // impuestos y los datos del proveedor", que es justo lo que hace falta
       // para dejar registrada la compra y no solo sumar stock a ciegas.
+      const origen = hayTexto
+        ? 'Estas son las filas de una planilla con una factura o remito de un proveedor argentino. Las columnas pueden llamarse de cualquier forma y estar en cualquier orden: deducilas por su contenido.'
+        : mimeType === 'application/pdf'
+          ? 'Este es el PDF de una factura o remito de un proveedor argentino. Puede tener varias páginas: tomá los renglones de todas.'
+          : 'Esta es la foto de una factura o remito de un proveedor argentino.';
       const prompt = [
-        'Esta es la foto de una factura o remito de un proveedor argentino.',
+        origen,
         'Extraé TODO lo que puedas leer. Respondé SOLO un JSON (sin markdown):',
         '{',
         '  "proveedor": {"nombre":"", "cuit":"", "comprobante":"", "fecha":"", "total":0},',
@@ -747,12 +779,14 @@ exports.leerFacturaProveedor = onCall(
         '- fecha: en formato DD/MM/AAAA.',
         '- total: el importe final de la factura, con IVA incluido.',
         '',
-        'Si un dato no está en la foto, devolvelo vacío o en 0. No lo inventes.',
+        'Si un dato no está, devolvelo vacío o en 0. No lo inventes.',
       ].join('\n');
-      const result = await model.generateContent([
-        { inlineData: { data: imageBase64, mimeType } },
-        prompt,
-      ]);
+      // El texto de una planilla va como texto: mandarlo como archivo
+      // obligaría a inventarle un formato que no tiene.
+      const partes = hayTexto
+        ? [prompt, texto.slice(0, 200000)]
+        : [{ inlineData: { data: imageBase64, mimeType } }, prompt];
+      const result = await model.generateContent(partes);
       const raw = (result.response.text() || '').trim();
 
       let datos = {};

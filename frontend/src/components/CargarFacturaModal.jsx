@@ -86,23 +86,84 @@ function CargarFacturaModal({ onClose }) {
       0,
     );
 
+  /** Convierte una planilla a texto plano para que la lea el modelo. */
+  const planillaATexto = async (file) => {
+    // xlsx ya estaba en el proyecto; entiende .xlsx, .xls y .csv por igual.
+    const XLSX = await import('xlsx');
+    // Con FileReader y no con file.arrayBuffer(): es el mismo camino que usa el
+    // resto del componente, y anda también en los Safari viejos de iPhone, que
+    // en un mostrador siguen existiendo.
+    const buffer = await new Promise((res, rej) => {
+      const fr = new FileReader();
+      fr.onload = () => res(fr.result);
+      fr.onerror = rej;
+      fr.readAsArrayBuffer(file);
+    });
+    const libro = XLSX.read(buffer, { type: 'array' });
+    // Todas las hojas: el proveedor puede mandar el detalle en la segunda.
+    return libro.SheetNames.map((nombre) => {
+      const filas = XLSX.utils.sheet_to_csv(libro.Sheets[nombre]);
+      return `--- Hoja: ${nombre} ---\n${filas}`;
+    }).join('\n\n');
+  };
+
+  /** Lee un archivo como base64, sin el encabezado del data URL. */
+  const aBase64 = (blobOArchivo) =>
+    new Promise((res, rej) => {
+      const fr = new FileReader();
+      fr.onload = () => res(String(fr.result).split(',')[1]);
+      fr.onerror = rej;
+      fr.readAsDataURL(blobOArchivo);
+    });
+
   const onFile = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setFase('procesando');
     setError('');
     try {
-      const blob = await resizeImage(file, 1500, 0.85);
-      const base64 = await new Promise((res, rej) => {
-        const fr = new FileReader();
-        fr.onload = () => res(String(fr.result).split(',')[1]);
-        fr.onerror = rej;
-        fr.readAsDataURL(blob);
-      });
+      // Los tres caminos que puede tomar una factura, según cómo llegó.
+      //
+      // La foto se achica antes de mandarla: una foto de celular moderno pesa
+      // varios megas y no hace falta tanto para leer un renglón.
+      //
+      // El PDF va tal cual, sin tocar: es lo que el proveedor manda por mail y
+      // suele estar mejor que cualquier foto, porque el texto ya es texto. No
+      // se le puede aplicar resizeImage, que espera una imagen.
+      //
+      // La planilla no se manda como archivo: son celdas, no hay nada que
+      // mirar. Se convierte a texto acá, en el navegador, y encima viaja
+      // muchísimo más liviana.
+      const esPdf = file.type === 'application/pdf';
+      const esPlanilla =
+        /\.(xlsx|xls|csv)$/i.test(file.name) ||
+        file.type.includes('spreadsheet') ||
+        file.type.includes('excel') ||
+        file.type === 'text/csv';
+
+      let payload;
+      if (esPlanilla) {
+        const texto = await planillaATexto(file);
+        if (!texto.trim()) {
+          setError('La planilla está vacía.');
+          setFase('subir');
+          return;
+        }
+        payload = { texto };
+      } else if (esPdf) {
+        payload = {
+          imageBase64: await aBase64(file),
+          mimeType: 'application/pdf',
+        };
+      } else {
+        const blob = await resizeImage(file, 1500, 0.85);
+        payload = { imageBase64: await aBase64(blob), mimeType: 'image/jpeg' };
+      }
+
       const { getFunctions, httpsCallable } =
         await import('firebase/functions');
       const fn = httpsCallable(getFunctions(), 'leerFacturaProveedor');
-      const res = await fn({ imageBase64: base64, mimeType: 'image/jpeg' });
+      const res = await fn(payload);
       const data = (res.data?.items || []).map((it) => ({
         ...it,
         incluir: true,
@@ -112,7 +173,9 @@ function CargarFacturaModal({ onClose }) {
         precio: sugerirPrecio(Number(it.costo) || 0),
       }));
       if (data.length === 0) {
-        setError('No se detectaron productos. Probá con una foto más nítida.');
+        setError(
+          'No se detectaron productos. Si es una foto, probá con una más nítida.',
+        );
         setFase('subir');
         return;
       }
@@ -312,15 +375,15 @@ function CargarFacturaModal({ onClose }) {
             <label className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed border-zinc-600 p-8 text-center hover:border-blue-500">
               <Upload className="h-8 w-8 text-blue-400" />
               <span className="font-semibold text-white">
-                Sacá o subí una foto de la factura
+                Subí la factura del proveedor
               </span>
               <span className="text-xs text-zinc-400">
-                La IA lee los productos y cantidades.
+                Foto, PDF o planilla (Excel o CSV). La IA lee los productos y
+                cantidades.
               </span>
               <input
                 type="file"
-                accept="image/*"
-                capture="environment"
+                accept="image/*,application/pdf,.xlsx,.xls,.csv"
                 className="hidden"
                 onChange={onFile}
               />
