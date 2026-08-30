@@ -2943,43 +2943,75 @@ exports.crearQrInteroperable = onCall(
       console.error('[QR] Error creando cobro pendiente:', e);
     }
 
-    const montoFinal = parseFloat(montoNum.toFixed(2));
+    // La API vieja de pedidos presenciales quedó fuera de servicio y devolvía
+    // 404 con el texto generico de "recurso no encontrado", que no decía nada.
+    // Esta es la API de Orders, que la reemplaza. Los cambios que importan: se
+    // crea con POST sobre una única dirección, la caja va en el cuerpo y no en
+    // la dirección, hace falta una clave de idempotencia, y los importes viajan
+    // como texto.
+    const montoFinal = montoNum.toFixed(2);
+    const titulo = String(descripcion).substring(0, 200) || 'Venta';
     const orderBody = {
+      type: 'qr',
       external_reference: externalReference,
-      title: String(descripcion).substring(0, 200) || 'Venta',
-      description: String(descripcion).substring(0, 200) || 'Venta',
-      notification_url: `${WEBHOOK_QR_URL}?uid=${uid}&suc=${sucursalId || ''}`,
+      description: titulo,
       total_amount: montoFinal,
+      // Un cuarto de hora para escanear y pagar: si el cliente se fue, la orden
+      // no queda viva ocupando el QR de la caja.
+      expiration_time: 'PT15M',
+      config: {
+        qr: {
+          external_pos_id: externalPosId,
+          mode: 'static',
+        },
+      },
+      transactions: {
+        payments: [{ amount: montoFinal }],
+      },
       items: [
         {
-          title: String(descripcion).substring(0, 200) || 'Venta',
+          title: titulo,
           quantity: 1,
           unit_measure: 'unit',
           unit_price: montoFinal,
-          total_amount: montoFinal,
         },
       ],
+      // Dónde avisar cuando paguen. Se manda igual aunque la cuenta tenga su
+      // dirección configurada en el panel: si la API lo ignora no molesta, y si
+      // lo toma evita depender de una configuración que se hace a mano y que
+      // nadie recuerda haber hecho.
+      seller_configuration: {
+        notification_info: {
+          notification_url: `${WEBHOOK_QR_URL}?uid=${uid}&suc=${sucursalId || ''}`,
+        },
+      },
     };
 
-    const orderR = await fetch(
-      `${MP_API}/instore/orders/qr/seller/collectors/${userId}/pos/${externalPosId}/orders`,
-      {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(orderBody),
+    const orderR = await fetch(`${MP_API}/v1/orders`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        // Sin esto, un reintento por una red lenta crearía una segunda orden
+        // por el mismo cobro. La referencia del cobro alcanza como clave: es
+        // única por venta.
+        'X-Idempotency-Key': externalReference,
       },
-    );
+      body: JSON.stringify(orderBody),
+    });
     if (!orderR.ok) {
       const err = await orderR.json().catch(() => ({}));
-      console.error('[QR] Error creando orden:', err);
+      console.error('[QR] Error creando orden:', orderR.status, err);
       throw new HttpsError(
         'invalid-argument',
         `Mercado Pago: ${err?.message || 'no se pudo generar el QR.'}`,
       );
     }
+
+    const orden = await orderR.json().catch(() => ({}));
+    console.log(
+      `[QR] Orden creada ${orden?.id || '(sin id)'} por $${montoFinal}`,
+    );
 
     return { success: true, externalReference, qrImage };
   },
@@ -2997,6 +3029,45 @@ exports.mpWebhookQr = onRequest(async (req, res) => {
 
     const token = await leerAccessTokenComercio(uid, sucId);
     if (!token) return res.status(200).send('sin token');
+
+    // Aviso de la API de Orders, que es la que se usa desde la migración. El
+    // identificador que llega es el de la orden (arranca con ORD) y no el de
+    // un pago, así que se consulta en otro lado. Los dos formatos de abajo
+    // quedan porque las órdenes viejas siguen avisando como antes.
+    if (topic === 'order') {
+      const orR = await fetch(`${MP_API}/v1/orders/${resourceId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const orden = await orR.json();
+      if (!orR.ok || !orden?.external_reference) {
+        console.warn('[QR webhook] orden no legible:', orR.status);
+        return res.status(200).send('ok');
+      }
+      // 'processed' es la orden cobrada; el estado del pago de adentro sirve
+      // para el caso en que la orden todavía no cerró pero la plata ya entró.
+      const pagoInterno = orden.transactions?.payments?.[0];
+      const cobrada =
+        orden.status === 'processed' ||
+        ['approved', 'accredited'].includes(pagoInterno?.status);
+
+      if (cobrada) {
+        await db
+          .collection('cobros_mp')
+          .doc(orden.external_reference)
+          .set(
+            {
+              estado: 'pagado',
+              paymentId: String(pagoInterno?.id || resourceId),
+              montoPagado: Number(orden.total_amount) || null,
+              metodoMP: 'qr_interoperable',
+              actualizadoEn: admin.firestore.FieldValue.serverTimestamp(),
+            },
+            { merge: true },
+          );
+        console.log(`[QR webhook] cobrada ${orden.external_reference}`);
+      }
+      return res.status(200).send('ok');
+    }
 
     // Notificación de pago directo.
     if (topic === 'payment') {
