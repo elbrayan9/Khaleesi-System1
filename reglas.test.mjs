@@ -67,6 +67,15 @@ await env.withSecurityRulesDisabled(async (ctx) => {
   // Y uno con userId, que es lo que el comodín podría dejar pasar.
   await setDoc(doc(db, 'contadores', 'con_dueno'), { userId: DUENO, usadas: 1 });
 
+  // Un producto, con lo que no puede salir del navegador del comercio.
+  await setDoc(doc(db, 'productos', 'prod1'), {
+    userId: DUENO,
+    nombre: 'Coca 2.25',
+    precio: 3200,
+    costo: 1900,
+    stock: 14,
+  });
+
   // El caso que el comodín podría dejar pasar: un secreto con userId.
   await setDoc(doc(db, 'secretosMp', 'uid_' + DUENO), {
     accessToken: 'APP_USR-otro-secreto',
@@ -104,6 +113,21 @@ test('nadie puede escribir un token desde el navegador', async () => {
   await assertFails(
     setDoc(doc(comoDueno, 'secretosMp', 'suc_suc1'), { accessToken: 'robado' }),
   );
+});
+
+test('el precio de costo de un producto no se lee sin ser el dueño', async () => {
+  // La etiqueta con el QR de la góndola lleva el id del producto impreso, y
+  // cualquiera que la escanee lo tiene. Antes eso alcanzaba para pedir el
+  // documento entero y leer cuánto le cuesta al comercio cada cosa que vende.
+  // Ahora esa página va por la función getProductoPublico, que devuelve solo lo
+  // que la etiqueta muestra.
+  await assertFails(getDoc(doc(sinSesion, 'productos', 'prod1')));
+  await assertFails(getDoc(doc(comoOtro, 'productos', 'prod1')));
+});
+
+test('pero el dueño sigue leyendo sus propios productos', async () => {
+  await assertSucceeds(getDoc(doc(comoDueno, 'productos', 'prod1')));
+  await assertSucceeds(getDoc(doc(comoAdmin, 'productos', 'prod1')));
 });
 
 test('nadie lee el caché de direcciones, que tiene domicilios de clientes', async () => {

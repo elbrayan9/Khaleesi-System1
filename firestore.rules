@@ -41,14 +41,17 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // productos.
-    // `get` (un producto por su id) queda público: es lo que necesita la página
-    // del QR que el cliente escanea en la góndola, y hay que conocer el id.
-    // `list` (consultar la colección) NO: abierto permitía descargar el catálogo
-    // completo de TODOS los comercios, con costo y stock. La tienda online ya no
-    // lo necesita — su catálogo lo sirve la función getProductosTienda.
+    // productos. Cerrado a quien no sea el dueño, para leer y para listar.
+    //
+    // El documento de un producto lleva adentro el costo, el margen y el stock:
+    // lo que le sale al comercio cada cosa que vende. Eso no puede salir del
+    // navegador de nadie más.
+    //
+    // Las dos pantallas que un cliente sí puede abrir se sirven por función, que
+    // devuelve solo lo que se muestra: getProductoPublico para el QR de la
+    // góndola y getProductosTienda para el catálogo de la tienda online.
     match /productos/{productId} {
-      allow get: if true;
+      allow get: if isOwner(resource.data.userId) || isAdmin();
       allow list: if isOwner(resource.data.userId) || isAdmin();
       allow create: if (isOwner(request.resource.data.userId) && isUserActive()) || isAdmin();
       allow update, delete: if (isOwner(resource.data.userId) && isUserActive()) || isAdmin();
