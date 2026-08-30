@@ -2225,21 +2225,16 @@ async function guardarSecretoMp(uid, sucursalId, accessToken, cuenta = null) {
   );
 }
 
-// Borrar el token del lugar viejo espera a que el frontend nuevo esté
-// publicado.
+// Al migrar, el token se borra del lugar viejo.
 //
-// El backend se desplegó primero y el deploy del frontend quedó cancelado en
-// Netlify. El frontend viejo, que es el que hay en producción ahora mismo,
-// decide si muestra el menú "Pagos recibidos" mirando `mpAccessToken` en la
-// configuración: si lo borramos antes de que llegue el nuevo, el comercio
-// pierde ese menú sin que nada se lo explique.
+// Estuvo en false unas horas: el backend se desplegó primero y el frontend
+// quedó sin publicar, y aquel frontend decidía si mostrar el menú "Pagos
+// recibidos" mirando `mpAccessToken` en la configuración. Borrarlo antes le
+// habría hecho desaparecer ese menú al comercio sin ninguna explicación.
 //
-// La copia a la bóveda ocurre igual y las funciones ya leen de ahí, así que no
-// se pierde nada esperando; lo único que se posterga es sacar el token del
-// lugar donde el navegador puede verlo, que es como está hoy de todos modos.
-//
-// Poner en true cuando el frontend nuevo esté arriba.
-const BORRAR_TOKEN_VIEJO = false;
+// Con el frontend nuevo publicado —ya mira `mpConfigurado`— el borrado se
+// activa: es el paso que efectivamente saca el token del alcance del navegador.
+const BORRAR_TOKEN_VIEJO = true;
 
 /** Borra el token del lugar viejo, ya copiado a la bóveda. */
 async function limpiarTokenViejo(origen) {
