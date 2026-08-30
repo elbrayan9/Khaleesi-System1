@@ -59,9 +59,14 @@ const PublicProductView = () => {
           <AppLogo className="mx-auto h-12 w-auto" />
         </div>
         <h1 className="mb-2 text-3xl font-bold text-white">{product.nombre}</h1>
-        <p className="mb-6 text-zinc-400">
-          {product.descripcion || 'Descripción no disponible'}
-        </p>
+        {/* La mayoría de los productos de kiosco no tienen descripción, y
+            avisarle al cliente que falta un dato interno no le suma: si no hay,
+            el precio simplemente sube un renglón. */}
+        {product.descripcion ? (
+          <p className="mb-6 text-zinc-400">{product.descripcion}</p>
+        ) : (
+          <div className="mb-6" />
+        )}
 
         <div className="rounded-lg bg-cyan-600 p-4 text-white">
           <span className="text-lg">Precio Actual:</span>
