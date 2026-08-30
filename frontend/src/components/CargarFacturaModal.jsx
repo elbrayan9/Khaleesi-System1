@@ -326,10 +326,10 @@ function CargarFacturaModal({ onClose }) {
       });
       if (!sumado) {
         // El pedido quedó pendiente, con todo lo que hay que recibir adentro.
-        // Se puede recibir a mano desde Proveedores sin volver a sacarle la
-        // foto a la factura.
+        // Se recibe a mano desde la pestaña Pedidos —no Proveedores, que es
+        // solo la agenda— sin volver a subir la factura.
         mostrarMensaje?.(
-          'No se pudo sumar el stock. La compra quedó anotada como pedido pendiente en Proveedores: recibila desde ahí.',
+          'No se pudo sumar el stock. La compra quedó anotada como pedido pendiente: recibila desde la pestaña Pedidos.',
           'error',
         );
         onClose?.();
