@@ -2,8 +2,18 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiEdit, FiTrash2, FiInfo, FiFilter } from 'react-icons/fi';
+import { MessageCircle, Mail } from 'lucide-react';
+import { useAppContext } from '../context/AppContext';
+import { telefonoWhatsapp } from '../utils/telefono.js';
+import { formatCurrency } from '../utils/helpers';
+import {
+  comprasDeProveedor,
+  fechaCorta,
+  diasDesde,
+} from '../utils/comprasProveedor.js';
 
 const ProveedorTable = ({ proveedores, onEdit, onDelete }) => {
+  const { pedidos, mostrarMensaje } = useAppContext();
   // Estado para el buscador principal
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -12,6 +22,39 @@ const ProveedorTable = ({ proveedores, onEdit, onDelete }) => {
   const [zonaFilter, setZonaFilter] = useState('');
   const [rubroFilter, setRubroFilter] = useState('');
   const [marcaFilter, setMarcaFilter] = useState('');
+
+  // Qué le compró el comercio a cada uno. El dato ya estaba guardado dentro de
+  // los pedidos; lo que faltaba era traerlo hasta acá, que es donde se decide a
+  // quién comprarle. Se calcula una vez para todos y no una vez por fila.
+  const comprasPorProveedor = useMemo(() => {
+    const mapa = {};
+    (proveedores || []).forEach((p) => {
+      mapa[p.id] = comprasDeProveedor(pedidos, p.id);
+    });
+    return mapa;
+  }, [proveedores, pedidos]);
+
+  const escribirWhatsapp = (p) => {
+    const tel = telefonoWhatsapp(p.telefono);
+    if (!tel) {
+      mostrarMensaje?.(`${p.nombre} no tiene teléfono cargado.`, 'warning');
+      return;
+    }
+    const texto = `Hola ${p.nombre}! Te escribo para hacerte un pedido.`;
+    window.open(
+      `https://wa.me/${tel}?text=${encodeURIComponent(texto)}`,
+      '_blank',
+      'noopener,noreferrer',
+    );
+  };
+
+  const escribirMail = (p) => {
+    if (!p.email) {
+      mostrarMensaje?.(`${p.nombre} no tiene email cargado.`, 'warning');
+      return;
+    }
+    window.location.href = `mailto:${p.email}?subject=${encodeURIComponent('Pedido')}`;
+  };
 
   const filteredProveedores = useMemo(() => {
     if (!proveedores) return [];
@@ -113,7 +156,13 @@ const ProveedorTable = ({ proveedores, onEdit, onDelete }) => {
                 Zona
               </th>
               <th scope="col" className="px-6 py-3">
-                Teléfono
+                Última compra
+              </th>
+              <th scope="col" className="px-6 py-3 text-right">
+                Últimos 30 días
+              </th>
+              <th scope="col" className="px-6 py-3">
+                Contacto
               </th>
               <th scope="col" className="px-6 py-3">
                 Acciones
@@ -137,7 +186,75 @@ const ProveedorTable = ({ proveedores, onEdit, onDelete }) => {
                     </td>
                     <td className="px-6 py-4">{proveedor.rubro || '-'}</td>
                     <td className="px-6 py-4">{proveedor.zona || '-'}</td>
-                    <td className="px-6 py-4">{proveedor.telefono || '-'}</td>
+                    <td className="whitespace-nowrap px-6 py-4">
+                      {(() => {
+                        const c = comprasPorProveedor[proveedor.id];
+                        if (!c?.ultima)
+                          return <span className="text-zinc-500">Nunca</span>;
+                        const dias = diasDesde(c.ultima);
+                        return (
+                          <>
+                            <span className="text-zinc-200">
+                              {fechaCorta(c.ultima)}
+                            </span>
+                            {dias !== null && (
+                              <span className="ml-2 text-xs text-zinc-500">
+                                {dias === 0
+                                  ? 'hoy'
+                                  : dias === 1
+                                    ? 'ayer'
+                                    : `hace ${dias} días`}
+                              </span>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </td>
+                    <td className="px-6 py-4 text-right tabular-nums">
+                      {comprasPorProveedor[proveedor.id]?.total ? (
+                        <span className="font-medium text-zinc-100">
+                          $
+                          {formatCurrency(
+                            comprasPorProveedor[proveedor.id].total,
+                          )}
+                        </span>
+                      ) : (
+                        <span className="text-zinc-500">—</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => escribirWhatsapp(proveedor)}
+                          className="text-green-400 hover:text-green-300 disabled:opacity-30"
+                          disabled={!proveedor.telefono}
+                          title={
+                            proveedor.telefono
+                              ? `WhatsApp a ${proveedor.telefono}`
+                              : 'Sin teléfono cargado'
+                          }
+                          aria-label={`Escribirle por WhatsApp a ${proveedor.nombre}`}
+                        >
+                          <MessageCircle size={18} />
+                        </button>
+                        <button
+                          onClick={() => escribirMail(proveedor)}
+                          className="text-sky-400 hover:text-sky-300 disabled:opacity-30"
+                          disabled={!proveedor.email}
+                          title={proveedor.email || 'Sin email cargado'}
+                          aria-label={`Mandarle un mail a ${proveedor.nombre}`}
+                        >
+                          <Mail size={18} />
+                        </button>
+                        {/* El número a la vista: para llamar desde el teléfono
+                            del local hay que poder leerlo, no solo tocarlo. */}
+                        {proveedor.telefono && (
+                          <span className="text-xs text-zinc-400">
+                            {proveedor.telefono}
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="flex items-center gap-3 px-6 py-4">
                       <button
                         onClick={() => onEdit(proveedor)}
@@ -156,7 +273,7 @@ const ProveedorTable = ({ proveedores, onEdit, onDelete }) => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="5" className="py-8 text-center text-zinc-400">
+                  <td colSpan="7" className="py-8 text-center text-zinc-400">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <FiInfo size={24} />
                       <span>No se encontraron proveedores.</span>
