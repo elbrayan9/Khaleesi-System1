@@ -300,10 +300,16 @@ function CargarFacturaModal({ onClose }) {
             cabecera?.proveedor?.nombre ||
             'Proveedor sin identificar',
           fechaPedido: new Date().toISOString().split('T')[0],
-          // Nace pendiente: lo pasa a recibido el mismo lote que suma el stock,
-          // así el estado y las unidades no pueden quedar contando cosas
-          // distintas.
-          estado: 'pendiente',
+          // Nace como 'pedido' y lo pasa a 'recibido' el mismo lote que suma
+          // el stock, así el estado y las unidades no pueden quedar contando
+          // cosas distintas.
+          //
+          // 'pedido' y no un estado nuevo: es el vocabulario que ya usa la
+          // pestaña Pedidos, y el botón de recibir sólo aparece para los
+          // estados que conoce. Con uno inventado, si el lote falla el pedido
+          // queda sin forma de recibirse: justo el caso que este camino existe
+          // para salvar.
+          estado: 'pedido',
           items: itemsDelPedido,
           totalCosto: itemsDelPedido.reduce(
             (t, i) => t + i.cantidad * i.costoUnitario,

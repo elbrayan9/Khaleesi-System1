@@ -167,6 +167,18 @@ describe('aplicar una factura al inventario', () => {
     expect(renglon.cantidad).toBe(12);
   });
 
+  it('el pedido nace en un estado que la pestaña Pedidos sabe recibir', async () => {
+    // Si el lote de stock falla, la compra queda anotada y hay que poder
+    // recibirla a mano. El botón de recibir de PedidosTable sólo aparece para
+    // 'pedido' y 'enviado': con un estado inventado, el pedido queda trabado
+    // sin forma de recibirse, que es justo el caso que este camino salva.
+    await llegarARevisar();
+    await aplicar();
+
+    const [, pedido] = orden.find(([q]) => q === 'addPedido');
+    expect(['pedido', 'enviado']).toContain(pedido.estado);
+  });
+
   it('al producto que ya existía se le completa el código de barras que le faltaba', async () => {
     // Es lo que después permite escanearlo en la caja. Va aparte del stock
     // porque no es una suma: escribir el mismo código dos veces da lo mismo.
