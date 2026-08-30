@@ -19,6 +19,7 @@ import {
   TableRow,
 } from '@/components/ui/table'; //
 import { formatCurrency } from '../utils/helpers';
+import { telefonoWhatsapp } from '../utils/telefono.js';
 import { useAppContext } from '../context/AppContext.jsx';
 
 function ClientTable({
@@ -34,15 +35,11 @@ function ClientTable({
 
   // Abre WhatsApp con un recordatorio de deuda para el cliente.
   const recordarDeuda = (cliente, saldo) => {
-    let tel = String(cliente.telefono || '').replace(/\D/g, '');
+    const tel = telefonoWhatsapp(cliente.telefono);
     if (!tel) {
-      mostrarMensaje?.(
-        'Este cliente no tiene teléfono cargado.',
-        'warning',
-      );
+      mostrarMensaje?.('Este cliente no tiene teléfono cargado.', 'warning');
       return;
     }
-    if (!tel.startsWith('54')) tel = `549${tel}`;
     const negocio = datosNegocio?.nombre || 'nuestro comercio';
     const texto =
       `Hola ${cliente.nombre || ''}! 👋 Te recordamos que tenés un saldo ` +

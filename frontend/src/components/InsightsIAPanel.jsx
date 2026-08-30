@@ -2,9 +2,15 @@
 import React, { useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import { useAppContext } from '../context/AppContext.jsx';
+import { telefonoWhatsapp } from '../utils/telefono.js';
 
 function InsightsIAPanel() {
-  const { ventas = [], productos = [], datosNegocio } = useAppContext();
+  const {
+    ventas = [],
+    productos = [],
+    datosNegocio,
+    mostrarMensaje,
+  } = useAppContext();
   const [cargando, setCargando] = useState(false);
   const [respuesta, setRespuesta] = useState('');
   const [error, setError] = useState('');
@@ -45,9 +51,8 @@ function InsightsIAPanel() {
         )}. Más vendidos hoy: ${top.join(', ') || 'sin ventas aún'}. ` +
         `Stock bajo: ${bajos.join(', ') || 'ninguno'}.`;
 
-      const { getFunctions, httpsCallable } = await import(
-        'firebase/functions'
-      );
+      const { getFunctions, httpsCallable } =
+        await import('firebase/functions');
       const fn = httpsCallable(getFunctions(), 'resumenDiario');
       const res = await fn({ datos });
       setResumenDia(res.data?.texto || 'Sin datos.');
@@ -59,8 +64,14 @@ function InsightsIAPanel() {
   };
 
   const enviarWhatsapp = () => {
-    let tel = String(datosNegocio?.whatsappDueño || '').replace(/\D/g, '');
-    if (tel && !tel.startsWith('54')) tel = `549${tel}`;
+    const tel = telefonoWhatsapp(datosNegocio?.whatsappDueño);
+    if (!tel) {
+      mostrarMensaje?.(
+        'Cargá tu WhatsApp en Configuración para recibir el resumen.',
+        'warning',
+      );
+      return;
+    }
     window.open(
       `https://wa.me/${tel}?text=${encodeURIComponent(resumenDia)}`,
       '_blank',
@@ -78,7 +89,9 @@ function InsightsIAPanel() {
       const hace30 = ahora - 30 * 24 * 60 * 60 * 1000;
       const ingresos = ventas.reduce((s, v) => s + (v.total || 0), 0);
       const ingresos30 = ventas
-        .filter((v) => new Date(v.fecha || v.createdAt || 0).getTime() >= hace30)
+        .filter(
+          (v) => new Date(v.fecha || v.createdAt || 0).getTime() >= hace30,
+        )
         .reduce((s, v) => s + (v.total || 0), 0);
 
       const cantPorProd = {};
@@ -120,9 +133,8 @@ function InsightsIAPanel() {
         `Con stock bajo: ${bajos.join(', ') || 'ninguno'}. ` +
         `Por vencer (<=30 días): ${porVencer.join(', ') || 'ninguno'}.`;
 
-      const { getFunctions, httpsCallable } = await import(
-        'firebase/functions'
-      );
+      const { getFunctions, httpsCallable } =
+        await import('firebase/functions');
       const askGemini = httpsCallable(getFunctions(), 'askGemini');
       const res = await askGemini({ prompt });
       setRespuesta(res.data?.reply || 'No se recibió respuesta.');

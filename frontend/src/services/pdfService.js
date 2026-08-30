@@ -5,6 +5,7 @@ import autoTable from 'jspdf-autotable';
 import QRCode from 'qrcode';
 import { formatCurrency, construirMensajeComprobante } from '../utils/helpers';
 import { subirComprobantePdf } from './storageService';
+import { telefonoWhatsapp } from '../utils/telefono.js';
 
 // El logo del negocio, listo para jsPDF.
 //
@@ -782,11 +783,14 @@ export const enviarComprobantePdfWhatsapp = async (
   const nombre = `${tipoDoc.replace(/ /g, '_')}_${String(venta.id || 'temp').substring(0, 8)}.pdf`;
   const mensaje = construirMensajeComprobante(venta, datosNegocio);
 
-  // Teléfono del cliente normalizado para wa.me (Argentina).
-  let tel = String(cliente?.telefono || '').replace(/\D/g, '');
-  if (tel && !tel.startsWith('54')) tel = `549${tel}`;
+  // Teléfono del cliente, listo para wa.me. Puede ser null: un cliente cargado
+  // sin teléfono es de lo más común. En ese caso wa.me se abre igual, sin
+  // destinatario, y la persona elige a quién mandárselo desde su lista de
+  // contactos. Es lo correcto acá: el comprobante ya está hecho y el envío es
+  // una acción que la persona pidió, no conviene abortarla.
+  const tel = telefonoWhatsapp(cliente?.telefono);
   const waUrl = (texto) =>
-    `https://wa.me/${tel}?text=${encodeURIComponent(texto)}`;
+    `https://wa.me/${tel || ''}?text=${encodeURIComponent(texto)}`;
 
   // 1) Compartir nativo con el PDF adjunto.
   try {
@@ -879,6 +883,9 @@ export const enviarComprobantePorEmail = async (
   }
   cuerpo += `\n¡Gracias por tu compra!`;
 
+  // Sin email, el programa de correo se abre con el destinatario vacío y la
+  // persona lo completa. Mismo criterio que en WhatsApp: el comprobante ya
+  // está hecho y subido, cortar acá lo desperdiciaría.
   const dest = cliente?.email || '';
   window.location.href = `mailto:${dest}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`;
 };

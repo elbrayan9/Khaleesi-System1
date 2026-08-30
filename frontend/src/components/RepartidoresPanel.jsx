@@ -17,6 +17,7 @@ import {
 import { db } from '../firebaseConfig';
 import { useAppContext } from '../context/AppContext.jsx';
 import { Bike, Copy, Trash2, UserPlus, Share2 } from 'lucide-react';
+import { telefonoWhatsapp } from '../utils/telefono.js';
 
 function RepartidoresPanel() {
   const { currentUser, sucursalActual, mostrarMensaje } = useAppContext();
@@ -89,8 +90,11 @@ function RepartidoresPanel() {
   };
 
   const porWhatsapp = (r) => {
-    let tel = String(r.telefono || '').replace(/\D/g, '');
-    if (tel && !tel.startsWith('54')) tel = `549${tel}`;
+    const tel = telefonoWhatsapp(r.telefono);
+    if (!tel) {
+      mostrarMensaje?.(`${r.nombre} no tiene teléfono cargado.`, 'warning');
+      return;
+    }
     const texto =
       `Hola ${r.nombre}! Este es tu acceso para recibir los pedidos:\n${linkDe(r)}\n\n` +
       'Abrilo en el celular y agregalo a la pantalla de inicio.';

@@ -13,6 +13,7 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { useAppContext } from '../context/AppContext.jsx';
 import { formatCurrency } from '../utils/helpers.js';
+import { telefonoWhatsapp } from '../utils/telefono.js';
 
 function CobroMercadoPagoModal({
   monto,
@@ -34,9 +35,8 @@ function CobroMercadoPagoModal({
     const generar = async () => {
       setEstado('cargando');
       try {
-        const { getFunctions, httpsCallable } = await import(
-          'firebase/functions'
-        );
+        const { getFunctions, httpsCallable } =
+          await import('firebase/functions');
         const functions = getFunctions();
         const crearPagoMP = httpsCallable(functions, 'crearPagoMP');
         const res = await crearPagoMP({
@@ -70,9 +70,12 @@ function CobroMercadoPagoModal({
   // Escucha el cobro en tiempo real: cuando MP confirma, lo marca pagado.
   useEffect(() => {
     if (!externalReference) return undefined;
-    const unsub = onSnapshot(doc(db, 'cobros_mp', externalReference), (snap) => {
-      if (snap.data()?.estado === 'pagado') setPagado(true);
-    });
+    const unsub = onSnapshot(
+      doc(db, 'cobros_mp', externalReference),
+      (snap) => {
+        if (snap.data()?.estado === 'pagado') setPagado(true);
+      },
+    );
     return () => unsub();
   }, [externalReference]);
 
@@ -86,8 +89,12 @@ function CobroMercadoPagoModal({
   }, [pagado]);
 
   const enviarWhatsapp = () => {
-    let tel = String(cliente?.telefono || '').replace(/\D/g, '');
-    if (tel && !tel.startsWith('54')) tel = `549${tel}`;
+    const tel = telefonoWhatsapp(cliente?.telefono);
+    if (!tel) {
+      // Sin destinatario, wa.me abre WhatsApp igual y parece que se mandó.
+      mostrarMensaje?.('Este cliente no tiene teléfono cargado.', 'warning');
+      return;
+    }
     const texto = `Hola! Podés pagar tu compra de $${formatCurrency(monto)} con Mercado Pago acá:\n${link}`;
     window.open(
       `https://wa.me/${tel}?text=${encodeURIComponent(texto)}`,
