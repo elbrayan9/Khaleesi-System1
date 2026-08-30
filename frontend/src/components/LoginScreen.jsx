@@ -1,5 +1,6 @@
 // src/components/LoginScreen.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { asegurarAppCheck } from '../firebaseConfig';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAppContext } from '../context/AppContext.jsx';
@@ -13,6 +14,13 @@ import Footer from './Footer.jsx';
 import ThreeBackground from './ThreeBackground.jsx';
 
 function LoginScreen() {
+  // Auth tiene enforcement de App Check: si alguien llega acá navegando desde
+  // la landing —donde su arranque se pospone— hay que asegurarlo ya, o el
+  // login se rechaza.
+  useEffect(() => {
+    asegurarAppCheck();
+  }, []);
+
   const { mostrarMensaje } = useAppContext();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');

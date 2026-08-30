@@ -11,6 +11,8 @@ vi.mock('../../firebaseConfig', () => ({
     currentUser: null,
   },
   db: {},
+  // App Check se arranca al detectar sesión; acá no hace nada.
+  asegurarAppCheck: vi.fn(),
 }));
 
 // Mock Firebase Functions

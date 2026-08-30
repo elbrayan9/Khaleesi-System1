@@ -7,12 +7,9 @@ import { useAppContext } from './context/AppContext.jsx';
 import AppLogo from './components/AppLogo.jsx';
 import LoginScreen from './components/LoginScreen.jsx';
 import SignUpScreen from './components/SignUpScreen.jsx';
-import Layout from './components/Layout.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import PrintReceipt from './components/PrintReceipt.jsx';
 import PrintNota from './components/PrintNota.jsx';
-import SaleDetailModal from './components/SaleDetailModal.jsx';
-import NotaDetailModal from './components/NotaDetailModal.jsx';
 
 // ── Pantallas cargadas por separado ──
 //
@@ -23,7 +20,15 @@ import NotaDetailModal from './components/NotaDetailModal.jsx';
 //
 // Sólo quedan arriba (carga inmediata) la landing, el login y el registro, que
 // son las tres primeras pantallas de alguien que llega de la publicidad.
-const ForgotPasswordScreen = lazy(() => import('./screens/ForgotPasswordScreen'));
+// Layout arrastra todo el menú del sistema, y los dos modales de detalle
+// arrastran el generador de PDF: nada de eso lo necesita quien está mirando la
+// landing.
+const Layout = lazy(() => import('./components/Layout.jsx'));
+const SaleDetailModal = lazy(() => import('./components/SaleDetailModal.jsx'));
+const NotaDetailModal = lazy(() => import('./components/NotaDetailModal.jsx'));
+const ForgotPasswordScreen = lazy(
+  () => import('./screens/ForgotPasswordScreen'),
+);
 const PublicProductView = lazy(() => import('./screens/PublicProductView'));
 const BulkPrintView = lazy(() => import('./screens/BulkPrintView'));
 const PriceCheckerView = lazy(() => import('./screens/PriceCheckerView.jsx'));
@@ -37,7 +42,9 @@ const PresupuestosTab = lazy(() => import('./components/PresupuestosTab.jsx'));
 const EstadisticasTab = lazy(() => import('@/components/EstadisticasTab.jsx'));
 const ReportesTab = lazy(() => import('./components/ReportesTab.jsx'));
 const NotasCDTab = lazy(() => import('./components/NotasCDTab.jsx'));
-const ConfiguracionTab = lazy(() => import('./components/ConfiguracionTab.jsx'));
+const ConfiguracionTab = lazy(
+  () => import('./components/ConfiguracionTab.jsx'),
+);
 const ScannerPistola = lazy(() => import('./screens/ScannerPistola.jsx'));
 const TiendaPublica = lazy(() => import('./screens/TiendaPublica.jsx'));
 const LegalPage = lazy(() => import('./screens/LegalPage.jsx'));
@@ -45,20 +52,20 @@ const PedidosOnline = lazy(() => import('./screens/PedidosOnline.jsx'));
 const PagosRecibidos = lazy(() => import('./screens/PagosRecibidos.jsx'));
 const AppRepartidor = lazy(() => import('./screens/AppRepartidor.jsx'));
 import { formatCurrency, enviarNotaPorWhatsapp } from './utils/helpers.js';
-import {
-  generarPdfVenta,
-  enviarComprobantePdfWhatsapp,
-  enviarComprobantePorEmail,
-} from './services/pdfService'; // Importar servicio PDF
-import {
-  printVentaTicket,
-  printNotaTicket,
-} from './services/thermalPrinterService';
+// Los comprobantes se cargan cuando se emite uno, no al abrir la página.
+//
+// jsPDF, jspdf-autotable y qrcode entraban en el arranque de la landing para
+// no hacer nada: quien llega de un anuncio no imprime facturas. Lo mismo la
+// impresora térmica.
+const cargarPdf = () => import('./services/pdfService');
+const cargarTermica = () => import('./services/thermalPrinterService');
 import LandingPage from './screens/LandingPage.jsx';
 
 const AdminPanel = lazy(() => import('./screens/AdminPanel.jsx'));
 const UserDetailAdmin = lazy(() => import('./screens/UserDetailAdmin.jsx'));
-const PaymentInstructions = lazy(() => import('./screens/PaymentInstructions.jsx'));
+const PaymentInstructions = lazy(
+  () => import('./screens/PaymentInstructions.jsx'),
+);
 import { registrarVista } from './utils/medicion.js';
 import { analytics } from './firebaseConfig.js';
 
@@ -140,6 +147,7 @@ function App() {
         tipoDoc = 'Presupuesto';
       }
 
+      const { generarPdfVenta } = await cargarPdf();
       await generarPdfVenta(
         ventaObjeto,
         datosNegocio,
@@ -170,9 +178,8 @@ function App() {
         cuit: ventaObjeto.clienteCuit || '',
       };
       if (localStorage.getItem('impresoraMetodo') === 'bluetooth') {
-        const { imprimirTicketBluetooth } = await import(
-          './services/bluetoothPrinter'
-        );
+        const { imprimirTicketBluetooth } =
+          await import('./services/bluetoothPrinter');
         await imprimirTicketBluetooth(
           ventaObjeto,
           datosNegocio,
@@ -180,11 +187,15 @@ function App() {
           formatCurrency,
         );
       } else {
+        const { printVentaTicket } = await cargarTermica();
         await printVentaTicket(ventaObjeto, datosNegocio, cliente);
       }
     } catch (error) {
       console.error('Error imprimiendo ticket térmico:', error);
-      mostrarMensaje(`No se pudo imprimir el ticket: ${error.message}`, 'error');
+      mostrarMensaje(
+        `No se pudo imprimir el ticket: ${error.message}`,
+        'error',
+      );
     }
   };
 
@@ -269,6 +280,7 @@ function App() {
         },
       };
 
+      const { generarPdfVenta } = await cargarPdf();
       await generarPdfVenta(
         notaParaPdf,
         datosNegocio,
@@ -308,10 +320,14 @@ function App() {
         nombre: nota.clienteNombre || 'Consumidor Final',
         cuit: nota.clienteCuit || '',
       };
+      const { printNotaTicket } = await cargarTermica();
       await printNotaTicket(nota, datosNegocio, cliente);
     } catch (error) {
       console.error('Error imprimiendo ticket de nota:', error);
-      mostrarMensaje(`No se pudo imprimir el ticket: ${error.message}`, 'error');
+      mostrarMensaje(
+        `No se pudo imprimir el ticket: ${error.message}`,
+        'error',
+      );
     }
   };
 
@@ -325,6 +341,7 @@ function App() {
       nombre: venta.clienteNombre || 'Consumidor Final',
     };
     try {
+      const { enviarComprobantePdfWhatsapp } = await cargarPdf();
       await enviarComprobantePdfWhatsapp(venta, datosNegocio, cliente);
     } catch (error) {
       console.error('Error enviando comprobante por WhatsApp:', error);
@@ -342,6 +359,7 @@ function App() {
       nombre: venta.clienteNombre || 'Consumidor Final',
     };
     try {
+      const { enviarComprobantePorEmail } = await cargarPdf();
       await enviarComprobantePorEmail(venta, datosNegocio, cliente);
     } catch (error) {
       console.error('Error enviando comprobante por email:', error);
@@ -418,101 +436,103 @@ function App() {
             el mismo indicador que usa el arranque, para que el cambio de
             pantalla no se sienta distinto. */}
         <Suspense fallback={<PantallaCargando />}>
-        <Routes>
-          {/* Rutas Públicas */}
-          <Route
-            path="/"
-            element={
-              isLoggedIn ? (
-                <Navigate to="/dashboard" replace />
-              ) : (
-                <LandingPage />
-              )
-            }
-          />
-          <Route path="/product/:productId" element={<PublicProductView />} />
-          <Route path="/print-labels" element={<BulkPrintView />} />
-          <Route path="/verificador" element={<PriceCheckerView />} />
-          <Route path="/tienda/:sucursalId" element={<TiendaPublica />} />
-          <Route path="/repartidor/:token" element={<AppRepartidor />} />
-          <Route path="/terminos" element={<LegalPage />} />
-          <Route path="/privacidad" element={<LegalPage />} />
-          <Route
-            path="/login"
-            element={
-              isLoggedIn ? (
-                <Navigate to="/dashboard" replace />
-              ) : (
-                <LoginScreen />
-              )
-            }
-          />
-          <Route
-            path="/signup"
-            element={
-              isLoggedIn ? (
-                <Navigate to="/dashboard" replace />
-              ) : (
-                <SignUpScreen />
-              )
-            }
-          />
-          <Route path="/forgot-password" element={<ForgotPasswordScreen />} />
-
-          {/* Rutas Protegidas */}
-          <Route element={<ProtectedRoute />}>
-            <Route path="/dashboard" element={<Layout />}>
-              <Route index element={<VentaTab />} />
-              <Route path="productos" element={<ProductosTab />} />
-              <Route path="clientes" element={<ClientesTab />} />
-              <Route path="vendedores" element={<VendedoresTab />} />
-              <Route path="proveedores" element={<ProveedoresTab />} />
-              <Route path="pedidos" element={<PedidosTab />} />
-              <Route path="presupuestos" element={<PresupuestosTab />} />
-              <Route path="estadisticas" element={<EstadisticasTab />} />
-              <Route
-                path="reportes"
-                element={
-                  <ReportesTab
-                    onPrintRequest={handlePrintRequest}
-                    onViewDetailsRequest={openSaleDetailModal}
-                    onPrintTermicoRequest={handlePrintTermico}
-                    onWhatsappRequest={handleWhatsappVenta}
-                    onEmailRequest={handleEmailVenta}
-                  />
-                }
-              />
-              <Route
-                path="notas"
-                element={
-                  <NotasCDTab
-                    onPrintNotaCD={handlePrintNota}
-                    onViewDetailsNotaCD={openNotaDetailModal}
-                    onPrintNotaTermico={handlePrintNotaTermico}
-                    onWhatsappNota={handleWhatsappNota}
-                  />
-                }
-              />
-              <Route path="configuracion" element={<ConfiguracionTab />} />
-              <Route path="pistola" element={<ScannerPistola />} />
-              <Route path="pedidos-online" element={<PedidosOnline />} />
-              <Route path="pagos" element={<PagosRecibidos />} />
-            </Route>
-            {/* Rutas de Admin también protegidas */}
-            <Route path="/admin" element={<AdminPanel />} />
-            <Route path="/admin/user/:uid" element={<UserDetailAdmin />} />
+          <Routes>
+            {/* Rutas Públicas */}
             <Route
-              path="payment-instructions"
-              element={<PaymentInstructions />}
+              path="/"
+              element={
+                isLoggedIn ? (
+                  <Navigate to="/dashboard" replace />
+                ) : (
+                  <LandingPage />
+                )
+              }
             />
-          </Route>
+            <Route path="/product/:productId" element={<PublicProductView />} />
+            <Route path="/print-labels" element={<BulkPrintView />} />
+            <Route path="/verificador" element={<PriceCheckerView />} />
+            <Route path="/tienda/:sucursalId" element={<TiendaPublica />} />
+            <Route path="/repartidor/:token" element={<AppRepartidor />} />
+            <Route path="/terminos" element={<LegalPage />} />
+            <Route path="/privacidad" element={<LegalPage />} />
+            <Route
+              path="/login"
+              element={
+                isLoggedIn ? (
+                  <Navigate to="/dashboard" replace />
+                ) : (
+                  <LoginScreen />
+                )
+              }
+            />
+            <Route
+              path="/signup"
+              element={
+                isLoggedIn ? (
+                  <Navigate to="/dashboard" replace />
+                ) : (
+                  <SignUpScreen />
+                )
+              }
+            />
+            <Route path="/forgot-password" element={<ForgotPasswordScreen />} />
 
-          {/* Redirección para cualquier ruta no encontrada */}
-          <Route
-            path="*"
-            element={<Navigate to={isLoggedIn ? '/dashboard' : '/'} replace />}
-          />
-        </Routes>
+            {/* Rutas Protegidas */}
+            <Route element={<ProtectedRoute />}>
+              <Route path="/dashboard" element={<Layout />}>
+                <Route index element={<VentaTab />} />
+                <Route path="productos" element={<ProductosTab />} />
+                <Route path="clientes" element={<ClientesTab />} />
+                <Route path="vendedores" element={<VendedoresTab />} />
+                <Route path="proveedores" element={<ProveedoresTab />} />
+                <Route path="pedidos" element={<PedidosTab />} />
+                <Route path="presupuestos" element={<PresupuestosTab />} />
+                <Route path="estadisticas" element={<EstadisticasTab />} />
+                <Route
+                  path="reportes"
+                  element={
+                    <ReportesTab
+                      onPrintRequest={handlePrintRequest}
+                      onViewDetailsRequest={openSaleDetailModal}
+                      onPrintTermicoRequest={handlePrintTermico}
+                      onWhatsappRequest={handleWhatsappVenta}
+                      onEmailRequest={handleEmailVenta}
+                    />
+                  }
+                />
+                <Route
+                  path="notas"
+                  element={
+                    <NotasCDTab
+                      onPrintNotaCD={handlePrintNota}
+                      onViewDetailsNotaCD={openNotaDetailModal}
+                      onPrintNotaTermico={handlePrintNotaTermico}
+                      onWhatsappNota={handleWhatsappNota}
+                    />
+                  }
+                />
+                <Route path="configuracion" element={<ConfiguracionTab />} />
+                <Route path="pistola" element={<ScannerPistola />} />
+                <Route path="pedidos-online" element={<PedidosOnline />} />
+                <Route path="pagos" element={<PagosRecibidos />} />
+              </Route>
+              {/* Rutas de Admin también protegidas */}
+              <Route path="/admin" element={<AdminPanel />} />
+              <Route path="/admin/user/:uid" element={<UserDetailAdmin />} />
+              <Route
+                path="payment-instructions"
+                element={<PaymentInstructions />}
+              />
+            </Route>
+
+            {/* Redirección para cualquier ruta no encontrada */}
+            <Route
+              path="*"
+              element={
+                <Navigate to={isLoggedIn ? '/dashboard' : '/'} replace />
+              }
+            />
+          </Routes>
         </Suspense>
       </AnimatePresence>
 
@@ -531,32 +551,36 @@ function App() {
         formatCurrency={formatCurrency}
       />
 
-      <AnimatePresence>
-        {saleDetailModalOpen && (
-          <SaleDetailModal
-            isOpen={saleDetailModalOpen}
-            onClose={() => setSaleDetailModalOpen(false)}
-            venta={selectedSaleData}
-            clienteInfo={clientes.find(
-              (c) => c.id === selectedSaleData?.clienteId,
-            )}
-            formatCurrency={formatCurrency}
-            datosNegocio={datosNegocio}
-            onPrint={handlePrintRequest}
-            onPrintTermico={handlePrintTermico}
-          />
-        )}
-        {notaDetailModalOpen && (
-          <NotaDetailModal
-            isOpen={notaDetailModalOpen}
-            onClose={() => setNotaDetailModalOpen(false)}
-            nota={selectedNotaData}
-            clientes={clientes}
-            formatCurrency={formatCurrency}
-            onPrint={handlePrintNota}
-          />
-        )}
-      </AnimatePresence>
+      {/* Los modales viven fuera del Suspense de las rutas, así que llevan
+          el suyo. Sin fallback: no hay nada que mostrar mientras cargan. */}
+      <Suspense fallback={null}>
+        <AnimatePresence>
+          {saleDetailModalOpen && (
+            <SaleDetailModal
+              isOpen={saleDetailModalOpen}
+              onClose={() => setSaleDetailModalOpen(false)}
+              venta={selectedSaleData}
+              clienteInfo={clientes.find(
+                (c) => c.id === selectedSaleData?.clienteId,
+              )}
+              formatCurrency={formatCurrency}
+              datosNegocio={datosNegocio}
+              onPrint={handlePrintRequest}
+              onPrintTermico={handlePrintTermico}
+            />
+          )}
+          {notaDetailModalOpen && (
+            <NotaDetailModal
+              isOpen={notaDetailModalOpen}
+              onClose={() => setNotaDetailModalOpen(false)}
+              nota={selectedNotaData}
+              clientes={clientes}
+              formatCurrency={formatCurrency}
+              onPrint={handlePrintNota}
+            />
+          )}
+        </AnimatePresence>
+      </Suspense>
     </>
   );
 }

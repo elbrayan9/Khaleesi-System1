@@ -6,7 +6,7 @@ import React, {
   useContext,
   useRef,
 } from 'react';
-import { db, auth } from '../firebaseConfig';
+import { db, auth, asegurarAppCheck } from '../firebaseConfig';
 import {
   collection,
   onSnapshot,
@@ -19,7 +19,6 @@ import {
 } from 'firebase/firestore';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import * as fsService from '../services/firestoreService';
-import * as thermalPrinter from '../services/thermalPrinterService';
 import { obtenerFechaHoraActual, formatCurrency } from '../utils/helpers';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import Swal from '../utils/swalTheme.js'; // Swal con el tema del sistema
@@ -101,6 +100,18 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
     setIsLoadingData(true);
     const unsub = onAuthStateChanged(auth, async (user) => {
       if (user) {
+        // Hay sesión: App Check tiene que estar en marcha aunque la persona
+        // haya entrado por la landing, donde su arranque espera a la primera
+        // interacción. Auth y Storage lo exigen.
+        //
+        // Va protegido a propósito: es un complemento, y si fallara no puede
+        // llevarse puesto el inicio de sesión. Sin esto, cualquier tropiezo
+        // suyo cortaba el callback y la sesión no llegaba a establecerse.
+        try {
+          asegurarAppCheck?.();
+        } catch (e) {
+          console.warn('No se pudo iniciar App Check:', e);
+        }
         const tokenResult = await user.getIdTokenResult();
         setIsAdmin(tokenResult.claims.admin === true);
         setCurrentUser(user); // Store full user object
@@ -1429,24 +1440,31 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
         };
 
         // 4a. Ticket térmico (58mm): USB o Bluetooth según preferencia.
-        if (thermalPrinter.isAutoPrintEnabled()) {
-          if (localStorage.getItem('impresoraMetodo') === 'bluetooth') {
-            import('../services/bluetoothPrinter')
-              .then(({ imprimirTicketBluetooth }) =>
-                imprimirTicketBluetooth(
-                  ventaParaTicket,
-                  datosNegocio,
-                  cliente,
-                  formatCurrency,
-                ),
-              )
-              .catch(onPrintError);
-          } else {
-            thermalPrinter
-              .printVentaTicket(ventaParaTicket, datosNegocio, cliente)
-              .catch(onPrintError);
-          }
-        }
+        //
+        // El servicio se carga recién acá. Estaba importado arriba, así que
+        // entraba en el arranque de todos —landing incluida— cuando solo hace
+        // falta en el momento de cobrar.
+        import('../services/thermalPrinterService')
+          .then((thermalPrinter) => {
+            if (!thermalPrinter.isAutoPrintEnabled()) return undefined;
+            if (localStorage.getItem('impresoraMetodo') === 'bluetooth') {
+              return import('../services/bluetoothPrinter').then(
+                ({ imprimirTicketBluetooth }) =>
+                  imprimirTicketBluetooth(
+                    ventaParaTicket,
+                    datosNegocio,
+                    cliente,
+                    formatCurrency,
+                  ),
+              );
+            }
+            return thermalPrinter.printVentaTicket(
+              ventaParaTicket,
+              datosNegocio,
+              cliente,
+            );
+          })
+          .catch(onPrintError);
 
         // 4b. Factura/comprobante A4 en impresora normal (si está habilitado).
         if (localStorage.getItem('autoPrintA4') === '1') {

@@ -11,10 +11,6 @@ import {
   getAnalytics,
   isSupported as analyticsIsSupported,
 } from 'firebase/analytics';
-import {
-  initializeAppCheck,
-  ReCaptchaV3Provider,
-} from 'firebase/app-check';
 import { getStorage } from 'firebase/storage';
 
 // Config desde Vite (.env)
@@ -38,18 +34,68 @@ export const app = initializeApp(firebaseConfig);
  * En modo desarrollo (localhost), se activa el debug token para que
  * puedas seguir probando sin problemas.
  */
+//
+// Arrancarlo cuesta 345 KB: reCAPTCHA es el segundo archivo más pesado que
+// bajaba la landing, y ahí no hace falta. Quien llega de un anuncio está
+// leyendo precios, no llamando a Firebase.
+//
+// Pero no se puede posponer sin más: Auth y Storage tienen enforcement, o sea
+// que sin token de App Check el login falla. Así que la landing lo arranca
+// cuando el navegador queda libre, y cualquier otra pantalla lo arranca ya.
+let promesaAppCheck = null;
+
+/** Arranca App Check una sola vez. Devuelve la misma promesa siempre. */
+export function asegurarAppCheck() {
+  if (promesaAppCheck) return promesaAppCheck;
+  if (typeof window === 'undefined') return Promise.resolve(null);
+
+  const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+  if (!recaptchaSiteKey) return Promise.resolve(null);
+
+  promesaAppCheck = import('firebase/app-check').then(
+    ({ initializeAppCheck, ReCaptchaV3Provider }) =>
+      initializeAppCheck(app, {
+        provider: new ReCaptchaV3Provider(recaptchaSiteKey),
+        isTokenAutoRefreshEnabled: true,
+      }),
+  );
+  return promesaAppCheck;
+}
+
 if (typeof window !== 'undefined') {
   // En desarrollo: habilitar debug token (aparecerá en la consola del navegador)
   if (import.meta.env.DEV) {
     self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
   }
 
-  const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
-  if (recaptchaSiteKey) {
-    initializeAppCheck(app, {
-      provider: new ReCaptchaV3Provider(recaptchaSiteKey),
-      isTokenAutoRefreshEnabled: true,
-    });
+  // La landing y las páginas legales son las únicas que pueden esperar: no
+  // hacen ninguna llamada que el enforcement rechace. En todo lo demás
+  // —incluido el login— se arranca de entrada.
+  const RUTAS_QUE_PUEDEN_ESPERAR = ['/', '/legal', '/terminos', '/privacidad'];
+  const puedeEsperar = RUTAS_QUE_PUEDEN_ESPERAR.includes(
+    window.location.pathname,
+  );
+
+  if (puedeEsperar) {
+    // Espera a que la persona haga algo. Quien entra desde un anuncio, lee y
+    // se va, no llega a bajar los 345 KB de reCAPTCHA nunca; quien va a entrar
+    // al sistema toca algo mucho antes de llegar al login, y para entonces ya
+    // está en marcha. El plazo de gracia es el piso, por si alguien deja la
+    // pestaña abierta y vuelve mucho después.
+    const señales = ['pointerdown', 'keydown', 'scroll', 'touchstart'];
+    let arrancado = false;
+    const arrancar = () => {
+      if (arrancado) return;
+      arrancado = true;
+      señales.forEach((s) => window.removeEventListener(s, arrancar));
+      asegurarAppCheck();
+    };
+    señales.forEach((s) =>
+      window.addEventListener(s, arrancar, { once: true, passive: true }),
+    );
+    setTimeout(arrancar, 8000);
+  } else {
+    asegurarAppCheck();
   }
 }
 
