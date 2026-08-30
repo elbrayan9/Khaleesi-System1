@@ -29,9 +29,8 @@ function SeguimientoPedido({ pedidoId, trackingToken, onNuevoPedido }) {
 
     const consultar = async () => {
       try {
-        const { getFunctions, httpsCallable } = await import(
-          'firebase/functions'
-        );
+        const { getFunctions, httpsCallable } =
+          await import('firebase/functions');
         const fn = httpsCallable(getFunctions(), 'getEstadoPedido');
         const res = await fn({ pedidoId, trackingToken });
         if (!vivo) return;
@@ -74,7 +73,9 @@ function SeguimientoPedido({ pedidoId, trackingToken, onNuevoPedido }) {
         </p>
         <p className="text-2xl font-bold text-white">#{datos.codigo}</p>
         <p className="mt-1 text-sm text-zinc-400">
-          {datos.tipo === 'delivery' ? 'Envío a domicilio' : 'Retiro en el local'}
+          {datos.tipo === 'delivery'
+            ? 'Envío a domicilio'
+            : 'Retiro en el local'}
           {' · '}Total ${formatCurrency(datos.total)}
         </p>
 
@@ -106,8 +107,10 @@ function SeguimientoPedido({ pedidoId, trackingToken, onNuevoPedido }) {
                         }
                       >
                         <MapaEnVivo
-                        lat={datos.repartidor.lat}
-                        lng={datos.repartidor.lng}
+                          repartidor={{
+                            lat: datos.repartidor.lat,
+                            lng: datos.repartidor.lng,
+                          }}
                           etiqueta={datos.repartidor.nombre}
                         />
                       </Suspense>
