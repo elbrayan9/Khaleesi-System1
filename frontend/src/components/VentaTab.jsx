@@ -129,6 +129,12 @@ function VentaTab() {
       F7: () => descripcionManualRef.current?.focus(),
       // Escanear con la cámara.
       F8: () => setShowEscaner(true),
+      // Agregar al carrito el producto elegido a mano. Mismo corte que el
+      // botón: sin producto o sin cantidad no hace nada, así no se agrega un
+      // renglón vacío por apretar de más.
+      F10: () => {
+        if (selectedProductManual && cantidadVenta > 0) handleAgregarManual();
+      },
       // Vaciar el carrito. El botón vacía sin preguntar, y para un clic está
       // bien porque hay que ir a buscarlo. Con una tecla no: un F9 de más
       // borraría la venta a medio armar y hay que empezar de cero. Por eso acá
@@ -724,6 +730,7 @@ function VentaTab() {
               className={`w-full rounded-md px-4 py-2 font-bold transition ${!selectedProductManual || cantidadVenta <= 0 ? 'cursor-not-allowed bg-zinc-500 text-zinc-400' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
             >
               <i className="fas fa-cart-plus mr-2"></i>Agregar Manualmente
+              <TeclaAtajo className="border-white/40">F10</TeclaAtajo>
             </button>
           </div>
 
