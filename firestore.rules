@@ -38,12 +38,32 @@ service cloud.firestore {
       allow update, delete: if (isOwner(resource.data.userId) && isUserActive()) || isAdmin();
     }
 
+    // Los Access Token de Mercado Pago de los comercios.
+    //
+    // Cerrado para TODO el mundo, admin incluido: nadie los necesita desde el
+    // navegador. Las Cloud Functions los leen con el Admin SDK, que no pasa por
+    // estas reglas.
+    //
+    // Antes el token vivía dentro de la configuración de la sucursal, y ese
+    // documento se descarga entero al navegador del dueño: quedaba en memoria
+    // del cliente y en el IndexedDB de la computadora del local, al alcance de
+    // cualquier XSS.
+    match /secretosMp/{docId} {
+      allow read, write: if false;
+    }
+
     // Resto (ventas, clientes, notas, etc.): IGUAL que tenías, ahora excluyendo
-    // también 'sucursales'. El vencido NO puede leer NI escribir esto.
+    // también 'sucursales' y 'secretosMp'.
+    //
+    // Lo de secretosMp acá arriba no es redundante con el `if false`: en
+    // Firestore alcanza con que UNA regla permita para que el acceso se
+    // conceda, no gana la más específica. Si no se excluyera del comodín, el
+    // día que un documento de secretos tuviera un campo `userId` quedaría
+    // legible por su dueño.
     match /{collection}/{docId} {
-      allow read, update, delete: if (collection != 'datosNegocio' && collection != 'productos' && collection != 'sucursales') &&
+      allow read, update, delete: if (collection != 'datosNegocio' && collection != 'productos' && collection != 'sucursales' && collection != 'secretosMp') &&
                      ((isOwner(resource.data.userId) && isUserActive()) || isAdmin());
-      allow create: if (collection != 'datosNegocio' && collection != 'productos' && collection != 'sucursales') &&
+      allow create: if (collection != 'datosNegocio' && collection != 'productos' && collection != 'sucursales' && collection != 'secretosMp') &&
                      ((isOwner(request.resource.data.userId) && isUserActive()) || isAdmin());
     }
   }

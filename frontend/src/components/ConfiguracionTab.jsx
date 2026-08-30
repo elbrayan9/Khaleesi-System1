@@ -1,5 +1,5 @@
 // src/components/ConfiguracionTab.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useAppContext } from '../context/AppContext.jsx';
 import {
@@ -38,6 +38,7 @@ function ConfiguracionTab() {
     isAdmin,
     plan,
     mostrarMensaje,
+    confirmarAccion,
     sucursalActual,
   } = useAppContext();
 
@@ -89,7 +90,11 @@ function ConfiguracionTab() {
   const [condicionIva, setCondicionIva] = useState('Responsable Monotributo');
   const [ingresosBrutos, setIngresosBrutos] = useState('EXENTO');
   const [inicioActividades, setInicioActividades] = useState('');
-  const [mpAccessToken, setMpAccessToken] = useState('');
+  // El token nunca se lee de vuelta: solo se escribe. Del servidor llega si
+  // está puesto, de qué cuenta es y los últimos cuatro caracteres.
+  const [mpTokenNuevo, setMpTokenNuevo] = useState('');
+  const [mpEstado, setMpEstado] = useState(null);
+  const [mpGuardando, setMpGuardando] = useState(false);
   // Logo del negocio (para la factura).
   const [logoUrl, setLogoUrl] = useState('');
   const [logoDataUrl, setLogoDataUrl] = useState('');
@@ -128,7 +133,6 @@ function ConfiguracionTab() {
       setCondicionIva(datosNegocio.condicionIva || 'Responsable Monotributo');
       setIngresosBrutos(datosNegocio.ingresosBrutos || 'EXENTO');
       setInicioActividades(datosNegocio.inicioActividades || '');
-      setMpAccessToken(datosNegocio.mpAccessToken || '');
       setLogoUrl(datosNegocio.logoUrl || '');
       setLogoDataUrl(datosNegocio.logoDataUrl || '');
       setLogoPreview(datosNegocio.logoUrl || '');
@@ -325,6 +329,73 @@ function ConfiguracionTab() {
     };
   }, [datosNegocio?.logoUrl, datosNegocio?.logoDataUrl]);
 
+  // El estado de la cuenta de Mercado Pago. Al pedirlo, el servidor además muda
+  // a la bóveda el token de quien todavía lo tenga en el lugar viejo.
+  const consultarEstadoMp = useCallback(async () => {
+    try {
+      const { getFunctions, httpsCallable } =
+        await import('firebase/functions');
+      const fn = httpsCallable(getFunctions(), 'estadoTokenMp');
+      const { data } = await fn({ sucursalId: sucursalActual?.id || null });
+      setMpEstado(data);
+    } catch (e) {
+      console.error('No se pudo consultar el estado de Mercado Pago:', e);
+      setMpEstado(null);
+    }
+  }, [sucursalActual?.id]);
+
+  useEffect(() => {
+    consultarEstadoMp();
+  }, [consultarEstadoMp]);
+
+  const handleGuardarTokenMp = async () => {
+    const limpio = mpTokenNuevo.trim();
+    if (!limpio) return;
+    setMpGuardando(true);
+    try {
+      const { getFunctions, httpsCallable } =
+        await import('firebase/functions');
+      const fn = httpsCallable(getFunctions(), 'guardarTokenMp');
+      const { data } = await fn({
+        sucursalId: sucursalActual?.id || null,
+        token: limpio,
+      });
+      setMpTokenNuevo('');
+      setMpEstado({
+        configurado: true,
+        cuenta: data.cuenta,
+        ultimos4: data.ultimos4,
+      });
+      mostrarMensaje?.(`Mercado Pago conectado (${data.cuenta}).`, 'success');
+    } catch (e) {
+      mostrarMensaje?.(e?.message || 'No se pudo guardar el token.', 'error');
+    } finally {
+      setMpGuardando(false);
+    }
+  };
+
+  const handleDesconectarMp = async () => {
+    const ok = await confirmarAccion?.(
+      'Desconectar Mercado Pago',
+      'No vas a poder cobrar por QR ni por link hasta que vuelvas a cargar el Access Token.',
+    );
+    if (ok === false) return;
+    try {
+      const { getFunctions, httpsCallable } =
+        await import('firebase/functions');
+      await httpsCallable(
+        getFunctions(),
+        'borrarTokenMp',
+      )({
+        sucursalId: sucursalActual?.id || null,
+      });
+      setMpEstado({ configurado: false });
+      mostrarMensaje?.('Mercado Pago desconectado.', 'success');
+    } catch (e) {
+      mostrarMensaje?.(e?.message || 'No se pudo desconectar.', 'error');
+    }
+  };
+
   const handleLogoChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -391,7 +462,6 @@ function ConfiguracionTab() {
       condicionIva: condicionIva,
       ingresosBrutos: ingresosBrutos.trim(),
       inicioActividades: inicioActividades.trim(),
-      mpAccessToken: mpAccessToken.trim() || null,
       logoUrl: finalLogoUrl,
       logoDataUrl: finalLogoDataUrl,
       balanzaConfig: {
@@ -782,19 +852,53 @@ function ConfiguracionTab() {
               >
                 Mercado Pago — Access Token
               </label>
-              <input
-                type="password"
-                id="config-mp-token"
-                value={mpAccessToken}
-                onChange={(e) => setMpAccessToken(e.target.value)}
-                placeholder="APP_USR-... (o TEST-... para pruebas)"
-                className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100 placeholder-zinc-400"
-                autoComplete="off"
-              />
+              {mpEstado?.configurado ? (
+                <div className="flex flex-wrap items-center gap-3 rounded-md border border-emerald-600/40 bg-emerald-600/10 p-3">
+                  <span className="text-sm text-emerald-300">
+                    Conectado
+                    {mpEstado.cuenta ? ` a ${mpEstado.cuenta}` : ''}
+                    {mpEstado.ultimos4
+                      ? ` · token ····${mpEstado.ultimos4}`
+                      : ''}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleDesconectarMp}
+                    className="ml-auto rounded-md border border-zinc-500 px-3 py-1 text-xs font-medium text-zinc-200 hover:bg-zinc-700"
+                  >
+                    Desconectar
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  <input
+                    type="password"
+                    id="config-mp-token"
+                    value={mpTokenNuevo}
+                    onChange={(e) => setMpTokenNuevo(e.target.value)}
+                    placeholder="APP_USR-... (o TEST-... para pruebas)"
+                    className="min-w-[220px] flex-1 rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100 placeholder-zinc-400"
+                    autoComplete="off"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleGuardarTokenMp}
+                    disabled={mpGuardando || !mpTokenNuevo.trim()}
+                    className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {mpGuardando ? 'Verificando…' : 'Conectar'}
+                  </button>
+                </div>
+              )}
               <p className="mt-1 text-xs text-zinc-400">
                 Para cobrar con QR/link de Mercado Pago. Se obtiene en Mercado
                 Pago → Tus integraciones → Credenciales (usá las de prueba para
                 testear).
+              </p>
+              <p className="mt-1 text-xs text-zinc-500">
+                El token queda guardado del lado del servidor, donde el
+                navegador no puede leerlo: se usa solo desde el sistema para
+                cobrar. Se verifica contra Mercado Pago antes de guardarlo.
               </p>
             </div>
 

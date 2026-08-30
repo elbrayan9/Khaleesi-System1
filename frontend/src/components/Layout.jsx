@@ -141,7 +141,7 @@ function Layout() {
               },
             ]
           : []),
-        ...(datosNegocio?.mpAccessToken
+        ...(datosNegocio?.mpConfigurado || datosNegocio?.mpAccessToken
           ? [
               {
                 label: 'Pagos recibidos',
@@ -178,7 +178,13 @@ function Layout() {
         },
         // Notas C/D es de facturación (AFIP) → solo Plan Completo.
         ...(canAccessAfip
-          ? [{ label: 'Notas de Crédito', Icon: FileMinus, path: '/dashboard/notas' }]
+          ? [
+              {
+                label: 'Notas de Crédito',
+                Icon: FileMinus,
+                path: '/dashboard/notas',
+              },
+            ]
           : []),
       ],
     },
@@ -292,13 +298,13 @@ function Layout() {
             : groups
           ).map((group, gi) => (
             <div key={group.title} className={gi > 0 ? 'pt-3' : ''}>
-              {mini
-                ? gi > 0 && <div className="mx-2 mb-2 border-t border-border" />
-                : (
-                  <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    {group.title}
-                  </p>
-                )}
+              {mini ? (
+                gi > 0 && <div className="mx-2 mb-2 border-t border-border" />
+              ) : (
+                <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  {group.title}
+                </p>
+              )}
               <div className="space-y-1">
                 {group.items.map((item) => (
                   <NavItem key={item.path} {...item} />
