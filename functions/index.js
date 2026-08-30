@@ -761,7 +761,7 @@ exports.leerFacturaProveedor = onCall(
         origen,
         'Extraé TODO lo que puedas leer. Respondé SOLO un JSON (sin markdown):',
         '{',
-        '  "proveedor": {"nombre":"", "cuit":"", "comprobante":"", "fecha":"", "total":0},',
+        '  "proveedor": {"nombre":"", "cuit":"", "telefono":"", "email":"", "direccion":"", "comprobante":"", "fecha":"", "total":0},',
         '  "items": [{',
         '    "nombre":"", "codigo":"", "cantidad":0, "unidad":"", "bultos":0,',
         '    "unidadesPorBulto":0, "costo":0, "iva":0, "categoria":""',
@@ -776,6 +776,7 @@ exports.leerFacturaProveedor = onCall(
         '- costo: el precio por UNIDAD sin IVA. Si el renglón solo trae el importe total, dividilo por la cantidad.',
         '- iva: el porcentaje (21, 10.5 o 0). Si no se distingue, 0.',
         '- categoria: una categoría breve y en singular deducida del producto (bebidas, limpieza, almacén, lácteos).',
+        '- telefono, email y direccion: los del PROVEEDOR que emite, que están en el encabezado. NO los del cliente que recibe.',
         '- fecha: en formato DD/MM/AAAA.',
         '- total: el importe final de la factura, con IVA incluido.',
         '',
@@ -805,6 +806,12 @@ exports.leerFacturaProveedor = onCall(
         // El CUIT se guarda en dígitos para poder compararlo con los que ya
         // están cargados, que vienen escritos de cualquier forma.
         cuit: String(cab.cuit || '').replace(/\D/g, ''),
+        // Los datos de contacto: es lo que hace que dar de alta al proveedor
+        // desde la factura sirva para algo. Sin esto quedaba un nombre suelto y
+        // había que ir a buscar el teléfono al papel igual.
+        telefono: String(cab.telefono || '').trim(),
+        email: String(cab.email || '').trim(),
+        direccion: String(cab.direccion || '').trim(),
         comprobante: String(cab.comprobante || '').trim(),
         fecha: String(cab.fecha || '').trim(),
         total: Number(cab.total) || 0,

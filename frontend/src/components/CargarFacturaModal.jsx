@@ -17,14 +17,17 @@ import {
   recibirPedidoYActualizarStock,
 } from '../services/firestoreService';
 import { cuadraFactura } from '../utils/cuadraFactura.js';
+import { buscarProductoDeRenglon } from '../utils/cruceProductos.js';
 
 function CargarFacturaModal({ onClose }) {
   const {
     productos = [],
     proveedores = [],
+    pedidos = [],
     currentUser,
     sucursalActual,
     mostrarMensaje,
+    confirmarAccion,
   } = useAppContext();
   const [fase, setFase] = useState('subir'); // subir | procesando | revisar | aplicando
   const [items, setItems] = useState([]);
@@ -80,6 +83,24 @@ function CargarFacturaModal({ onClose }) {
     );
   }, [cabecera, proveedores]);
 
+  // ¿Esta factura ya se cargó?
+  //
+  // Volver a subir la misma factura suma todo el stock de nuevo, y eso es peor
+  // que duplicar un producto: el catálogo con copias se ve, el stock inflado
+  // no —hasta que falta mercadería que el sistema dice que hay—. El número de
+  // comprobante es único por proveedor, así que alcanza para darse cuenta.
+  const yaCargada = useMemo(() => {
+    const nro = String(cabecera?.comprobante || '').trim();
+    if (!nro) return null;
+    return (
+      (pedidos || []).find(
+        (p) =>
+          String(p?.comprobante || '').trim() === nro &&
+          p?.estado !== 'cancelado',
+      ) || null
+    );
+  }, [cabecera, pedidos]);
+
   const [guardandoProveedor, setGuardandoProveedor] = useState(false);
 
   /**
@@ -97,7 +118,16 @@ function CargarFacturaModal({ onClose }) {
     try {
       await addProveedor(
         currentUser?.uid,
-        { nombre, cuit: cabecera?.cuit || null },
+        {
+          nombre,
+          cuit: cabecera?.cuit || null,
+          // Todo lo que la factura trae en el encabezado. Sin esto quedaba un
+          // nombre suelto y había que ir a copiar el teléfono del papel igual,
+          // que es justo lo que este botón venía a evitar.
+          telefono: cabecera?.telefono || null,
+          email: cabecera?.email || null,
+          direccion: cabecera?.direccion || null,
+        },
         sucursalActual?.id,
       );
       // La lista de proveedores llega por el contexto y se actualiza sola, así
@@ -235,27 +265,28 @@ function CargarFacturaModal({ onClose }) {
       mostrarMensaje?.('No hay items para aplicar.', 'warning');
       return;
     }
+
+    // Se pregunta y no se prohíbe: puede haber un motivo real —dos remitos con
+    // el mismo número de dos proveedores distintos, o una carga que quedó a
+    // medias—. Pero tiene que ser una decisión, no un descuido.
+    if (yaCargada) {
+      const seguir = await confirmarAccion?.(
+        '¿Cargar esta factura otra vez?',
+        `El comprobante ${cabecera.comprobante} ya se cargó${
+          yaCargada.fechaPedido ? ` el ${yaCargada.fechaPedido}` : ''
+        }. Si seguís, las cantidades se van a sumar de nuevo al stock.`,
+        'warning',
+        'Sí, cargarla igual',
+      );
+      if (!seguir) return;
+    }
+
     setFase('aplicando');
 
     // El match busca primero por código de barras, que es exacto, y recién
     // después por nombre. Antes solo comparaba nombres en minúsculas, así que
     // "Coca Cola 2.25" y "Coca-Cola 2,25L" creaban dos productos distintos.
-    const buscarExistente = (it) => {
-      const cod = String(it.codigo || '').replace(/\D/g, '');
-      if (cod) {
-        const porCodigo = productos.find(
-          (p) => String(p.codigoBarras || '').replace(/\D/g, '') === cod,
-        );
-        if (porCodigo) return porCodigo;
-      }
-      const nombre = it.nombre.trim().toLowerCase();
-      return productos.find(
-        (p) =>
-          String(p.nombre || '')
-            .trim()
-            .toLowerCase() === nombre,
-      );
-    };
+    const buscarExistente = (it) => buscarProductoDeRenglon(productos, it);
 
     // El orden importa, y antes estaba al revés.
     //
@@ -334,6 +365,10 @@ function CargarFacturaModal({ onClose }) {
             cabecera?.proveedor?.nombre ||
             'Proveedor sin identificar',
           fechaPedido: new Date().toISOString().split('T')[0],
+          // El número de comprobante como campo propio y no solo adentro de
+          // las notas: es lo que permite darse cuenta de que esta factura ya
+          // se cargó antes de volver a sumar todo el stock.
+          comprobante: cabecera?.comprobante || null,
           // Nace como 'pedido' y lo pasa a 'recibido' el mismo lote que suma
           // el stock, así el estado y las unidades no pueden quedar contando
           // cosas distintas.
@@ -469,6 +504,16 @@ function CargarFacturaModal({ onClose }) {
                       </span>
                     )}
                   </div>
+
+                  {yaCargada && (
+                    <p className="mt-1.5 rounded bg-red-500/10 px-2 py-1 text-xs font-semibold text-red-300">
+                      Esta factura ya se cargó
+                      {yaCargada.fechaPedido
+                        ? ` el ${yaCargada.fechaPedido}`
+                        : ''}
+                      . Si la aplicás de nuevo, el stock se suma dos veces.
+                    </p>
+                  )}
 
                   <p className="mt-1.5 text-xs">
                     {proveedorDetectado ? (

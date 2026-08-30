@@ -40,6 +40,10 @@ vi.mock('../../services/firestoreService', () => ({
 }));
 
 const mostrarMensaje = vi.fn();
+// Lo que el comercio ya tiene cargado. Las pruebas lo cambian in situ.
+const pedidosDelComercio = [];
+// Por defecto la persona dice que sí; una prueba lo cambia para decir que no.
+let confirmarAccion = vi.fn(async () => true);
 
 vi.mock('../../context/AppContext.jsx', () => ({
   useAppContext: () => ({
@@ -54,9 +58,11 @@ vi.mock('../../context/AppContext.jsx', () => ({
       },
     ],
     proveedores: [],
+    pedidos: pedidosDelComercio,
     currentUser: { uid: 'u1' },
     sucursalActual: { id: 'suc1' },
     mostrarMensaje,
+    confirmarAccion,
   }),
 }));
 
@@ -336,5 +342,106 @@ describe('el proveedor que no está en la lista', () => {
     const [, prov] = orden.find(([q]) => q === 'addProveedor');
     expect(prov.nombre).toBe('Proveedor Global S.A.');
     expect(prov.cuit).toBe('30712345678');
+  });
+});
+
+// Cargar dos veces la misma factura suma todo el stock de nuevo, y eso es peor
+// que duplicar un producto: el catálogo con copias se ve, el stock inflado no
+// —hasta que falta mercadería que el sistema dice que hay—.
+describe('la misma factura cargada dos veces', () => {
+  beforeEach(() => {
+    orden.length = 0;
+    enviado.length = 0;
+    pedidosDelComercio.length = 0;
+    confirmarAccion = vi.fn(async () => true);
+    vi.clearAllMocks();
+    RESPUESTA.data.proveedor = {
+      nombre: 'Proveedor Global S.A.',
+      cuit: '30712345678',
+      comprobante: '0001-00004829',
+      total: 5523.65,
+    };
+    RESPUESTA.data.items = [
+      {
+        nombre: 'Servidor Blade Rack 2U',
+        codigo: '',
+        cantidad: 2,
+        costo: 1450,
+      },
+      { nombre: 'Switch Gigabit', codigo: '', cantidad: 1, costo: 420 },
+      { nombre: 'Licencia anual', codigo: '', cantidad: 5, costo: 180 },
+      { nombre: 'Kit Cableado', codigo: '', cantidad: 3, costo: 115 },
+    ];
+  });
+
+  it('avisa en pantalla que ese comprobante ya se cargó', async () => {
+    pedidosDelComercio.push({
+      id: 'ped-viejo',
+      comprobante: '0001-00004829',
+      estado: 'recibido',
+      fechaPedido: '2026-08-30',
+    });
+    await llegarARevisar();
+    expect(await screen.findByText(/Esta factura ya se cargó/i)).toBeTruthy();
+  });
+
+  it('pregunta antes de sumar el stock de nuevo, y si decís que no, no toca nada', async () => {
+    pedidosDelComercio.push({
+      id: 'ped-viejo',
+      comprobante: '0001-00004829',
+      estado: 'recibido',
+      fechaPedido: '2026-08-30',
+    });
+    confirmarAccion = vi.fn(async () => false);
+    await llegarARevisar();
+    fireEvent.click(screen.getByText(/Aplicar al inventario/i));
+    await waitFor(() => expect(confirmarAccion).toHaveBeenCalled());
+    expect(orden.some(([q]) => q === 'recibirPedido')).toBe(false);
+    expect(orden.some(([q]) => q === 'addProducto')).toBe(false);
+  });
+
+  it('una factura nueva no pregunta nada', async () => {
+    await llegarARevisar();
+    await aplicar();
+    expect(confirmarAccion).not.toHaveBeenCalled();
+  });
+
+  it('el comprobante queda guardado en el pedido, que es lo que permite detectarlo', async () => {
+    await llegarARevisar();
+    await aplicar();
+    const [, pedido] = orden.find(([q]) => q === 'addPedido');
+    expect(pedido.comprobante).toBe('0001-00004829');
+  });
+});
+
+describe('agendar al proveedor desde la factura', () => {
+  beforeEach(() => {
+    orden.length = 0;
+    pedidosDelComercio.length = 0;
+    confirmarAccion = vi.fn(async () => true);
+    vi.clearAllMocks();
+    RESPUESTA.data.proveedor = {
+      nombre: 'Proveedor Global S.A.',
+      cuit: '30712345678',
+      telefono: '+54 11 5555-0199',
+      email: 'facturacion@proveedorglobal.com',
+      direccion: 'Av. Industrial 4520, Piso 3',
+      comprobante: '0001-00004829',
+      total: 5523.65,
+    };
+  });
+
+  it('guarda tambien el telefono, el mail y la direccion', async () => {
+    // Guardar solo el nombre y el CUIT dejaba una ficha a medias, y habia que
+    // ir a copiar el telefono del papel igual: justo lo que el boton evitaba.
+    await llegarARevisar();
+    fireEvent.click(await screen.findByText(/Agregar a Proveedor Global/i));
+    await waitFor(() =>
+      expect(orden.some(([q]) => q === 'addProveedor')).toBe(true),
+    );
+    const [, prov] = orden.find(([q]) => q === 'addProveedor');
+    expect(prov.telefono).toBe('+54 11 5555-0199');
+    expect(prov.email).toBe('facturacion@proveedorglobal.com');
+    expect(prov.direccion).toBe('Av. Industrial 4520, Piso 3');
   });
 });
