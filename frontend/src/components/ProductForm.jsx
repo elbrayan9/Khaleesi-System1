@@ -62,7 +62,13 @@ function ProductForm({ onSave, productToEdit, onCancelEdit, initialBarcode }) {
   const [showNombreOCR, setShowNombreOCR] = useState(false); // OCR del nombre
 
   // Trae nombre/foto del código desde la base pública (Open Food Facts).
-  const buscarDatos = async (codeArg, auto = false) => {
+  //
+  // Cuando no lo encuentra NO abre la cámara con IA por su cuenta. Cargando una
+  // caja entera, ese salto se dispara en cada producto que no está en las
+  // bases: la pantalla cambia sola, hay que cerrarla, y el ritmo de la carga se
+  // corta. La IA queda a un clic —el botón "Escanear con IA" está al lado— para
+  // cuando uno decide usarla.
+  const buscarDatos = async (codeArg) => {
     const c = String(codeArg || codigoBarras || '').trim();
     if (!c) return;
     setBuscando(true);
@@ -75,16 +81,11 @@ function ProductForm({ onSave, productToEdit, onCancelEdit, initialBarcode }) {
           setPreview(info.imagenUrl);
         }
         mostrarMensaje?.('Datos encontrados y cargados.', 'success');
-      } else if (auto && canAccessAI) {
-        // No estaba en las bases: pasamos a identificar con la foto (IA).
-        mostrarMensaje?.(
-          'No estaba en las bases. Sacale una foto al frente y la IA lo carga.',
-          'info',
-        );
-        setShowNombreOCR(true);
       } else {
         mostrarMensaje?.(
-          'No se encontró. Completá a mano o usá "Escanear nombre".',
+          canAccessAI
+            ? 'No estaba en las bases. Completá a mano o tocá "Escanear con IA".'
+            : 'No se encontró. Completá el nombre a mano.',
           'info',
         );
       }
@@ -96,7 +97,7 @@ function ProductForm({ onSave, productToEdit, onCancelEdit, initialBarcode }) {
   // Al llegar un código nuevo por escaneo: busca en las bases y, si no está,
   // abre la cámara con IA automáticamente.
   useEffect(() => {
-    if (initialBarcode && !productToEdit) buscarDatos(initialBarcode, true);
+    if (initialBarcode && !productToEdit) buscarDatos(initialBarcode);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialBarcode]);
 
@@ -119,7 +120,7 @@ function ProductForm({ onSave, productToEdit, onCancelEdit, initialBarcode }) {
     // Mismo camino que un lector conectado por USB: busca los datos en las
     // bases públicas. Al editar no se dispara la búsqueda, para no ponerse a
     // traer datos de un producto que ya está cargado a mano.
-    if (!productToEdit) buscarDatos(codigo, true);
+    if (!productToEdit) buscarDatos(codigo);
   });
 
   const handleApplyPercentage = () => {
