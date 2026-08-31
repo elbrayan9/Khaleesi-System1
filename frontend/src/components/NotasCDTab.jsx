@@ -39,7 +39,24 @@ function NotasCDTab({
     mostrarMensaje,
     sucursalActual, // Necesario para config AFIP
     datosNegocio, // Necesario para config AFIP
+    vendedores,
+    vendedorActivoId,
   } = useAppContext();
+
+  // Quién puede BORRAR una nota de crédito.
+  //
+  // Emitirla sí puede el cajero: es parte de atender —el cliente devuelve algo y
+  // hay que anular la factura en el momento—. Borrarla no: una nota de crédito
+  // es el comprobante de que esa venta se anuló, y borrarla deja la factura
+  // original anulada en AFIP y viva en el sistema. Nadie se entera hasta que no
+  // cierran los números.
+  //
+  // Se usa el mismo permiso que ya define el modo cajero en el resto del
+  // sistema —el que también esconde eliminar una venta y los montos del día— en
+  // vez de inventar una casilla nueva que haya que acordarse de tildar.
+  const vendedorActual =
+    vendedores?.find((v) => v.id === vendedorActivoId) || {};
+  const puedeEliminar = vendedorActual.verEstadisticasCaja !== false;
 
   const [tipoNota, setTipoNota] = useState('credito');
   const [ventaRelacionadaId, setVentaRelacionadaId] = useState('');
@@ -361,8 +378,10 @@ function NotasCDTab({
   // Valor para ordenar las notas: usa createdAt si existe; si no, parsea la
   // fecha DD/MM/YYYY. Las más nuevas primero, con desempate por N° comprobante.
   const notaSortValue = (n) => {
-    if (typeof n.createdAt?.toMillis === 'function') return n.createdAt.toMillis();
-    if (typeof n.createdAt?.seconds === 'number') return n.createdAt.seconds * 1000;
+    if (typeof n.createdAt?.toMillis === 'function')
+      return n.createdAt.toMillis();
+    if (typeof n.createdAt?.seconds === 'number')
+      return n.createdAt.seconds * 1000;
     if (n.fecha) {
       const [dd, mm, yyyy] = String(n.fecha).split('/').map(Number);
       if (yyyy) return new Date(yyyy, (mm || 1) - 1, dd || 1).getTime();
@@ -743,16 +762,18 @@ function NotasCDTab({
                             <MessageCircle className="inline-block h-4 w-4" />
                           </motion.button>
                         )}
-                        <motion.button
-                          onClick={() => handleEliminarNotaCD(n.id)}
-                          className="rounded p-1 text-red-500 hover:text-red-400"
-                          title="Eliminar Nota"
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
-                          disabled={isActionDisabled(n)}
-                        >
-                          <Trash2 className="inline-block h-4 w-4" />
-                        </motion.button>
+                        {puedeEliminar && (
+                          <motion.button
+                            onClick={() => handleEliminarNotaCD(n.id)}
+                            className="rounded p-1 text-red-500 hover:text-red-400"
+                            title="Eliminar Nota"
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            disabled={isActionDisabled(n)}
+                          >
+                            <Trash2 className="inline-block h-4 w-4" />
+                          </motion.button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

@@ -23,9 +23,7 @@ function VentaPorVozModal({ onClose }) {
   useEffect(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
-      setError(
-        'Tu navegador no soporta dictado por voz. Usá Chrome o Edge.',
-      );
+      setError('Tu navegador no soporta dictado por voz. Usá Chrome o Edge.');
       return undefined;
     }
     const rec = new SR();
@@ -39,15 +37,47 @@ function VentaPorVozModal({ onClose }) {
       }
       setTexto(full);
     };
+    // Cada motivo de fallo se dice por su nombre. Antes todo lo que no fuera el
+    // permiso caía en "Error al escuchar. Probá de nuevo.", y probar de nuevo no
+    // arregla ninguno de los casos reales: en una PC de mostrador lo más común
+    // es que directamente no haya micrófono, y ahí reintentar es perder el
+    // tiempo mirando un cartel que no dice nada.
+    const MOTIVOS = {
+      'not-allowed':
+        'No diste permiso al micrófono. Tocá el candado en la barra de direcciones y permitilo.',
+      'service-not-allowed':
+        'El navegador bloqueó el dictado. Suele pasar si la página no está en https.',
+      'audio-capture':
+        'No encuentro un micrófono en esta computadora. Conectá uno, o dictá desde el celular.',
+      network:
+        'El dictado necesita internet: Chrome manda el audio a sus servidores para transcribirlo.',
+      aborted: '',
+      'no-speech': '',
+    };
+
     rec.onerror = (e) => {
-      setError(
-        e.error === 'not-allowed'
-          ? 'No diste permiso al micrófono.'
-          : 'Error al escuchar. Probá de nuevo.',
-      );
+      const motivo = MOTIVOS[e.error];
+      // Silencio y cortes no son errores: no se muestra nada y se vuelve a
+      // escuchar solo. Mostrar "error" porque alguien se tomó dos segundos para
+      // pensar qué pedir es la forma más rápida de que no se use más.
+      if (motivo === '') return;
+      setError(motivo || `No se pudo escuchar (${e.error}).`);
       setEscuchando(false);
     };
-    rec.onend = () => setEscuchando(false);
+
+    // Chrome corta la escucha sola después de un silencio, aunque continuous
+    // esté en true. Si el modal sigue abierto y no hubo un error de verdad, se
+    // vuelve a levantar: si no, el micrófono se apaga solo a los pocos segundos
+    // y parece que dejó de andar.
+    let vivo = true;
+    rec.onend = () => {
+      if (!vivo) return;
+      try {
+        rec.start();
+      } catch {
+        setEscuchando(false);
+      }
+    };
     recRef.current = rec;
 
     // Arranca solo.
@@ -59,6 +89,7 @@ function VentaPorVozModal({ onClose }) {
     }
 
     return () => {
+      vivo = false;
       try {
         rec.stop();
       } catch (_) {
@@ -98,9 +129,8 @@ function VentaPorVozModal({ onClose }) {
     setProcesando(true);
     setError('');
     try {
-      const { getFunctions, httpsCallable } = await import(
-        'firebase/functions'
-      );
+      const { getFunctions, httpsCallable } =
+        await import('firebase/functions');
       const fn = httpsCallable(getFunctions(), 'ventaPorVoz');
       const res = await fn({
         texto,
@@ -116,8 +146,9 @@ function VentaPorVozModal({ onClose }) {
       items.forEach((it) => {
         const prod = productos.find(
           (p) =>
-            String(p.nombre || '').trim().toLowerCase() ===
-            it.producto.trim().toLowerCase(),
+            String(p.nombre || '')
+              .trim()
+              .toLowerCase() === it.producto.trim().toLowerCase(),
         );
         if (prod) {
           handleAddToCart(prod, it.cantidad, 0);
