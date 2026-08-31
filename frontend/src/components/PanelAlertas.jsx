@@ -3,23 +3,31 @@ import { useAppContext } from '../context/AppContext';
 import { formatCurrency } from '../utils/helpers';
 import { AlertTriangle, X, Eye } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import useModoCajero from '../hooks/useModoCajero.js';
 
 function PanelAlertas() {
   const { alertasBorrados, isAdmin } = useAppContext();
   const [isOpen, setIsOpen] = useState(false);
   const [selectedAlerta, setSelectedAlerta] = useState(null);
+  const enModoCajero = useModoCajero();
 
-  const alertasOrdenadas = [...alertasBorrados].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  const alertasOrdenadas = [...alertasBorrados].sort(
+    (a, b) => new Date(b.timestamp) - new Date(a.timestamp),
+  );
 
-  // Considerar solo si hay alertas. Si queres, solo mostrar a admin.
-  // Pero según enunciado, es útil "Entramos a ventas y vamos a tener un panel de alerta"
+  // Este panel es control: muestra qué borró cada uno y por cuánta plata —dice
+  // "Total Fuga"—. Estaba a la vista en la pantalla de ventas, o sea que en modo
+  // cajero se lo mostrábamos justo a la persona sobre la que informa, con los
+  // importes que ese modo esconde en todas las demás pantallas.
+  if (enModoCajero) return null;
+
   if (!isAdmin && alertasOrdenadas.length === 0) return null;
 
   return (
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="relative flex items-center gap-2 rounded-md bg-red-600/20 px-4 py-2 font-bold text-red-500 hover:bg-red-600 hover:text-white transition"
+        className="relative flex items-center gap-2 rounded-md bg-red-600/20 px-4 py-2 font-bold text-red-500 transition hover:bg-red-600 hover:text-white"
       >
         <AlertTriangle size={20} />
         Alertas de Borrados
@@ -53,7 +61,9 @@ function PanelAlertas() {
 
               <div className="max-h-[500px] overflow-y-auto p-4">
                 {alertasOrdenadas.length === 0 ? (
-                  <p className="text-center text-zinc-500">No hay alertas recientes.</p>
+                  <p className="text-center text-zinc-500">
+                    No hay alertas recientes.
+                  </p>
                 ) : (
                   <div className="space-y-4">
                     {alertasOrdenadas.map((alerta) => (
@@ -64,8 +74,14 @@ function PanelAlertas() {
                         <div className="flex items-start justify-between">
                           <div>
                             <p className="font-bold text-zinc-100">
-                              El usuario <span className="text-red-400">{alerta.vendedorNombre}</span> {alerta.descripcion.toLowerCase()}{' '}
-                              por <span className="text-red-400 font-bold">${formatCurrency(alerta.montoTotal)}</span>
+                              El usuario{' '}
+                              <span className="text-red-400">
+                                {alerta.vendedorNombre}
+                              </span>{' '}
+                              {alerta.descripcion.toLowerCase()} por{' '}
+                              <span className="font-bold text-red-400">
+                                ${formatCurrency(alerta.montoTotal)}
+                              </span>
                             </p>
                             <p className="text-sm text-zinc-400">
                               {new Date(alerta.timestamp).toLocaleString()}
@@ -98,7 +114,9 @@ function PanelAlertas() {
               className="w-full max-w-md overflow-hidden rounded-lg bg-zinc-800 shadow-xl"
             >
               <div className="flex items-center justify-between border-b border-zinc-700 bg-red-900/40 p-4">
-                <h3 className="font-bold text-white">Detalle del Carrito Borrado</h3>
+                <h3 className="font-bold text-white">
+                  Detalle del Carrito Borrado
+                </h3>
                 <button
                   onClick={() => setSelectedAlerta(null)}
                   className="text-zinc-400 hover:text-white"
@@ -108,14 +126,26 @@ function PanelAlertas() {
               </div>
               <div className="p-4">
                 <p className="mb-4 text-sm text-zinc-300">
-                  <span className="font-bold text-white">Vendedor:</span> {selectedAlerta.vendedorNombre}<br />
-                  <span className="font-bold text-white">Fecha y Hora:</span> {new Date(selectedAlerta.timestamp).toLocaleString()}
+                  <span className="font-bold text-white">Vendedor:</span>{' '}
+                  {selectedAlerta.vendedorNombre}
+                  <br />
+                  <span className="font-bold text-white">
+                    Fecha y Hora:
+                  </span>{' '}
+                  {new Date(selectedAlerta.timestamp).toLocaleString()}
                 </p>
-                <div className="max-h-60 overflow-y-auto rounded bg-zinc-900 p-2 border border-zinc-700">
+                <div className="max-h-60 overflow-y-auto rounded border border-zinc-700 bg-zinc-900 p-2">
                   {selectedAlerta.itemsBorrados?.map((item, i) => (
-                    <div key={i} className="flex justify-between border-b border-zinc-800 py-2 last:border-0 text-sm">
-                      <span className="text-zinc-100">{item.cantidad}x {item.nombre}</span>
-                      <span className="font-bold text-zinc-400">${formatCurrency(item.precioFinal)}</span>
+                    <div
+                      key={i}
+                      className="flex justify-between border-b border-zinc-800 py-2 text-sm last:border-0"
+                    >
+                      <span className="text-zinc-100">
+                        {item.cantidad}x {item.nombre}
+                      </span>
+                      <span className="font-bold text-zinc-400">
+                        ${formatCurrency(item.precioFinal)}
+                      </span>
                     </div>
                   ))}
                 </div>

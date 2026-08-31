@@ -33,8 +33,24 @@ import ThemeToggle from './ThemeToggle.jsx';
 import AvisoPedidoOnline from './AvisoPedidoOnline.jsx';
 import EstadoConexion from './EstadoConexion.jsx';
 import ActualizacionApp from './ActualizacionApp.jsx';
+import useModoCajero from '../hooks/useModoCajero.js';
+import {
+  setModoCajero,
+  getPinCajero,
+  setPinCajero,
+} from '../utils/modoCajero.js';
 
 // Rutas permitidas en "modo cajero" (el resto se oculta).
+// A dónde puede entrar el cajero.
+//
+// Caja y Reportes está acá porque es donde se reimprime un comprobante, y el
+// que atiende es justo el que lo necesita: el cliente vuelve al rato pidiendo el
+// ticket. Adentro, esa pantalla ya se muestra recortada —sin la columna de
+// importes y sin los botones de ver, eliminar ni anular—, así que entrar no le
+// deja ver los números del negocio.
+//
+// Notas de Crédito, por lo mismo: el cliente devuelve algo en el momento y hay
+// que anular la factura ahí. Borrar una nota ya está cerrado adentro.
 const CAJERO_PATHS = [
   '/dashboard',
   '/dashboard/productos',
@@ -42,6 +58,8 @@ const CAJERO_PATHS = [
   '/dashboard/pistola',
   '/dashboard/pedidos-online',
   '/dashboard/pagos',
+  '/dashboard/reportes',
+  '/dashboard/notas',
 ];
 
 function Layout() {
@@ -93,26 +111,25 @@ function Layout() {
   const mini = isDesktop && collapsed;
 
   // Modo cajero: oculta secciones sensibles hasta ingresar un PIN.
-  const [modoCajero, setModoCajero] = useState(
-    () => localStorage.getItem('modoCajero') === '1',
-  );
+  // El estado del modo vive en utils/modoCajero: Reportes también lo necesita
+  // para esconder los importes, y con una copia en cada pantalla la segunda se
+  // entera tarde.
+  const modoCajero = useModoCajero();
   const entrarCajero = () => {
-    if (!localStorage.getItem('cajeroPin')) {
+    if (!getPinCajero()) {
       const nuevo = window.prompt(
         'Creá un PIN para el modo cajero (lo pedirá para salir):',
       );
       if (!nuevo || !nuevo.trim()) return;
-      localStorage.setItem('cajeroPin', nuevo.trim());
+      setPinCajero(nuevo.trim());
     }
-    localStorage.setItem('modoCajero', '1');
     setModoCajero(true);
     navigate('/dashboard');
   };
   const salirCajero = () => {
     const intento = window.prompt('Ingresá el PIN para salir del modo cajero:');
     if (intento === null) return;
-    if (intento.trim() === (localStorage.getItem('cajeroPin') || '')) {
-      localStorage.setItem('modoCajero', '0');
+    if (intento.trim() === getPinCajero()) {
       setModoCajero(false);
     } else {
       window.alert('PIN incorrecto.');

@@ -29,6 +29,7 @@ import {
 import Swal from '../utils/swalTheme.js'; // Swal con el tema del sistema
 import PaginationControls from './PaginationControls.jsx';
 import SalesChart from './SalesChart.jsx';
+import useModoCajero from '../hooks/useModoCajero.js';
 import ErrorBoundary from './ErrorBoundary.jsx';
 import {
   Table,
@@ -79,7 +80,16 @@ function ReportesTab({
 
   const vendedorActual =
     vendedores?.find((v) => v.id === vendedorActivoId) || {};
-  const puedeVerEstadisticasCaja = vendedorActual.verEstadisticasCaja !== false;
+
+  // Dos motivos para ver esta pantalla recortada, y basta con uno.
+  //
+  // El permiso del vendedor es el de siempre. El modo cajero se suma porque es
+  // el que se prende cuando alguien deja la máquina atendiendo: si no contara
+  // acá, entrar a Reportes desde el menú mostraría la venta del día, el gráfico
+  // y el ranking, que es justo lo que ese modo viene a tapar.
+  const enModoCajero = useModoCajero();
+  const puedeVerEstadisticasCaja =
+    vendedorActual.verEstadisticasCaja !== false && !enModoCajero;
 
   // PIN lock: si el vendedor no puede ver estadísticas, la caja arranca bloqueada
   const [cajaDesbloqueada, setCajaDesbloqueada] = useState(false);
