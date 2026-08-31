@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import NotasCDTab from '../NotasCDTab';
 
@@ -36,18 +37,25 @@ vi.mock('../../context/AppContext', () => ({
   }),
 }));
 
+// Estos componentes navegan (useNavigate/useLocation), así que necesitan un
+// Router alrededor. Sin él, React Router lanza y la prueba falla por el andamio
+// y no por lo que quiere probar.
+const conRouter = (ui) => render(<MemoryRouter>{ui}</MemoryRouter>);
+
 describe('NotasCDTab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('debería renderizar el formulario', () => {
-    render(<NotasCDTab />);
-    expect(screen.getByText('Generar Nueva Nota')).toBeInTheDocument();
+    conRouter(<NotasCDTab />);
+    // El título dice "Generar Nueva Nota (AFIP)": se busca por coincidencia
+    // parcial, así agregar o sacar la aclaración no rompe la prueba.
+    expect(screen.getByText(/Generar Nueva Nota/i)).toBeInTheDocument();
   });
 
   it('debería permitir generar una nota con nombre de cliente manual', () => {
-    render(<NotasCDTab />);
+    conRouter(<NotasCDTab />);
 
     // Llenar motivo y monto
     fireEvent.change(screen.getByPlaceholderText('Ej: Devolución, ajuste...'), {
@@ -75,7 +83,7 @@ describe('NotasCDTab', () => {
   });
 
   it('debería permitir generar una nota con cliente seleccionado', () => {
-    render(<NotasCDTab />);
+    conRouter(<NotasCDTab />);
 
     fireEvent.change(screen.getByPlaceholderText('Ej: Devolución, ajuste...'), {
       target: { value: 'Motivo Test' },

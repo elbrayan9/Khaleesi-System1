@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import ReportesTab from '../ReportesTab';
 
@@ -17,6 +18,12 @@ vi.mock('../SalesChart', () => ({ default: () => <div>SalesChart</div> }));
 vi.mock('../SalesHeatmap', () => ({ default: () => <div>SalesHeatmap</div> }));
 vi.mock('../HistorialTurnos', () => ({
   default: () => <div>HistorialTurnos</div>,
+}));
+// La caja tiene su propia pantalla y sus propias pruebas; acá solo interesa que
+// esta la abra.
+vi.mock('../CajaModal', () => ({
+  default: ({ isOpen }) =>
+    isOpen ? <div data-testid="caja-modal">CajaModal</div> : null,
 }));
 
 // Mock del contexto
@@ -48,35 +55,32 @@ vi.mock('../../context/AppContext.jsx', () => ({
   }),
 }));
 
+// Estos componentes navegan (useNavigate/useLocation), así que necesitan un
+// Router alrededor. Sin él, React Router lanza y la prueba falla por el andamio
+// y no por lo que quiere probar.
+const conRouter = (ui) => render(<MemoryRouter>{ui}</MemoryRouter>);
+
 describe('ReportesTab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('debería renderizar los componentes principales', () => {
-    render(<ReportesTab />);
+    conRouter(<ReportesTab />);
     expect(screen.getByText('Caja y Reportes')).toBeInTheDocument();
     expect(screen.getByText('SalesChart')).toBeInTheDocument();
   });
 
-  it('debería permitir registrar un ingreso manual', () => {
-    render(<ReportesTab />);
-
-    const descInputs = screen.getAllByLabelText(/Descripción:/i);
-    const montoInputs = screen.getAllByLabelText(/Monto \(\$\):/i);
-
-    // Asumimos que el formulario de ingreso es el primero
-    const descInput = descInputs[0];
-    const montoInput = montoInputs[0];
-
-    fireEvent.change(descInput, { target: { value: 'Ingreso Test' } });
-    fireEvent.change(montoInput, { target: { value: '500' } });
-
-    fireEvent.click(screen.getByText('Registrar Ingreso'));
-
-    expect(mockHandleRegistrarIngresoManual).toHaveBeenCalledWith(
-      'Ingreso Test',
-      500,
-    );
+  it('el botón de Caja abre la pantalla de caja', () => {
+    // Antes acá se probaba el alta de un ingreso manual, con un formulario que
+    // vivía en esta pantalla. Ese formulario se mudó a CajaModal —junto con el
+    // saldo, los movimientos y el desglose por medio de pago— y la prueba quedó
+    // buscando campos que ya no existen, fallando por eso durante meses.
+    //
+    // Lo que sí le toca a esta pantalla es abrir la caja, que además es su
+    // acción principal. El alta de movimientos se prueba donde ahora vive.
+    conRouter(<ReportesTab />);
+    fireEvent.click(screen.getByText('Caja'));
+    expect(screen.getByTestId('caja-modal')).toBeInTheDocument();
   });
 });

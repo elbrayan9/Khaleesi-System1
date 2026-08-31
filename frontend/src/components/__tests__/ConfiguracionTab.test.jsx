@@ -1,18 +1,26 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+// La pantalla navega, así que necesita un Router alrededor.
+import { MemoryRouter } from 'react-router-dom';
 import ConfiguracionTab from '../ConfiguracionTab';
 import { AppContext } from '../../context/AppContext';
 import Swal from 'sweetalert2';
 import * as fsService from '../../services/firestoreService';
 
 // Mock dependencies
-vi.mock('sweetalert2', () => ({
-  default: {
+// El doble de Swal tiene que traer `mixin`: utils/swalTheme lo llama al
+// cargarse para dejar el tema oscuro puesto, y sin él el archivo entero no
+// levantaba —fallaba antes de correr una sola prueba—.
+vi.mock('sweetalert2', () => {
+  const swal = {
     fire: vi.fn(() => Promise.resolve({ isConfirmed: true })),
     showLoading: vi.fn(),
     close: vi.fn(),
-  },
-}));
+    isVisible: vi.fn(() => false),
+  };
+  swal.mixin = vi.fn(() => swal);
+  return { default: swal };
+});
 
 vi.mock('../../services/firestoreService', () => ({
   getSucursales: vi.fn(() =>
@@ -64,9 +72,11 @@ describe('ConfiguracionTab - Reparar Datos', () => {
 
   it('renders the Reparar Datos button', () => {
     render(
-      <AppContext.Provider value={mockAppContext}>
-        <ConfiguracionTab />
-      </AppContext.Provider>,
+      <MemoryRouter>
+        <AppContext.Provider value={mockAppContext}>
+          <ConfiguracionTab />
+        </AppContext.Provider>
+      </MemoryRouter>,
     );
 
     expect(screen.getByText('Reparar Datos')).toBeInTheDocument();
@@ -77,9 +87,11 @@ describe('ConfiguracionTab - Reparar Datos', () => {
 
   it('calls Swal when button is clicked', async () => {
     render(
-      <AppContext.Provider value={mockAppContext}>
-        <ConfiguracionTab />
-      </AppContext.Provider>,
+      <MemoryRouter>
+        <AppContext.Provider value={mockAppContext}>
+          <ConfiguracionTab />
+        </AppContext.Provider>
+      </MemoryRouter>,
     );
 
     const repairButton = screen.getByRole('button', { name: /reparar/i });

@@ -26,7 +26,10 @@ describe('ClientForm', () => {
     const handleSave = vi.fn();
     render(<ClientForm onSave={handleSave} />);
 
-    fireEvent.change(screen.getByLabelText(/Nombre\/Razón Social/i), {
+    // La etiqueta dice "Nombre / Razón Social:", con espacios alrededor de la
+    // barra. La prueba buscaba "Nombre/Razón Social" sin espacios y no lo
+    // encontraba nunca.
+    fireEvent.change(screen.getByLabelText(/Nombre \/ Razón Social/i), {
       target: { value: 'Cliente Válido' },
     });
     fireEvent.click(screen.getByRole('button', { name: /Agregar/i }));

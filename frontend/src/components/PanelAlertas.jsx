@@ -11,7 +11,9 @@ function PanelAlertas() {
   const [selectedAlerta, setSelectedAlerta] = useState(null);
   const enModoCajero = useModoCajero();
 
-  const alertasOrdenadas = [...alertasBorrados].sort(
+  // Con `|| []`: si el contexto todavía no cargó las alertas, esparcir undefined
+  // lanza y se cae la pantalla de ventas entera por un panel accesorio.
+  const alertasOrdenadas = [...(alertasBorrados || [])].sort(
     (a, b) => new Date(b.timestamp) - new Date(a.timestamp),
   );
 

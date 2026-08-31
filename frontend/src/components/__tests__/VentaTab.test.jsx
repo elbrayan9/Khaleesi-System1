@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import VentaTab from '../VentaTab';
 
@@ -23,7 +24,16 @@ vi.mock('../PaymentModal', () => ({
     isOpen ? (
       <div data-testid="payment-modal">
         PaymentModal
-        <button onClick={() => onConfirm('Efectivo', 'B')}>
+        {/* La firma real es onConfirm(pagos, tipoFactura, vuelto, propina):
+            una LISTA de pagos, porque una venta se puede pagar con varios
+            medios. Y con 'X' —Ticket, sin factura electrónica—, porque con 'B'
+            la confirmación se va a facturar a AFIP y nunca llega a registrar la
+            venta, que es lo que esta prueba mira. */}
+        <button
+          onClick={() =>
+            onConfirm([{ metodo: 'efectivo', monto: 200 }], 'X', 0, 0)
+          }
+        >
           Confirmar Pago
         </button>
       </div>
@@ -82,13 +92,18 @@ vi.mock('../../context/AppContext', () => ({
   }),
 }));
 
+// Estos componentes navegan (useNavigate/useLocation), así que necesitan un
+// Router alrededor. Sin él, React Router lanza y la prueba falla por el andamio
+// y no por lo que quiere probar.
+const conRouter = (ui) => render(<MemoryRouter>{ui}</MemoryRouter>);
+
 describe('VentaTab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('debería renderizar correctamente', () => {
-    render(<VentaTab />);
+    conRouter(<VentaTab />);
     expect(screen.getByText('Nueva Venta')).toBeInTheDocument();
     // Hay dos selectores de vendedor: uno para el cajero y otro para el vendedor de la venta
     const selectores = screen.getAllByTestId('selector-vendedor');
@@ -97,7 +112,7 @@ describe('VentaTab', () => {
   });
 
   it('debería manejar la adición de productos por código de barras', () => {
-    render(<VentaTab />);
+    conRouter(<VentaTab />);
     const input = screen.getByPlaceholderText('Ingrese o escanee código...');
 
     // Simular escaneo
@@ -118,7 +133,7 @@ describe('VentaTab', () => {
   });
 
   it('debería abrir el modal de pago al hacer checkout en el carrito', () => {
-    render(<VentaTab />);
+    conRouter(<VentaTab />);
 
     // Simular click en checkout del Cart mockeado
     fireEvent.click(screen.getByText('Checkout Mock'));
@@ -128,7 +143,7 @@ describe('VentaTab', () => {
   });
 
   it('debería confirmar la venta desde el modal de pago', () => {
-    render(<VentaTab />);
+    conRouter(<VentaTab />);
 
     // Abrir modal
     fireEvent.click(screen.getByText('Checkout Mock'));

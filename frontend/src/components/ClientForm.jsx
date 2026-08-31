@@ -148,11 +148,15 @@ function ClientForm({ onSave, clientToEdit, onCancelEdit }) {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {/* NOMBRE */}
         <div className="sm:col-span-2">
-          <label className="mb-1 block text-sm font-medium text-zinc-300">
+          <label
+            htmlFor="cli-nombre"
+            className="mb-1 block text-sm font-medium text-zinc-300"
+          >
             Nombre / Razón Social:
           </label>
           <input
             type="text"
+            id="cli-nombre"
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
             className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100 focus:border-blue-500 focus:ring-blue-500"
@@ -163,12 +167,16 @@ function ClientForm({ onSave, clientToEdit, onCancelEdit }) {
 
         {/* CUIT + BOTÓN */}
         <div>
-          <label className="mb-1 block text-sm font-medium text-zinc-300">
+          <label
+            htmlFor="cli-cuit"
+            className="mb-1 block text-sm font-medium text-zinc-300"
+          >
             CUIT / DNI:
           </label>
           <div className="flex gap-2">
             <input
               type="text"
+              id="cli-cuit"
               value={cuit}
               onChange={(e) => setCuit(e.target.value)}
               className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100 focus:border-blue-500 focus:ring-blue-500"
@@ -189,11 +197,15 @@ function ClientForm({ onSave, clientToEdit, onCancelEdit }) {
 
         {/* DIRECCIÓN */}
         <div className="sm:col-span-2">
-          <label className="mb-1 block text-sm font-medium text-zinc-300">
+          <label
+            htmlFor="cli-direccion"
+            className="mb-1 block text-sm font-medium text-zinc-300"
+          >
             Dirección:
           </label>
           <input
             type="text"
+            id="cli-direccion"
             value={direccion}
             onChange={(e) => setDireccion(e.target.value)}
             placeholder="Calle, Altura, Localidad, Provincia"
@@ -203,10 +215,14 @@ function ClientForm({ onSave, clientToEdit, onCancelEdit }) {
 
         {/* CONDICIÓN FISCAL */}
         <div>
-          <label className="mb-1 block text-sm font-medium text-zinc-300">
+          <label
+            htmlFor="cli-condicion"
+            className="mb-1 block text-sm font-medium text-zinc-300"
+          >
             Condición Fiscal:
           </label>
           <select
+            id="cli-condicion"
             value={condicionFiscal}
             onChange={(e) => setCondicionFiscal(e.target.value)}
             className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 text-zinc-100 focus:border-blue-500 focus:ring-blue-500"
@@ -222,11 +238,15 @@ function ClientForm({ onSave, clientToEdit, onCancelEdit }) {
 
         {/* TELÉFONO / WHATSAPP */}
         <div>
-          <label className="mb-1 block text-sm font-medium text-zinc-300">
+          <label
+            htmlFor="cli-telefono"
+            className="mb-1 block text-sm font-medium text-zinc-300"
+          >
             Teléfono / WhatsApp:
           </label>
           <input
             type="tel"
+            id="cli-telefono"
             value={telefono}
             onChange={(e) => setTelefono(e.target.value)}
             placeholder="Ej: 3517 69-4103"
@@ -236,11 +256,15 @@ function ClientForm({ onSave, clientToEdit, onCancelEdit }) {
 
         {/* EMAIL */}
         <div className="sm:col-span-2">
-          <label className="mb-1 block text-sm font-medium text-zinc-300">
+          <label
+            htmlFor="cli-email"
+            className="mb-1 block text-sm font-medium text-zinc-300"
+          >
             Email:
           </label>
           <input
             type="email"
+            id="cli-email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Ej: cliente@email.com (para enviar el comprobante)"
