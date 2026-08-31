@@ -136,7 +136,7 @@ function CobroPointModal({ monto, descripcion, devices = [], onClose, onPagado }
       exit={{ opacity: 0 }}
     >
       <motion.div
-        className="w-full max-w-md rounded-lg bg-zinc-800 p-5 text-center shadow-xl"
+        className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-lg bg-zinc-800 p-5 text-center shadow-xl"
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}

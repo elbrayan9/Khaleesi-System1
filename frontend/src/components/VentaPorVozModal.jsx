@@ -175,7 +175,7 @@ function VentaPorVozModal({ onClose }) {
       animate={{ opacity: 1 }}
     >
       <motion.div
-        className="w-full max-w-md rounded-lg bg-zinc-800 shadow-xl"
+        className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-lg bg-zinc-800 shadow-xl"
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
       >

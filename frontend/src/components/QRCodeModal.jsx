@@ -38,7 +38,7 @@ const QRCodeModal = ({ product, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
-      <div className="rounded-lg border border-zinc-700 bg-zinc-800 p-6 text-center">
+      <div className="max-h-[92dvh] overflow-y-auto rounded-lg border border-zinc-700 bg-zinc-800 p-6 text-center">
         <h3 className="mb-2 text-xl font-bold text-white">{product.nombre}</h3>
         <p className="mb-4 text-zinc-400">Código QR para precio dinámico</p>
         <div ref={qrCodeRef} className="inline-block rounded-md bg-white p-4">

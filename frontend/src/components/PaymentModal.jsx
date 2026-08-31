@@ -246,278 +246,303 @@ function PaymentModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4">
-      <div className="w-full max-w-2xl rounded-lg bg-zinc-800 p-5 shadow-xl sm:p-6">
-        <h3 className="mb-4 text-xl font-semibold text-zinc-100">
-          Registrar Pago
-        </h3>
+      {/* Tres zonas: el total arriba y los botones abajo quedan fijos, y
+          scrollea solo el medio.
 
-        {/* SECCIÓN DE TOTALES
+          Antes el panel no tenía tope de alto ni overflow. Como el fondo centra
+          con `items-center`, en una notebook —donde el alto útil son unos
+          640 px— el contenido se desbordaba por arriba Y por abajo, y ninguno
+          de los dos extremos se podía alcanzar: el botón de Confirmar Venta
+          quedaba fuera de la pantalla y no había forma de cobrar.
+
+          `dvh` y no `vh`: en el celular `vh` cuenta la barra del navegador y el
+          modal termina siendo más alto que lo que se ve. */}
+      <div className="flex max-h-[92dvh] w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-zinc-800 shadow-xl">
+        {/* CABECERA FIJA: el título y el total. Es el número que se mira mil
+            veces por día; no puede irse de pantalla al scrollear. */}
+        <div className="shrink-0 px-5 pt-5 sm:px-6 sm:pt-6">
+          <h3 className="mb-4 text-xl font-semibold text-zinc-100">
+            Registrar Pago
+          </h3>
+
+          {/* SECCIÓN DE TOTALES
             El importe a un lado y el estado del cobro al otro. Antes iban los
             tres apilados y centrados, con tamaños parecidos: había que leer
             para saber si la venta ya estaba cubierta. Ahora se ve de un
             vistazo, que es lo que se mira mil veces por día. */}
-        <div className="mb-4 rounded-xl bg-zinc-900 p-4 ring-1 ring-white/5">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <p className="text-xs uppercase tracking-wider text-zinc-500">
-                {Number(propina) > 0 ? 'Total a cobrar' : 'Total a pagar'}
-              </p>
-              <p className="text-4xl font-bold tabular-nums text-white">
-                ${formatCurrency(totalACobrar)}
-              </p>
-              {Number(propina) > 0 && (
-                <p className="mt-0.5 text-xs tabular-nums text-zinc-400">
-                  ${formatCurrency(total)} + ${formatCurrency(Number(propina))}{' '}
-                  de propina
+          <div className="mb-4 rounded-xl bg-zinc-900 p-4 ring-1 ring-white/5">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-wider text-zinc-500">
+                  {Number(propina) > 0 ? 'Total a cobrar' : 'Total a pagar'}
                 </p>
-              )}
-            </div>
+                <p className="text-4xl font-bold tabular-nums text-white">
+                  ${formatCurrency(totalACobrar)}
+                </p>
+                {Number(propina) > 0 && (
+                  <p className="mt-0.5 text-xs tabular-nums text-zinc-400">
+                    ${formatCurrency(total)} + $
+                    {formatCurrency(Number(propina))} de propina
+                  </p>
+                )}
+              </div>
 
-            {/* "Falta" solo cuando ya se cargó algún pago. Sin pagos, lo que
+              {/* "Falta" solo cuando ya se cargó algún pago. Sin pagos, lo que
                 falta ES el total, y repetir el mismo número al lado hace dudar
                 de si son dos cosas distintas. */}
-            <div className="text-right">
-              {hayPagoParcial ? (
-                <>
-                  <p className="text-xs uppercase tracking-wider text-amber-500/80">
-                    Falta
+              <div className="text-right">
+                {hayPagoParcial ? (
+                  <>
+                    <p className="text-xs uppercase tracking-wider text-amber-500/80">
+                      Falta
+                    </p>
+                    <p className="text-2xl font-bold tabular-nums text-amber-400">
+                      ${formatCurrency(montoRestante)}
+                    </p>
+                  </>
+                ) : montoRestante > 0 ? null : (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-sm font-semibold text-emerald-400 ring-1 ring-emerald-500/30">
+                    <Check size={15} strokeWidth={3} />
+                    Cubierto
+                  </span>
+                )}
+                {vueltoAcumulado > 0 && (
+                  <p className="mt-1 text-sm font-semibold tabular-nums text-emerald-400">
+                    Vuelto ${formatCurrency(vueltoAcumulado)}
                   </p>
-                  <p className="text-2xl font-bold tabular-nums text-amber-400">
-                    ${formatCurrency(montoRestante)}
-                  </p>
-                </>
-              ) : montoRestante > 0 ? null : (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-sm font-semibold text-emerald-400 ring-1 ring-emerald-500/30">
-                  <Check size={15} strokeWidth={3} />
-                  Cubierto
-                </span>
-              )}
-              {vueltoAcumulado > 0 && (
-                <p className="mt-1 text-sm font-semibold tabular-nums text-emerald-400">
-                  Vuelto ${formatCurrency(vueltoAcumulado)}
-                </p>
-              )}
+                )}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* FORMULARIO PARA AGREGAR NUEVO PAGO */}
-        {montoRestante > 0 && (
-          <div className="space-y-3 border-t border-zinc-700 pt-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-300">
-                  Método de Pago
-                </label>
-                <PaymentMethodSelect
-                  value={metodoPagoActual}
-                  onChange={setMetodoPagoActual}
-                />
+        {/* CUERPO: lo único que scrollea.
+
+            `min-h-0` no es decorativo: sin eso un hijo flex no se achica por
+            debajo de su contenido, el alto máximo del panel no lo alcanza y el
+            scroll nunca aparece —se ve igual de cortado que antes—. */}
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 sm:px-6">
+          {/* FORMULARIO PARA AGREGAR NUEVO PAGO */}
+          {montoRestante > 0 && (
+            <div className="space-y-3 border-t border-zinc-700 pt-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-zinc-300">
+                    Método de Pago
+                  </label>
+                  <PaymentMethodSelect
+                    value={metodoPagoActual}
+                    onChange={setMetodoPagoActual}
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-zinc-300">
+                    Tipo de Comprobante
+                  </label>
+                  <ReceiptTypeSelect
+                    canAccessAfip={canAccessAfip}
+                    value={tipoFactura}
+                    onChange={setTipoFactura}
+                    condicionEmisor={condicionEmisor}
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-zinc-300">
+                    Monto
+                  </label>
+                  <div className="flex">
+                    <input
+                      id="pago-monto"
+                      type="number"
+                      // El teclado del celular abre en números y con coma, que es
+                      // como se escribe la plata.
+                      inputMode="decimal"
+                      value={montoActual}
+                      onChange={(e) => setMontoActual(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAgregarPago();
+                        }
+                      }}
+                      placeholder={formatCurrency(montoRestante)}
+                      className="w-full rounded-l-md border border-zinc-600 bg-zinc-700 p-2 tabular-nums text-zinc-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={ponerRestante}
+                      title="Poner lo que falta (F7)"
+                      className="flex shrink-0 cursor-pointer items-center gap-1 rounded-r-md bg-zinc-600 px-3 text-xs font-medium text-zinc-100 transition-colors hover:bg-zinc-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      Restante
+                      <TeclaAtajo className="border-zinc-400">F7</TeclaAtajo>
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-300">
-                  Tipo de Comprobante
-                </label>
-                <ReceiptTypeSelect
-                  canAccessAfip={canAccessAfip}
-                  value={tipoFactura}
-                  onChange={setTipoFactura}
-                  condicionEmisor={condicionEmisor}
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-300">
-                  Monto
-                </label>
-                <div className="flex">
+              {/* CALCULADORA DE VUELTO (solo para efectivo) */}
+              {metodoPagoActual === 'efectivo' && (
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-zinc-300">
+                    ¿Con cuánto paga? (para calcular el vuelto):
+                  </label>
                   <input
-                    id="pago-monto"
                     type="number"
-                    // El teclado del celular abre en números y con coma, que es
-                    // como se escribe la plata.
                     inputMode="decimal"
-                    value={montoActual}
-                    onChange={(e) => setMontoActual(e.target.value)}
+                    value={pagaCon}
+                    onChange={(e) => setPagaCon(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
                         handleAgregarPago();
                       }
                     }}
-                    placeholder={formatCurrency(montoRestante)}
-                    className="w-full rounded-l-md border border-zinc-600 bg-zinc-700 p-2 tabular-nums text-zinc-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    placeholder="Ej: 1000"
+                    className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 tabular-nums text-zinc-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
-                  <button
-                    type="button"
-                    onClick={ponerRestante}
-                    title="Poner lo que falta (F7)"
-                    className="flex shrink-0 cursor-pointer items-center gap-1 rounded-r-md bg-zinc-600 px-3 text-xs font-medium text-zinc-100 transition-colors hover:bg-zinc-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  >
-                    Restante
-                    <TeclaAtajo className="border-zinc-400">F7</TeclaAtajo>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* CALCULADORA DE VUELTO (solo para efectivo) */}
-            {metodoPagoActual === 'efectivo' && (
-              <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-300">
-                  ¿Con cuánto paga? (para calcular el vuelto):
-                </label>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  value={pagaCon}
-                  onChange={(e) => setPagaCon(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleAgregarPago();
-                    }
-                  }}
-                  placeholder="Ej: 1000"
-                  className="w-full rounded-md border border-zinc-600 bg-zinc-700 p-2 tabular-nums text-zinc-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-                {/* Los billetes que existen en la calle. Se agrandaron para
+                  {/* Los billetes que existen en la calle. Se agrandaron para
                     que se acierten con el dedo en una pantalla táctil, que es
                     donde más se usan. */}
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPagaCon(montoRestante.toFixed(2))}
-                    className="min-h-[38px] cursor-pointer rounded-md bg-zinc-600 px-3 text-xs font-semibold text-white transition-colors hover:bg-zinc-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  >
-                    Justo
-                  </button>
-                  {[1000, 2000, 5000, 10000, 20000].map((billete) => (
+                  <div className="mt-2 flex flex-wrap gap-2">
                     <button
-                      key={billete}
                       type="button"
-                      onClick={() => setPagaCon(String(billete))}
-                      className="min-h-[38px] cursor-pointer rounded-md bg-zinc-600 px-3 text-xs font-semibold tabular-nums text-white transition-colors hover:bg-zinc-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      onClick={() => setPagaCon(montoRestante.toFixed(2))}
+                      className="min-h-[38px] cursor-pointer rounded-md bg-zinc-600 px-3 text-xs font-semibold text-white transition-colors hover:bg-zinc-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     >
-                      ${billete.toLocaleString('es-AR')}
+                      Justo
                     </button>
-                  ))}
+                    {[1000, 2000, 5000, 10000, 20000].map((billete) => (
+                      <button
+                        key={billete}
+                        type="button"
+                        onClick={() => setPagaCon(String(billete))}
+                        className="min-h-[38px] cursor-pointer rounded-md bg-zinc-600 px-3 text-xs font-semibold tabular-nums text-white transition-colors hover:bg-zinc-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      >
+                        ${billete.toLocaleString('es-AR')}
+                      </button>
+                    ))}
+                  </div>
+                  {vuelto > 0 && (
+                    <p className="text-md mt-2 text-center font-bold text-green-400">
+                      Vuelto: ${formatCurrency(vuelto)}
+                    </p>
+                  )}
                 </div>
-                {vuelto > 0 && (
-                  <p className="text-md mt-2 text-center font-bold text-green-400">
-                    Vuelto: ${formatCurrency(vuelto)}
-                  </p>
-                )}
-              </div>
-            )}
+              )}
 
-            <button
-              type="button"
-              onClick={handleAgregarPago}
-              className="flex min-h-[44px] w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-blue-600 py-2 font-bold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
-            >
-              Agregar Pago
-              <TeclaAtajo className="border-blue-300/50">F8</TeclaAtajo>
-            </button>
-          </div>
-        )}
-
-        {/* LISTA DE PAGOS AGREGADOS */}
-        <div className="mb-4 max-h-24 space-y-2 overflow-y-auto pr-2">
-          {pagos.map((pago, index) => (
-            <div
-              key={index}
-              className="flex items-center justify-between rounded-md bg-zinc-700 p-2 text-sm"
-            >
-              <span className="capitalize text-zinc-300">
-                {pago.metodo.replace('_', ' ')}
-              </span>
-              <span className="font-semibold text-white">
-                ${formatCurrency(pago.monto)}
-              </span>
+              <button
+                type="button"
+                onClick={handleAgregarPago}
+                className="flex min-h-[44px] w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-blue-600 py-2 font-bold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              >
+                Agregar Pago
+                <TeclaAtajo className="border-blue-300/50">F8</TeclaAtajo>
+              </button>
             </div>
-          ))}
-        </div>
+          )}
 
-        {/* PROPINA / REDONDEO */}
-        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900/50 p-3">
-          <span className="text-sm font-medium text-zinc-300">Propina:</span>
-          <input
-            type="number"
-            value={propina || ''}
-            onChange={(e) => setPropina(parseFloat(e.target.value) || 0)}
-            placeholder="0"
-            className="w-24 rounded-md border border-zinc-600 bg-zinc-700 p-1.5 text-sm text-zinc-100"
-          />
-          <button
-            type="button"
-            onClick={() => setPropina(parseFloat((total * 0.1).toFixed(2)))}
-            className="rounded-md bg-zinc-600 px-2 py-1 text-xs font-semibold text-white hover:bg-zinc-500"
-          >
-            10%
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              setPropina(Math.max(0, Math.ceil(total / 100) * 100 - total))
-            }
-            className="rounded-md bg-zinc-600 px-2 py-1 text-xs font-semibold text-white hover:bg-zinc-500"
-            title="Redondear el total al próximo múltiplo de $100"
-          >
-            Redondear
-          </button>
-          {Number(propina) > 0 && (
+          {/* LISTA DE PAGOS AGREGADOS */}
+          <div className="mb-4 max-h-24 space-y-2 overflow-y-auto pr-2">
+            {pagos.map((pago, index) => (
+              <div
+                key={index}
+                className="flex items-center justify-between rounded-md bg-zinc-700 p-2 text-sm"
+              >
+                <span className="capitalize text-zinc-300">
+                  {pago.metodo.replace('_', ' ')}
+                </span>
+                <span className="font-semibold text-white">
+                  ${formatCurrency(pago.monto)}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* PROPINA / REDONDEO */}
+          <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900/50 p-3">
+            <span className="text-sm font-medium text-zinc-300">Propina:</span>
+            <input
+              type="number"
+              value={propina || ''}
+              onChange={(e) => setPropina(parseFloat(e.target.value) || 0)}
+              placeholder="0"
+              className="w-24 rounded-md border border-zinc-600 bg-zinc-700 p-1.5 text-sm text-zinc-100"
+            />
             <button
               type="button"
-              onClick={() => setPropina(0)}
-              className="rounded-md bg-zinc-700 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-600"
+              onClick={() => setPropina(parseFloat((total * 0.1).toFixed(2)))}
+              className="rounded-md bg-zinc-600 px-2 py-1 text-xs font-semibold text-white hover:bg-zinc-500"
             >
-              Quitar
+              10%
             </button>
-          )}
-        </div>
+            <button
+              type="button"
+              onClick={() =>
+                setPropina(Math.max(0, Math.ceil(total / 100) * 100 - total))
+              }
+              className="rounded-md bg-zinc-600 px-2 py-1 text-xs font-semibold text-white hover:bg-zinc-500"
+              title="Redondear el total al próximo múltiplo de $100"
+            >
+              Redondear
+            </button>
+            {Number(propina) > 0 && (
+              <button
+                type="button"
+                onClick={() => setPropina(0)}
+                className="rounded-md bg-zinc-700 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-600"
+              >
+                Quitar
+              </button>
+            )}
+          </div>
 
-        {/* COBROS DIGITALES
+          {/* COBROS DIGITALES
             Iban uno abajo del otro, ocupando tres bloques de alto en una
             pantalla donde el alto es lo que escasea. Van en fila: son
             hermanos, se eligen de un vistazo, y el modal deja de necesitar
             scroll en una notebook. */}
-        {/* El QR interoperable —el de todas las billeteras— salió de acá: la
+          {/* El QR interoperable —el de todas las billeteras— salió de acá: la
             API de Mercado Pago rechazaba la orden y el cajero se quedaba con un
             cartel de error delante del cliente. El código sigue en su lugar,
             listo para volver cuando funcione; lo que se sacó es la puerta de
             entrada. */}
-        {montoRestante > 0 && (
-          <div
-            className={`mb-4 grid gap-2 ${
-              posnetDevices.length > 0 ? 'sm:grid-cols-2' : 'grid-cols-1'
-            }`}
-          >
-            <button
-              type="button"
-              onClick={() => setShowMP(true)}
-              className="flex min-h-[44px] cursor-pointer items-center justify-center gap-2 rounded-lg border border-sky-600 bg-sky-600/10 px-3 py-2 text-sm font-semibold text-sky-400 transition-colors hover:bg-sky-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-sky-400"
+          {montoRestante > 0 && (
+            <div
+              className={`mb-4 grid gap-2 ${
+                posnetDevices.length > 0 ? 'sm:grid-cols-2' : 'grid-cols-1'
+              }`}
             >
-              <Wallet size={16} />
-              Mercado Pago
-            </button>
-
-            {posnetDevices.length > 0 && (
               <button
                 type="button"
-                onClick={() => setShowPoint(true)}
-                className="flex min-h-[44px] cursor-pointer items-center justify-center gap-2 rounded-lg border border-indigo-500 bg-indigo-500/10 px-3 py-2 text-sm font-semibold text-indigo-300 transition-colors hover:bg-indigo-500 hover:text-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                onClick={() => setShowMP(true)}
+                className="flex min-h-[44px] cursor-pointer items-center justify-center gap-2 rounded-lg border border-sky-600 bg-sky-600/10 px-3 py-2 text-sm font-semibold text-sky-400 transition-colors hover:bg-sky-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-sky-400"
               >
-                <CreditCard size={16} />
-                Posnet
+                <Wallet size={16} />
+                Mercado Pago
               </button>
-            )}
-          </div>
-        )}
 
-        {/* BOTONES FINALES */}
-        <div className="mt-5 flex items-center justify-end gap-3 border-t border-zinc-700 pt-4">
+              {posnetDevices.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowPoint(true)}
+                  className="flex min-h-[44px] cursor-pointer items-center justify-center gap-2 rounded-lg border border-indigo-500 bg-indigo-500/10 px-3 py-2 text-sm font-semibold text-indigo-300 transition-colors hover:bg-indigo-500 hover:text-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                >
+                  <CreditCard size={16} />
+                  Posnet
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* PIE FIJO: Cancelar y Confirmar Venta.
+
+            Es el final del camino y se aprieta con la cola esperando: no puede
+            depender de que alguien scrollee hasta abajo para encontrarlo. */}
+        <div className="flex shrink-0 items-center justify-end gap-3 border-t border-zinc-700 px-5 py-4 sm:px-6">
           <button
             type="button"
             onClick={onClose}
