@@ -19,6 +19,7 @@ import { subirLogoNegocio } from '../services/storageService';
 import ImportDataTab from './ImportDataTab';
 import ImpresoraTermicaConfig from './ImpresoraTermicaConfig';
 import Swal from '../utils/swalTheme.js'; // Swal con el tema del sistema
+import { setPinCajero } from '../utils/modoCajero.js';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import {
   forceAssignAllDataToSucursal,
@@ -210,6 +211,34 @@ function ConfiguracionTab() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  // El PIN del modo cajero.
+  //
+  // Se guarda en la cuenta y no solo en el navegador, así vale en todas las
+  // computadoras del local y no se pierde al estrenar una. Acá el dueño puede
+  // verlo y cambiarlo; para salir del modo sin acordárselo, la otra puerta es
+  // la contraseña de la cuenta.
+  const [mostrarPinCajero, setMostrarPinCajero] = useState(false);
+
+  const cambiarPinCajero = async () => {
+    const { value: nuevo } = await Swal.fire({
+      title: datosNegocio?.pinCajero ? 'Cambiar el PIN' : 'Crear el PIN',
+      input: 'text',
+      inputValue: datosNegocio?.pinCajero || '',
+      inputLabel:
+        'Se pide para salir del modo cajero. Dejalo vacío para quitarlo.',
+      inputAttributes: { inputmode: 'numeric', autocomplete: 'off' },
+      showCancelButton: true,
+      confirmButtonText: 'Guardar',
+      cancelButtonText: 'Cancelar',
+    });
+    if (nuevo === undefined) return;
+    const limpio = String(nuevo).trim();
+    // El navegador también guarda una copia, que es la que se usa para entrar y
+    // salir sin tener que esperar a Firestore.
+    setPinCajero(limpio);
+    await handleGuardarDatosNegocio({ pinCajero: limpio || null });
   };
 
   const handleRepairData = async () => {
@@ -1357,6 +1386,48 @@ function ConfiguracionTab() {
           <h3 className="mb-4 mt-6 text-lg font-medium text-white sm:text-xl">
             Seguridad y Datos
           </h3>
+          {/* El PIN del modo cajero, a la vista del dueño.
+              Esta pantalla ya está detrás de su propio PIN, así que es el lugar
+              donde corresponde poder mirarlo: quien llega hasta acá es el que
+              puede desactivarlo de todos modos. */}
+          <div className="mb-4 rounded-md bg-zinc-700/50 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="font-medium text-zinc-100">PIN del modo cajero</p>
+                <p className="text-xs text-zinc-400">
+                  {datosNegocio?.pinCajero
+                    ? 'Se pide para salir del modo cajero. Vale en todas las computadoras del local.'
+                    : 'Todavía no configuraste uno: se crea la primera vez que activás el modo cajero.'}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {datosNegocio?.pinCajero && (
+                  <span className="rounded bg-zinc-900 px-3 py-2 font-mono text-sm tracking-widest text-zinc-100">
+                    {mostrarPinCajero ? datosNegocio.pinCajero : '••••'}
+                  </span>
+                )}
+                {datosNegocio?.pinCajero && (
+                  <motion.button
+                    type="button"
+                    onClick={() => setMostrarPinCajero((v) => !v)}
+                    className="rounded-md bg-zinc-600 px-3 py-2 text-xs font-semibold text-white hover:bg-zinc-500"
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    {mostrarPinCajero ? 'Ocultar' : 'Ver'}
+                  </motion.button>
+                )}
+                <motion.button
+                  type="button"
+                  onClick={cambiarPinCajero}
+                  className="rounded-md bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700"
+                  whileTap={{ scale: 0.95 }}
+                >
+                  {datosNegocio?.pinCajero ? 'Cambiar' : 'Crear'}
+                </motion.button>
+              </div>
+            </div>
+          </div>
+
           <div className="rounded-md bg-zinc-700/50 p-3">
             <div className="flex items-center justify-between">
               <div>

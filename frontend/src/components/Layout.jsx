@@ -33,6 +33,11 @@ import ThemeToggle from './ThemeToggle.jsx';
 import AvisoPedidoOnline from './AvisoPedidoOnline.jsx';
 import EstadoConexion from './EstadoConexion.jsx';
 import ActualizacionApp from './ActualizacionApp.jsx';
+import Swal from '../utils/swalTheme.js';
+import {
+  verificarDueno,
+  emailDeLaCuenta,
+} from '../utils/recuperarPinCajero.js';
 import useModoCajero from '../hooks/useModoCajero.js';
 import {
   setModoCajero,
@@ -73,6 +78,7 @@ function Layout() {
     canAccessAfip,
     datosNegocio,
     pedidosOnline,
+    handleGuardarDatosNegocio,
   } = useAppContext();
 
   // Pedidos de la tienda esperando ser atendidos (badge del menú).
@@ -115,25 +121,105 @@ function Layout() {
   // para esconder los importes, y con una copia en cada pantalla la segunda se
   // entera tarde.
   const modoCajero = useModoCajero();
-  const entrarCajero = () => {
-    if (!getPinCajero()) {
-      const nuevo = window.prompt(
-        'Creá un PIN para el modo cajero (lo pedirá para salir):',
-      );
+
+  // El PIN del negocio manda sobre el de esta computadora: así es el mismo en
+  // todas las máquinas del local, y estrenar una no deja a nadie afuera.
+  const pinGuardado = datosNegocio?.pinCajero || getPinCajero();
+
+  const entrarCajero = async () => {
+    if (!pinGuardado) {
+      const { value: nuevo } = await Swal.fire({
+        title: 'PIN del modo cajero',
+        input: 'text',
+        inputLabel: 'Lo va a pedir para salir. Se guarda en tu cuenta.',
+        inputPlaceholder: 'Ej: 1234',
+        showCancelButton: true,
+        confirmButtonText: 'Activar',
+        cancelButtonText: 'Cancelar',
+      });
       if (!nuevo || !nuevo.trim()) return;
       setPinCajero(nuevo.trim());
+      // Guardado en la cuenta, que es lo que después permite recuperarlo desde
+      // Configuración o desde otra computadora.
+      handleGuardarDatosNegocio?.({ pinCajero: nuevo.trim() });
     }
     setModoCajero(true);
     navigate('/dashboard');
   };
-  const salirCajero = () => {
-    const intento = window.prompt('Ingresá el PIN para salir del modo cajero:');
-    if (intento === null) return;
-    if (intento.trim() === getPinCajero()) {
-      setModoCajero(false);
-    } else {
-      window.alert('PIN incorrecto.');
+
+  const salirCajero = async () => {
+    const { value: intento, isDenied } = await Swal.fire({
+      title: 'Salir del modo cajero',
+      input: 'password',
+      inputLabel: 'PIN',
+      inputAttributes: { inputmode: 'numeric', autocomplete: 'off' },
+      showCancelButton: true,
+      // La salida de emergencia va a la vista y no escondida: alguien que no se
+      // acuerda del PIN está trabado con el local abierto.
+      showDenyButton: true,
+      confirmButtonText: 'Salir',
+      denyButtonText: 'Olvidé el PIN',
+      cancelButtonText: 'Cancelar',
+    });
+
+    if (isDenied) {
+      await recuperarConPassword();
+      return;
     }
+    if (intento === undefined) return; // canceló
+
+    if (intento.trim() === pinGuardado) {
+      setModoCajero(false);
+      return;
+    }
+
+    const { isConfirmed } = await Swal.fire({
+      icon: 'error',
+      title: 'PIN incorrecto',
+      text: 'Si no lo recordás, podés salir con la contraseña de tu cuenta.',
+      showCancelButton: true,
+      confirmButtonText: 'Usar mi contraseña',
+      cancelButtonText: 'Cerrar',
+    });
+    if (isConfirmed) await recuperarConPassword();
+  };
+
+  /**
+   * La salida de emergencia: la contraseña de la cuenta.
+   *
+   * No hace falta inventar una llave nueva. El dueño ya tiene una, es la que
+   * protege todo lo demás, y Firebase la verifica contra sus servidores: no se
+   * guarda ni viaja por acá.
+   */
+  const recuperarConPassword = async () => {
+    const { value: pass } = await Swal.fire({
+      title: 'Confirmá que sos vos',
+      html: `Escribí la contraseña de <strong>${emailDeLaCuenta()}</strong>.`,
+      input: 'password',
+      inputAttributes: { autocomplete: 'current-password' },
+      showCancelButton: true,
+      confirmButtonText: 'Salir del modo cajero',
+      cancelButtonText: 'Cancelar',
+    });
+    if (!pass) return;
+
+    const { ok, motivo } = await verificarDueno(pass);
+    if (!ok) {
+      await Swal.fire({
+        icon: 'error',
+        title: 'No pudimos verificarte',
+        text: motivo,
+      });
+      return;
+    }
+    setModoCajero(false);
+    await Swal.fire({
+      icon: 'success',
+      title: 'Listo',
+      html: pinGuardado
+        ? `Saliste del modo cajero. Tu PIN es <strong>${pinGuardado}</strong>.`
+        : 'Saliste del modo cajero.',
+    });
   };
   useEffect(() => {
     if (modoCajero && !CAJERO_PATHS.includes(currentPath)) {
