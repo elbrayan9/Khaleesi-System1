@@ -322,7 +322,7 @@ function Layout() {
       <Link
         to={path}
         title={mini ? label : undefined}
-        className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-150 ${
+        className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-150 [@media(max-height:820px)]:py-1.5 ${
           mini ? 'justify-center' : ''
         } ${
           active
@@ -390,7 +390,12 @@ function Layout() {
         </div>
 
         {/* Navegación */}
-        <nav className="flex-1 space-y-1 overflow-y-auto p-2">
+        {/* En una notebook el menú no entra: ~15 ítems más los títulos de
+            grupo pasan de 700px contra 640 de alto útil. Los ítems se achican
+            solo en pantallas bajas —de ahí la variante `max-height`—, así en un
+            monitor grande queda exactamente como estaba. El scroll se queda
+            igual: es la salida correcta si aun así no entra. */}
+        <nav className="flex-1 space-y-1 overflow-y-auto p-2 [@media(max-height:820px)]:space-y-0.5">
           {(modoCajero
             ? groups
                 .map((g) => ({
@@ -404,7 +409,7 @@ function Layout() {
               {mini ? (
                 gi > 0 && <div className="mx-2 mb-2 border-t border-border" />
               ) : (
-                <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground [@media(max-height:820px)]:pb-0">
                   {group.title}
                 </p>
               )}
@@ -425,7 +430,7 @@ function Layout() {
               navigate('/login');
             }}
             title={mini ? 'Salir' : undefined}
-            className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-red-400 transition-colors duration-150 hover:bg-red-500/10 hover:text-red-300 ${
+            className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-red-400 transition-colors duration-150 hover:bg-red-500/10 hover:text-red-300 [@media(max-height:820px)]:py-1.5 ${
               mini ? 'justify-center' : ''
             }`}
           >

@@ -746,11 +746,18 @@ function ConfiguracionTab() {
           </div>
         </div>
       ) : activeTab === 'general' ? (
-        <div className="mx-auto max-w-xl rounded-lg bg-zinc-800 p-4 shadow-md sm:p-6">
+        <div className="mx-auto max-w-4xl rounded-lg bg-zinc-800 p-4 shadow-md sm:p-6">
           <h3 className="mb-5 border-b border-zinc-700 pb-2 text-lg font-medium text-white sm:text-xl">
             Datos del Negocio
           </h3>
-          <div className="space-y-4">
+          {/* Dos columnas en pantallas anchas. Antes era una pila dentro de un
+              contenedor de 576px: en una notebook de 1363px quedaban 800px
+              vacíos a los costados y la página se hacía larguísima.
+
+              Los bloques que necesitan el ancho entero ya venían marcados con
+              `sm:col-span-2` —el mapa, el logo y la balanza—, algo que no hacía
+              nada mientras el padre fuera `space-y-4`. Ahora sirve. */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label
                 htmlFor="config-nombre-form"
@@ -924,7 +931,7 @@ function ConfiguracionTab() {
             </div>
 
             {/* MERCADO PAGO */}
-            <div>
+            <div className="sm:col-span-2">
               <label
                 htmlFor="config-mp-token"
                 className="mb-1 block text-sm font-medium text-zinc-300"
@@ -1386,86 +1393,93 @@ function ConfiguracionTab() {
           <h3 className="mb-4 mt-6 text-lg font-medium text-white sm:text-xl">
             Seguridad y Datos
           </h3>
-          {/* El PIN del modo cajero, a la vista del dueño.
+          {/* Las tres tarjetas de a dos en pantallas anchas, en vez de una
+              abajo de la otra. El PIN se queda a lo ancho porque tiene más
+              adentro: el número, el botón de ver y el de cambiar. */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {/* El PIN del modo cajero, a la vista del dueño.
               Esta pantalla ya está detrás de su propio PIN, así que es el lugar
               donde corresponde poder mirarlo: quien llega hasta acá es el que
               puede desactivarlo de todos modos. */}
-          <div className="mb-4 rounded-md bg-zinc-700/50 p-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="font-medium text-zinc-100">PIN del modo cajero</p>
-                <p className="text-xs text-zinc-400">
-                  {datosNegocio?.pinCajero
-                    ? 'Se pide para salir del modo cajero. Vale en todas las computadoras del local.'
-                    : 'Todavía no configuraste uno: se crea la primera vez que activás el modo cajero.'}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                {datosNegocio?.pinCajero && (
-                  <span className="rounded bg-zinc-900 px-3 py-2 font-mono text-sm tracking-widest text-zinc-100">
-                    {mostrarPinCajero ? datosNegocio.pinCajero : '••••'}
-                  </span>
-                )}
-                {datosNegocio?.pinCajero && (
+            <div className="rounded-md bg-zinc-700/50 p-3 sm:col-span-2">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="font-medium text-zinc-100">
+                    PIN del modo cajero
+                  </p>
+                  <p className="text-xs text-zinc-400">
+                    {datosNegocio?.pinCajero
+                      ? 'Se pide para salir del modo cajero. Vale en todas las computadoras del local.'
+                      : 'Todavía no configuraste uno: se crea la primera vez que activás el modo cajero.'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {datosNegocio?.pinCajero && (
+                    <span className="rounded bg-zinc-900 px-3 py-2 font-mono text-sm tracking-widest text-zinc-100">
+                      {mostrarPinCajero ? datosNegocio.pinCajero : '••••'}
+                    </span>
+                  )}
+                  {datosNegocio?.pinCajero && (
+                    <motion.button
+                      type="button"
+                      onClick={() => setMostrarPinCajero((v) => !v)}
+                      className="rounded-md bg-zinc-600 px-3 py-2 text-xs font-semibold text-white hover:bg-zinc-500"
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      {mostrarPinCajero ? 'Ocultar' : 'Ver'}
+                    </motion.button>
+                  )}
                   <motion.button
                     type="button"
-                    onClick={() => setMostrarPinCajero((v) => !v)}
-                    className="rounded-md bg-zinc-600 px-3 py-2 text-xs font-semibold text-white hover:bg-zinc-500"
+                    onClick={cambiarPinCajero}
+                    className="rounded-md bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700"
                     whileTap={{ scale: 0.95 }}
                   >
-                    {mostrarPinCajero ? 'Ocultar' : 'Ver'}
+                    {datosNegocio?.pinCajero ? 'Cambiar' : 'Crear'}
                   </motion.button>
-                )}
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-md bg-zinc-700/50 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="font-medium text-zinc-100">Backup Manual</p>
+                  <p className="text-xs text-zinc-400">
+                    Descarga un archivo JSON con todos tus datos.
+                  </p>
+                </div>
                 <motion.button
-                  type="button"
-                  onClick={cambiarPinCajero}
-                  className="rounded-md bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700"
+                  onClick={handleBackupData}
+                  disabled={isLoading}
+                  className="flex items-center gap-2 rounded-md bg-green-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-green-700 disabled:bg-zinc-500"
+                  whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  {datosNegocio?.pinCajero ? 'Cambiar' : 'Crear'}
+                  <Download size={14} />
+                  {isLoading ? 'Generando...' : 'Generar Backup'}
                 </motion.button>
               </div>
             </div>
-          </div>
 
-          <div className="rounded-md bg-zinc-700/50 p-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium text-zinc-100">Backup Manual</p>
-                <p className="text-xs text-zinc-400">
-                  Descarga un archivo JSON con todos tus datos.
-                </p>
+            <div className="rounded-md bg-zinc-700/50 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="font-medium text-zinc-100">Reparar Datos</p>
+                  <p className="text-xs text-zinc-400">
+                    Usa esto si no ves tus ventas o productos antiguos.
+                  </p>
+                </div>
+                <motion.button
+                  onClick={handleRepairData}
+                  className="flex items-center gap-2 rounded-md bg-orange-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-orange-700"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <Database size={14} />
+                  Reparar
+                </motion.button>
               </div>
-              <motion.button
-                onClick={handleBackupData}
-                disabled={isLoading}
-                className="flex items-center gap-2 rounded-md bg-green-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-green-700 disabled:bg-zinc-500"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Download size={14} />
-                {isLoading ? 'Generando...' : 'Generar Backup'}
-              </motion.button>
-            </div>
-          </div>
-
-          <div className="mt-4 rounded-md bg-zinc-700/50 p-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium text-zinc-100">Reparar Datos</p>
-                <p className="text-xs text-zinc-400">
-                  Usa esto si no ves tus ventas o productos antiguos.
-                </p>
-              </div>
-              <motion.button
-                onClick={handleRepairData}
-                className="flex items-center gap-2 rounded-md bg-orange-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-orange-700"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Database size={14} />
-                Reparar
-              </motion.button>
             </div>
           </div>
 
