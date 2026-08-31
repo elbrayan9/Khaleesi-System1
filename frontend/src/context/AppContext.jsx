@@ -2022,9 +2022,22 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
       return;
     }
 
+    // Una nota con CAE ya está declarada en AFIP, y de allá no se borra nada.
+    // Sacarla de acá deja las dos versiones peleadas: AFIP con la venta anulada
+    // y el sistema con la venta viva. Eso no lo arregla después nadie, así que
+    // no se permite —ni al dueño—. Si la nota estuvo mal, se emite la contraria,
+    // que es como se corrige un comprobante fiscal.
+    if (notaAEliminar.cae) {
+      mostrarMensaje?.(
+        `Esta nota tiene CAE ${notaAEliminar.cae} y ya está declarada en AFIP: no se puede borrar. Si estuvo mal, emitile la nota contraria.`,
+        'error',
+      );
+      return;
+    }
+
     const result = await Swal.fire({
       title: '¿Eliminar Nota?',
-      html: `¿Seguro de eliminar la nota de tipo <strong>${notaAEliminar.tipo}</strong> para "<strong>${notaAEliminar.clienteNombre}</strong>"?<br/>Esta acción no se puede deshacer.`,
+      html: `¿Seguro de eliminar la nota de tipo <strong>${notaAEliminar.tipo}</strong> para "<strong>${notaAEliminar.clienteNombre}</strong>"?<br/>No tiene CAE, así que nunca llegó a AFIP.<br/>Esta acción no se puede deshacer.`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonText: 'Sí, eliminar',

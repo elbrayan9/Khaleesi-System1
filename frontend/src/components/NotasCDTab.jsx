@@ -762,7 +762,10 @@ function NotasCDTab({
                             <MessageCircle className="inline-block h-4 w-4" />
                           </motion.button>
                         )}
-                        {puedeEliminar && (
+                        {/* Una nota con CAE está declarada en AFIP y no se
+                            borra: ni acá ni allá. El botón directamente no
+                            aparece, en vez de aparecer y contestar que no. */}
+                        {puedeEliminar && !n.cae && (
                           <motion.button
                             onClick={() => handleEliminarNotaCD(n.id)}
                             className="rounded p-1 text-red-500 hover:text-red-400"
