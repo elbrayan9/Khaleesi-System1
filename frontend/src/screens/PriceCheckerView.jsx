@@ -1,6 +1,7 @@
 // frontend/src/screens/PriceCheckerView.jsx
 
 import React, { useState, useRef, useEffect } from 'react';
+import useRelayEscaner from '../hooks/useRelayEscaner.js';
 import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { db, auth } from '../firebaseConfig';
@@ -26,6 +27,21 @@ const PriceCheckerView = () => {
     // Enfocar el input de búsqueda al cargar la página
     inputRef.current?.focus();
   }, []);
+
+  // El celular como pistola, también acá.
+  //
+  // El verificador se maneja con un lector conectado a esta pantalla, que
+  // escribe el código como si fuera un teclado. Eso obliga al comercio a
+  // comprar un lector solo para esto —justo lo contrario de lo que promete el
+  // resto del sistema—. Con el puente, un teléfono viejo colgado en la góndola
+  // hace el mismo trabajo.
+  //
+  // Es el mismo hook que usan la venta y la carga de productos: el código viaja
+  // por scannerRelay y entra acá igual que si lo hubiera tipeado alguien.
+  useRelayEscaner(sucursalId, (codigo) => {
+    setSearchTerm(codigo);
+    handleSearch(null, codigo);
+  });
 
   // El verificador muestra SOLO los productos del negocio que abrió la pantalla.
   useEffect(() => {
@@ -67,9 +83,11 @@ const PriceCheckerView = () => {
     if (sucursalId) localStorage.setItem('verificadorSucursal', sucursalId);
   }, [sucursalId]);
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    if (!searchTerm.trim()) return;
+  const handleSearch = async (e, codigoDirecto) => {
+    e?.preventDefault?.();
+    // El código puede venir del formulario o del celular usado como pistola.
+    const termino = String(codigoDirecto ?? searchTerm).trim();
+    if (!termino) return;
 
     // Sin sesión no se puede saber de qué negocio son los precios: se cortaría
     // buscando en los productos de todos los comercios del sistema.
@@ -85,7 +103,6 @@ const PriceCheckerView = () => {
 
     try {
       const productsRef = collection(db, 'productos');
-      const termino = searchTerm.trim();
 
       // Busca por campo, acotado al negocio y —si hay varios locales— a la
       // sucursal elegida, porque el precio puede cambiar entre locales.
