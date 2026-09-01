@@ -39,6 +39,7 @@ import {
   emailDeLaCuenta,
 } from '../utils/recuperarPinCajero.js';
 import useModoCajero from '../hooks/useModoCajero.js';
+import ErrorBoundary from './ErrorBoundary.jsx';
 import {
   setModoCajero,
   getPinCajero,
@@ -478,7 +479,16 @@ function Layout() {
 
         <main className="flex-1 overflow-y-auto p-3 md:p-6">
           <SubscriptionStatusBanner />
-          <Outlet />
+          {/* Cada pantalla envuelta por separado: si una se rompe, el menú y el
+              resto del sistema siguen andando y se puede seguir trabajando. La
+              clave por ruta hace que al cambiar de pantalla el error se limpie
+              solo, sin tener que recargar.
+
+              Antes no había ninguno acá: cualquier error dejaba la app entera
+              en negro, sin una palabra de qué pasó. */}
+          <ErrorBoundary key={currentPath}>
+            <Outlet />
+          </ErrorBoundary>
         </main>
 
         <Footer simple={true} />
