@@ -9,11 +9,17 @@ import {
 // tiempo real (Firestore) a la venta abierta en la PC. Reusa la cuenta actual.
 
 import React, { useEffect, useRef, useState } from 'react';
-import { BrowserMultiFormatReader } from '@zxing/browser';
+import {
+  crearLector,
+  restricciones,
+  listarCamaras,
+  elegirCamara,
+  nombreDeCamara,
+} from '../utils/lectorCamara.js';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { useAppContext } from '../context/AppContext.jsx';
-import { ScanLine, Wifi } from 'lucide-react';
+import { ScanLine, Wifi, Flashlight } from 'lucide-react';
 
 /**
  * Qué mostrar del último código escaneado.
@@ -41,15 +47,40 @@ function ScannerPistola() {
   const [ultimo, setUltimo] = useState('');
   const [count, setCount] = useState(0);
 
+  // La sucursal y el usuario van por ref y no como dependencias del efecto.
+  //
+  // Estaban como dependencias, así que cualquier cambio de identidad de esos
+  // objetos —y el contexto los rearma seguido— **apagaba y volvía a prender la
+  // cámara**. En iPhone se reengancha tan rápido que no se nota; en Android
+  // tarda, a veces la cámara queda tomada por el stream anterior y lo que se ve
+  // es el fondo negro del contenedor. La cámara tiene que arrancar una vez y
+  // apagarse al salir, nada más.
+  const datosRef = useRef({ sucursalActual, currentUser });
+  datosRef.current = { sucursalActual, currentUser };
+
+  const [camaras, setCamaras] = useState([]);
+  const [camaraElegida, setCamaraElegida] = useState(undefined);
+  const [tieneLinterna, setTieneLinterna] = useState(false);
+  const [linterna, setLinterna] = useState(false);
+
   useEffect(() => {
     if (!navigator.mediaDevices?.getUserMedia) {
       setError('Este dispositivo no tiene cámara disponible.');
       return undefined;
     }
-    const reader = new BrowserMultiFormatReader();
-    reader
+
+    // `cancelado` cierra una carrera real: si el efecto se rehace antes de que
+    // la promesa resuelva, la limpieza no tenía qué apagar —los controles
+    // todavía no existían— y quedaban dos streams peleando por la cámara. En
+    // Android la cámara es exclusiva: el segundo falla y la pantalla queda
+    // negra.
+    let cancelado = false;
+    let controles = null;
+
+    const lector = crearLector();
+    lector
       .decodeFromConstraints(
-        { video: { facingMode: { ideal: 'environment' } } },
+        restricciones(camaraElegida),
         videoRef.current,
         async (result) => {
           if (!result) return;
@@ -59,11 +90,12 @@ function ScannerPistola() {
           if (code === lastRef.current.code && now - lastRef.current.t < 1500)
             return;
           lastRef.current = { code, t: now };
-          const sucId = sucursalActual?.id;
-          if (!sucId || !currentUser?.uid) return;
+          const { sucursalActual: suc, currentUser: user } = datosRef.current;
+          const sucId = suc?.id;
+          if (!sucId || !user?.uid) return;
           try {
             await setDoc(doc(db, 'scannerRelay', sucId), {
-              userId: currentUser.uid,
+              userId: user.uid,
               codigo: code,
               ts: now,
             });
@@ -79,19 +111,53 @@ function ScannerPistola() {
           }
         },
       )
-      .then((c) => {
+      .then(async (c) => {
+        if (cancelado) {
+          c?.stop();
+          return;
+        }
+        controles = c;
         controlsRef.current = c;
+        setTieneLinterna(typeof c?.switchTorch === 'function');
+
+        // Los nombres de las cámaras recién existen después de que la persona
+        // dio permiso, así que la lista se arma ahora y no antes.
+        const encontradas = await listarCamaras();
+        if (cancelado) return;
+        setCamaras(encontradas);
+        // Si el navegador eligió sola una lente que no enfoca de cerca, se
+        // corrige acá: el efecto se rehace con la buena.
+        if (camaraElegida === undefined) {
+          const mejor = elegirCamara(encontradas);
+          if (mejor) setCamaraElegida(mejor);
+        }
       })
-      .catch((e) => setError(e?.message || 'No se pudo abrir la cámara.'));
+      .catch((e) => {
+        if (cancelado) return;
+        setError(e?.message || 'No se pudo abrir la cámara.');
+      });
+
     return () => {
+      cancelado = true;
       try {
-        controlsRef.current?.stop();
-      } catch (_) {
+        (controles || controlsRef.current)?.stop();
+      } catch {
         /* ignore */
       }
+      controlsRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sucursalActual, currentUser]);
+  }, [camaraElegida]);
+
+  // La linterna cambia todo en un local con poca luz: sin ella, un código
+  // impreso en cartón oscuro no se lee nunca.
+  const alternarLinterna = async () => {
+    try {
+      await controlsRef.current?.switchTorch?.(!linterna);
+      setLinterna((v) => !v);
+    } catch {
+      setTieneLinterna(false);
+    }
+  };
 
   return (
     <div className="mx-auto max-w-md text-white" onPointerDown={prepararSonido}>
@@ -119,7 +185,49 @@ function ScannerPistola() {
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
               <div className="h-24 w-4/5 rounded-lg border-2 border-sky-400/80" />
             </div>
+            {tieneLinterna && (
+              <button
+                type="button"
+                onClick={alternarLinterna}
+                aria-label={linterna ? 'Apagar la luz' : 'Prender la luz'}
+                className={`absolute right-3 top-3 rounded-full p-2.5 ${
+                  linterna
+                    ? 'bg-amber-400 text-zinc-900'
+                    : 'bg-black/50 text-white'
+                }`}
+              >
+                <Flashlight className="h-5 w-5" />
+              </button>
+            )}
           </div>
+
+          {/* La salida de emergencia cuando el navegador eligió mal.
+              Android expone la gran angular, la macro y hasta el sensor de
+              profundidad como si fueran cámaras comunes, y ninguna enfoca a
+              20 cm. El sistema trata de esquivarlas solo, pero si igual no lee,
+              acá se cambia a mano y se termina el problema. */}
+          {camaras.length > 1 && (
+            <div className="mt-3">
+              <label
+                htmlFor="camara-elegida"
+                className="mb-1 block text-xs text-zinc-400"
+              >
+                ¿No lee? Probá con otra cámara
+              </label>
+              <select
+                id="camara-elegida"
+                value={camaraElegida || ''}
+                onChange={(e) => setCamaraElegida(e.target.value)}
+                className="w-full rounded-md border border-zinc-600 bg-zinc-800 p-2 text-sm text-zinc-100"
+              >
+                {camaras.map((c, i) => (
+                  <option key={c.deviceId} value={c.deviceId}>
+                    {nombreDeCamara(c, i)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="mt-3 rounded-lg bg-zinc-800 p-3 text-center">
             <p className="text-xs uppercase tracking-wider text-zinc-500">
               Último enviado

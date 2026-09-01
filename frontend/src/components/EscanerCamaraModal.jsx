@@ -7,13 +7,19 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Camera } from 'lucide-react';
-import { BrowserMultiFormatReader } from '@zxing/browser';
+import {
+  crearLector,
+  restricciones,
+  listarCamaras,
+  elegirCamara,
+} from '../utils/lectorCamara.js';
 
 function EscanerCamaraModal({ onDetected, onClose }) {
   const videoRef = useRef(null);
   const controlsRef = useRef(null);
   const doneRef = useRef(false);
   const [error, setError] = useState('');
+  const [camaraElegida, setCamaraElegida] = useState(undefined);
 
   useEffect(() => {
     const hasCamera =
@@ -27,10 +33,13 @@ function EscanerCamaraModal({ onDetected, onClose }) {
       return undefined;
     }
 
-    const reader = new BrowserMultiFormatReader();
+    // El lector común: formatos de comercio, 1280x720 y enfoque continuo. Sin
+    // eso, en Android el navegador abre la gran angular en 640x480 y las barras
+    // de un código no se resuelven nunca. Ver utils/lectorCamara.js.
+    const reader = crearLector();
     reader
       .decodeFromConstraints(
-        { video: { facingMode: { ideal: 'environment' } } },
+        restricciones(camaraElegida),
         videoRef.current,
         (result, err, controls) => {
           controlsRef.current = controls;
@@ -45,8 +54,14 @@ function EscanerCamaraModal({ onDetected, onClose }) {
           }
         },
       )
-      .then((controls) => {
+      .then(async (controls) => {
         controlsRef.current = controls;
+        // Los nombres de las cámaras recién existen después del permiso. Si el
+        // navegador agarró una lente que no enfoca de cerca, se corrige acá.
+        if (camaraElegida === undefined) {
+          const mejor = elegirCamara(await listarCamaras());
+          if (mejor) setCamaraElegida(mejor);
+        }
       })
       .catch((e) => {
         setError(
@@ -57,7 +72,9 @@ function EscanerCamaraModal({ onDetected, onClose }) {
       });
 
     return () => {
-      doneRef.current = true;
+      // No se marca como terminado al cambiar de cámara, solo al cerrar: si no,
+      // el segundo intento arranca sordo y no lee nunca.
+      if (camaraElegida !== undefined) doneRef.current = false;
       try {
         controlsRef.current?.stop();
       } catch (_) {
@@ -65,7 +82,7 @@ function EscanerCamaraModal({ onDetected, onClose }) {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [camaraElegida]);
 
   return (
     <motion.div
