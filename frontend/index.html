@@ -1,7 +1,19 @@
 <!doctype html>
-<html lang="en">
+<html lang="es-AR" translate="no">
   <head>
     <meta charset="UTF-8" />
+    <!-- El sistema NO se traduce, y esto no es una preferencia de estilo.
+         La página decía `lang="en"` con el contenido en español, así que Chrome
+         en Android la traducía sola. Google Translate reescribe los nodos de
+         texto, y cuando React va a actualizar uno se encuentra con que ya no es
+         suyo: revienta con "removeChild: the node to be removed is not a child
+         of this node" y se cae la app entera. Pasaba al escanear un código, que
+         es cuando ese texto cambia.
+
+         Además, un punto de venta traducido a máquina es peligroso de por sí:
+         los importes, los tipos de comprobante y los botones de cobrar no
+         pueden salir reescritos por nadie. -->
+    <meta name="google" content="notranslate" />
     <link rel="icon" type="image/svg+xml" href="/khaleesi-system.svg" />
     <link
       rel="stylesheet"

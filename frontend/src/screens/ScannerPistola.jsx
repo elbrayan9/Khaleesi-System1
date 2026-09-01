@@ -235,8 +235,13 @@ function ScannerPistola() {
             <p className="break-all font-mono text-base leading-snug text-white">
               {paraMostrar(ultimo)}
             </p>
+            {/* Un solo texto armado en JS, y no `{count} código{...} enviados`.
+                Esa forma mezcla varios nodos de texto hermanos y hace que React
+                agregue y saque nodos al cambiar el número — justo lo que se
+                rompe si algo de afuera tocó el DOM. Con una sola cadena, React
+                solo actualiza el contenido. */}
             <p className="mt-1 text-xs text-zinc-400">
-              {count} código{count === 1 ? '' : 's'} enviados
+              {`${count} ${count === 1 ? 'código enviado' : 'códigos enviados'}`}
             </p>
           </div>
         </>
