@@ -14,12 +14,12 @@ import {
   restricciones,
   listarCamaras,
   elegirCamara,
-  nombreDeCamara,
 } from '../utils/lectorCamara.js';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { useAppContext } from '../context/AppContext.jsx';
-import { ScanLine, Wifi, Flashlight } from 'lucide-react';
+import { ScanLine, Wifi } from 'lucide-react';
+import SelectorCamara from '../components/ui/SelectorCamara.jsx';
 
 /**
  * Qué mostrar del último código escaneado.
@@ -185,49 +185,18 @@ function ScannerPistola() {
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
               <div className="h-24 w-4/5 rounded-lg border-2 border-sky-400/80" />
             </div>
-            {tieneLinterna && (
-              <button
-                type="button"
-                onClick={alternarLinterna}
-                aria-label={linterna ? 'Apagar la luz' : 'Prender la luz'}
-                className={`absolute right-3 top-3 rounded-full p-2.5 ${
-                  linterna
-                    ? 'bg-amber-400 text-zinc-900'
-                    : 'bg-black/50 text-white'
-                }`}
-              >
-                <Flashlight className="h-5 w-5" />
-              </button>
-            )}
           </div>
 
-          {/* La salida de emergencia cuando el navegador eligió mal.
-              Android expone la gran angular, la macro y hasta el sensor de
-              profundidad como si fueran cámaras comunes, y ninguna enfoca a
-              20 cm. El sistema trata de esquivarlas solo, pero si igual no lee,
-              acá se cambia a mano y se termina el problema. */}
-          {camaras.length > 1 && (
-            <div className="mt-3">
-              <label
-                htmlFor="camara-elegida"
-                className="mb-1 block text-xs text-zinc-400"
-              >
-                ¿No lee? Probá con otra cámara
-              </label>
-              <select
-                id="camara-elegida"
-                value={camaraElegida || ''}
-                onChange={(e) => setCamaraElegida(e.target.value)}
-                className="w-full rounded-md border border-zinc-600 bg-zinc-800 p-2 text-sm text-zinc-100"
-              >
-                {camaras.map((c, i) => (
-                  <option key={c.deviceId} value={c.deviceId}>
-                    {nombreDeCamara(c, i)}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+          <SelectorCamara
+            id="camara-pistola"
+            camaras={camaras}
+            elegida={camaraElegida}
+            onElegir={setCamaraElegida}
+            tieneLinterna={tieneLinterna}
+            linterna={linterna}
+            onLinterna={alternarLinterna}
+          />
+
           <div className="mt-3 rounded-lg bg-zinc-800 p-3 text-center">
             <p className="text-xs uppercase tracking-wider text-zinc-500">
               Último enviado

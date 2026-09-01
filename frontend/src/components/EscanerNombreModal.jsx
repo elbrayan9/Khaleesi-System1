@@ -5,6 +5,14 @@
 // por código de barras. Devuelve el nombre + la foto capturada.
 
 import React, { useEffect, useRef, useState } from 'react';
+import SelectorCamara from './ui/SelectorCamara.jsx';
+import {
+  restricciones,
+  listarCamaras,
+  elegirCamara,
+  streamTieneLinterna,
+  linternaDeStream,
+} from '../utils/lectorCamara.js';
 import { motion } from 'framer-motion';
 import { X, Camera } from 'lucide-react';
 
@@ -13,19 +21,49 @@ function EscanerNombreModal({ onDetected, onClose }) {
   const streamRef = useRef(null);
   const [error, setError] = useState('');
   const [procesando, setProcesando] = useState(false);
+  const [camaras, setCamaras] = useState([]);
+  const [camaraElegida, setCamaraElegida] = useState(undefined);
+  const [tieneLinterna, setTieneLinterna] = useState(false);
+  const [linterna, setLinterna] = useState(false);
 
   useEffect(() => {
+    // `cancelado` cierra la misma carrera que en los otros escáneres: si el
+    // efecto se rehace al cambiar de cámara antes de que abra la anterior,
+    // quedan dos streams peleando por un aparato que es exclusivo y la
+    // pantalla queda negra.
+    let cancelado = false;
+    let propio = null;
+
     (async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' } },
-        });
+        // Las mismas restricciones que el lector de códigos: acá la
+        // resolución importa todavía más, porque de esta foto la IA tiene que
+        // leer el nombre del producto. A 640x480 se le escapan las letras
+        // chicas del envase.
+        const stream = await navigator.mediaDevices.getUserMedia(
+          restricciones(camaraElegida),
+        );
+        if (cancelado) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        propio = stream;
         streamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           await videoRef.current.play();
         }
+        setTieneLinterna(streamTieneLinterna(stream));
+
+        const encontradas = await listarCamaras();
+        if (cancelado) return;
+        setCamaras(encontradas);
+        if (camaraElegida === undefined) {
+          const mejor = elegirCamara(encontradas);
+          if (mejor) setCamaraElegida(mejor);
+        }
       } catch (e) {
+        if (cancelado) return;
         setError(
           e?.name === 'NotAllowedError'
             ? 'No diste permiso a la cámara.'
@@ -33,10 +71,18 @@ function EscanerNombreModal({ onDetected, onClose }) {
         );
       }
     })();
+
     return () => {
-      streamRef.current?.getTracks().forEach((t) => t.stop());
+      cancelado = true;
+      (propio || streamRef.current)?.getTracks().forEach((t) => t.stop());
     };
-  }, []);
+  }, [camaraElegida]);
+
+  const alternarLinterna = async () => {
+    const ok = await linternaDeStream(streamRef.current, !linterna);
+    if (ok) setLinterna((v) => !v);
+    else setTieneLinterna(false);
+  };
 
   const capturar = async () => {
     const v = videoRef.current;
@@ -50,9 +96,8 @@ function EscanerNombreModal({ onDetected, onClose }) {
       canvas.getContext('2d').drawImage(v, 0, 0);
       const base64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
 
-      const { getFunctions, httpsCallable } = await import(
-        'firebase/functions'
-      );
+      const { getFunctions, httpsCallable } =
+        await import('firebase/functions');
       const fn = httpsCallable(getFunctions(), 'identificarProductoFoto');
       const res = await fn({ imageBase64: base64, mimeType: 'image/jpeg' });
       const nombre = res.data?.nombre || '';
@@ -110,6 +155,15 @@ function EscanerNombreModal({ onDetected, onClose }) {
               playsInline
             />
           </div>
+          <SelectorCamara
+            id="camara-ia"
+            camaras={camaras}
+            elegida={camaraElegida}
+            onElegir={setCamaraElegida}
+            tieneLinterna={tieneLinterna}
+            linterna={linterna}
+            onLinterna={alternarLinterna}
+          />
           <p className="mt-2 text-center text-xs text-zinc-400">
             Encuadrá el <strong>frente del producto</strong> y capturá. La IA lo
             identifica.

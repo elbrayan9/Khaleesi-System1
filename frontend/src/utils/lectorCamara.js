@@ -68,7 +68,8 @@ export function crearLector() {
  * suele ser la que el navegador elige sola y tiene una distancia mínima de
  * enfoque de medio metro.
  */
-const LENTES_QUE_NO = /wide|ultra|gran ?angular|depth|profundidad|macro|mono|tele/i;
+const LENTES_QUE_NO =
+  /wide|ultra|gran ?angular|depth|profundidad|macro|mono|tele/i;
 
 /** ¿Es una cámara trasera? Los navegadores lo escriben de varias formas. */
 const ES_TRASERA = /back|rear|environment|trasera|posterior/i;
@@ -138,4 +139,32 @@ export function nombreDeCamara(dispositivo, indice) {
   if (!etiqueta) return `Cámara ${indice + 1}`;
   if (LENTES_QUE_NO.test(etiqueta)) return `${etiqueta} (no sirve de cerca)`;
   return etiqueta;
+}
+
+/**
+ * ¿Este stream puede prender la linterna?
+ *
+ * Va aparte de la de ZXing porque el escáner con IA abre la cámara a mano, con
+ * getUserMedia, y ahí no hay controles de la librería: la linterna se pide
+ * sobre la pista de video.
+ */
+export function streamTieneLinterna(stream) {
+  try {
+    const pista = stream?.getVideoTracks?.()[0];
+    return Boolean(pista?.getCapabilities?.().torch);
+  } catch {
+    return false;
+  }
+}
+
+/** Prende o apaga la linterna de un stream abierto a mano. */
+export async function linternaDeStream(stream, encendida) {
+  const pista = stream?.getVideoTracks?.()[0];
+  if (!pista) return false;
+  try {
+    await pista.applyConstraints({ advanced: [{ torch: !!encendida }] });
+    return true;
+  } catch {
+    return false;
+  }
 }

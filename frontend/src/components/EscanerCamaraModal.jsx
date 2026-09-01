@@ -7,6 +7,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Camera } from 'lucide-react';
+import SelectorCamara from './ui/SelectorCamara.jsx';
 import {
   crearLector,
   restricciones,
@@ -20,6 +21,18 @@ function EscanerCamaraModal({ onDetected, onClose }) {
   const doneRef = useRef(false);
   const [error, setError] = useState('');
   const [camaraElegida, setCamaraElegida] = useState(undefined);
+  const [camaras, setCamaras] = useState([]);
+  const [tieneLinterna, setTieneLinterna] = useState(false);
+  const [linterna, setLinterna] = useState(false);
+
+  const alternarLinterna = async () => {
+    try {
+      await controlsRef.current?.switchTorch?.(!linterna);
+      setLinterna((v) => !v);
+    } catch {
+      setTieneLinterna(false);
+    }
+  };
 
   useEffect(() => {
     const hasCamera =
@@ -56,10 +69,14 @@ function EscanerCamaraModal({ onDetected, onClose }) {
       )
       .then(async (controls) => {
         controlsRef.current = controls;
+        setTieneLinterna(typeof controls?.switchTorch === 'function');
         // Los nombres de las cámaras recién existen después del permiso. Si el
-        // navegador agarró una lente que no enfoca de cerca, se corrige acá.
+        // navegador agarró una lente que no enfoca de cerca, se corrige acá; y
+        // si igual no lee, la persona la cambia a mano con el selector.
+        const encontradas = await listarCamaras();
+        setCamaras(encontradas);
         if (camaraElegida === undefined) {
-          const mejor = elegirCamara(await listarCamaras());
+          const mejor = elegirCamara(encontradas);
           if (mejor) setCamaraElegida(mejor);
         }
       })
@@ -126,6 +143,15 @@ function EscanerCamaraModal({ onDetected, onClose }) {
                   <div className="h-24 w-4/5 rounded-lg border-2 border-sky-400/80" />
                 </div>
               </div>
+              <SelectorCamara
+                id="camara-carga"
+                camaras={camaras}
+                elegida={camaraElegida}
+                onElegir={setCamaraElegida}
+                tieneLinterna={tieneLinterna}
+                linterna={linterna}
+                onLinterna={alternarLinterna}
+              />
               <p className="mt-3 text-center text-xs text-zinc-400">
                 Apuntá al código de barras o QR. Se agrega solo al detectarlo.
               </p>
