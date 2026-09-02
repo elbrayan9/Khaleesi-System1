@@ -21,6 +21,7 @@ import { onAuthStateChanged, signOut } from 'firebase/auth';
 import * as fsService from '../services/firestoreService';
 import { obtenerFechaHoraActual, formatCurrency } from '../utils/helpers';
 import { buscarDuplicados, resumenDuplicados } from '../utils/duplicados.js';
+import { parseMontoPositivo } from '../utils/monto.js';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import Swal from '../utils/swalTheme.js'; // Swal con el tema del sistema
 import { sonarEscaneo } from '../utils/sonido.js';
@@ -739,11 +740,14 @@ export const AppProvider = ({ children, mostrarMensaje, confirmarAccion }) => {
 
   // Ítem manual a carrito
   const handleAddManualItemToCart = (descripcion, monto) => {
-    if (!descripcion.trim() || isNaN(monto) || Number(monto) <= 0) {
+    // `Number()` lee el punto como coma decimal, al revés de como el propio
+    // sistema muestra la plata: quien escribía "28.000" cargaba 28 pesos y el
+    // carrito no se quejaba. Lo encontró un cliente cobrando de verdad.
+    const montoNum = parseMontoPositivo(monto);
+    if (!descripcion.trim() || montoNum === null) {
       mostrarMensaje?.('Ingrese una descripción y un monto válido.', 'warning');
       return false;
     }
-    const montoNum = Number(monto);
     const manualId = generateLocalId('manual_');
     const manualItem = {
       id: manualId,

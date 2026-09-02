@@ -755,7 +755,12 @@ function VentaTab() {
                       Monto Total ($):
                     </label>
                     <input
-                      type="number"
+                      // `type="number"` RECHAZA la coma: quien escribía
+                      // "28,50" veía desaparecer lo que tipeó. Con text +
+                      // inputMode el teclado del celular sigue abriendo en
+                      // números y se pueden escribir las dos formas.
+                      type="text"
+                      inputMode="decimal"
                       id="monto-venta-rapida"
                       value={montoManual}
                       onChange={(e) => setMontoManual(e.target.value)}

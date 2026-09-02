@@ -58,6 +58,27 @@ describe('ShiftManager', () => {
 
     fireEvent.click(screen.getByText('Confirmar e Iniciar'));
 
-    expect(mockHandleAbrirTurno).toHaveBeenCalledWith('v1', '5000');
+    // Un NUMERO, no el texto crudo: el modal ya normaliza el monto antes de
+    // pasarlo. Antes mandaba la cadena y quien la recibia hacia Number(), que
+    // es donde se perdian los miles.
+    expect(mockHandleAbrirTurno).toHaveBeenCalledWith('v1', 5000);
+  });
+
+  it('abre el turno con cinco mil cuando se escribe "5.000"', async () => {
+    // El punto de miles argentino. Sin normalizar, Number('5.000') da 5 y la
+    // caja del dia entero arranca con cinco pesos.
+    getOpenShift.mockResolvedValue({ empty: true });
+    render(<ShiftManager />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Abrir Turno')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('Abrir Turno'));
+
+    const input = await screen.findByPlaceholderText(/Ej: 5000/i);
+    fireEvent.change(input, { target: { value: '5.000' } });
+    fireEvent.click(screen.getByText('Confirmar e Iniciar'));
+
+    expect(mockHandleAbrirTurno).toHaveBeenCalledWith('v1', 5000);
   });
 });

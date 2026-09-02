@@ -22,6 +22,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import { formatCurrency } from '../utils/helpers.js';
+import { parseMonto } from '../utils/monto.js';
 import { useAppContext } from '../context/AppContext.jsx';
 
 // Los medios de pago con nombre legible. Las claves son las que guarda la venta
@@ -263,12 +264,13 @@ function CajaModal({
   };
 
   const guardarMovimiento = async () => {
-    const valor = parseFloat(monto);
+    // "28.000" entraba como 28 y descuadraba la caja del dia.
+    const valor = parseMonto(monto);
     if (!motivo.trim()) {
       mostrarMensaje('Poné un motivo para el movimiento.', 'warning');
       return;
     }
-    if (isNaN(valor) || valor <= 0) {
+    if (valor === null || valor <= 0) {
       mostrarMensaje('El monto tiene que ser mayor a cero.', 'warning');
       return;
     }
@@ -621,9 +623,8 @@ function CajaModal({
                         </label>
                         <input
                           id="caja-monto"
-                          type="number"
-                          min="0"
-                          step="0.01"
+                          type="text"
+                          inputMode="decimal"
                           value={monto}
                           onChange={(e) => setMonto(e.target.value)}
                           onKeyDown={(e) =>

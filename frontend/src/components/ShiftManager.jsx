@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { motion } from 'framer-motion';
 import { formatCurrency } from '../utils/helpers';
+import { parseMonto } from '../utils/monto.js';
 import { PlayCircle, StopCircle, Loader2 } from 'lucide-react';
 
 // --- MODAL PARA ABRIR TURNO ---
@@ -15,7 +16,9 @@ const OpenShiftModal = ({ isOpen, onClose, onConfirm }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onConfirm(montoInicial);
+    // Se normaliza ACA: "5.000" tiene que abrir el turno con cinco mil, no
+    // con cinco, o toda la caja del dia arranca mal.
+    onConfirm(parseMonto(montoInicial) ?? 0);
   };
 
   if (!isOpen) return null;
@@ -32,7 +35,8 @@ const OpenShiftModal = ({ isOpen, onClose, onConfirm }) => {
           <Label htmlFor="monto-inicial">Monto Inicial en Caja ($)</Label>
           <Input
             id="monto-inicial"
-            type="number"
+            type="text"
+            inputMode="decimal"
             value={montoInicial}
             onChange={(e) => setMontoInicial(e.target.value)}
             placeholder="Ej: 5000"

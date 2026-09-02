@@ -1,6 +1,7 @@
 // src/components/PaymentModal.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { formatCurrency } from '../utils/helpers';
+import { parseMonto } from '../utils/monto.js';
 import PaymentMethodSelect from './PaymentMethodSelect';
 import ReceiptTypeSelect from './ReceiptTypeSelect';
 import CobroMercadoPagoModal from './CobroMercadoPagoModal';
@@ -120,24 +121,25 @@ function PaymentModal({
   // paga el saldo restante (caso más común: paga todo con un billete).
   const vuelto = useMemo(() => {
     if (metodoPagoActual !== 'efectivo') return 0;
-    const recibido = parseFloat(pagaCon) || 0;
+    const recibido = parseMonto(pagaCon) || 0;
     if (recibido <= 0) return 0;
-    const aplica = parseFloat(montoActual) || montoRestante;
+    const aplica = parseMonto(montoActual) || montoRestante;
     return recibido > aplica ? parseFloat((recibido - aplica).toFixed(2)) : 0;
   }, [pagaCon, montoActual, metodoPagoActual, montoRestante]);
 
   // --- FUNCIÓN PARA AGREGAR PAGOS ---
   const handleAgregarPago = () => {
     const esEfectivo = metodoPagoActual === 'efectivo';
-    const recibido = parseFloat(pagaCon) || 0;
+    const recibido = parseMonto(pagaCon) || 0;
 
     // Monto a aplicar: lo tipeado; si es efectivo y solo se puso "paga con",
     // se aplica el saldo restante (caso común: paga todo con un billete).
-    let monto = parseFloat(montoActual);
-    if (isNaN(monto) && esEfectivo && recibido > 0) {
+    // Acá el error se llevaba el vuelto: "10.000" entraba como 10 pesos.
+    let monto = parseMonto(montoActual);
+    if (monto === null && esEfectivo && recibido > 0) {
       monto = montoRestante;
     }
-    if (isNaN(monto) || monto <= 0) {
+    if (monto === null || monto <= 0) {
       mostrarMensaje('Ingresá un monto o con cuánto paga.', 'warning');
       return;
     }
@@ -355,7 +357,9 @@ function PaymentModal({
                   <div className="flex">
                     <input
                       id="pago-monto"
-                      type="number"
+                      // text y no number: `type="number"` rechaza la coma, que
+                      // es justo como se escribe la plata acá.
+                      type="text"
                       // El teclado del celular abre en números y con coma, que es
                       // como se escribe la plata.
                       inputMode="decimal"
@@ -390,7 +394,7 @@ function PaymentModal({
                     ¿Con cuánto paga? (para calcular el vuelto):
                   </label>
                   <input
-                    type="number"
+                    type="text"
                     inputMode="decimal"
                     value={pagaCon}
                     onChange={(e) => setPagaCon(e.target.value)}
