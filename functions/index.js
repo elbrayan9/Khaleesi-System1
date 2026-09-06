@@ -1051,7 +1051,14 @@ exports.getProductosTienda = onCall(
             id: d.id,
             nombre: p.nombre || '',
             precio: Number(p.precio) || 0,
-            fotoUrl: p.fotoUrl || p.foto || '',
+            // imagenUrl y NO fotoUrl: es el nombre con el que lo guarda el
+            // formulario (ProductForm) y con el que lo lee la vitrina, y el que
+            // usan las otras 26 referencias del sistema. Esta linea tenia dos
+            // errores a la vez: leia `fotoUrl`/`foto`, que no los escribe nadie,
+            // y devolvia la clave `fotoUrl`, que la tienda no lee. Por eso los
+            // productos con foto salian sin foto. Se dejan los dos nombres
+            // viejos como respaldo por si quedo algun documento antiguo.
+            imagenUrl: p.imagenUrl || p.fotoUrl || p.foto || '',
             categoria: p.categoria || '',
             vendidoPor: p.vendidoPor || 'unidad',
             promo: Number(p.promo) || 0,
